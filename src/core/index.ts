@@ -1,32 +1,18 @@
 /**
  * Pure, engine-agnostic game core (ADR-002).
  *
- * Nothing in `src/core` may import `phaser` or touch the DOM — the core-purity
- * guard test (`corePurity.test.ts`) enforces this so every system here is
- * unit-testable without a browser (ADR-003). The shapes below are the minimal
- * anchors the "Entity Component System & Game Loop" feature fills in.
+ * Nothing in `src/core` imports `phaser` or touches the DOM (enforced by
+ * `corePurity.test.ts`). This barrel re-exports the Entity Component System &
+ * Game Loop substrate that every gameplay feature builds on as components and
+ * systems over the World.
  */
-
-/** An entity is an opaque, stable id. */
-export type Entity = number;
-
-/** A component is a plain, serializable data record tagged by `type`. */
-export interface Component {
-  readonly type: string;
-}
-
-/** The authoritative game state: entity ids plus their component stores. */
-export interface World {
-  readonly entities: ReadonlySet<Entity>;
-}
-
-/** A system advances the simulation by reading and writing the World. */
-export interface System {
-  readonly name: string;
-  update(world: World, dtMs: number): void;
-}
-
-/** Create an empty world. Real component stores arrive with the ECS feature. */
-export function createWorld(): World {
-  return { entities: new Set<Entity>() };
-}
+export type { EntityId } from './ecs/entity';
+export type { Component, ComponentType, ComponentStore } from './ecs/component';
+export { defineComponent } from './ecs/component';
+export type { SeededRNG } from './ecs/rng';
+export { makeRng } from './ecs/rng';
+export type { Command } from './ecs/commands';
+export type { GameEvent } from './ecs/events';
+export { CommandQueue, EventBus } from './ecs/queue';
+export type { World, System, StepContext } from './ecs/world';
+export { createWorld, advance } from './ecs/world';
