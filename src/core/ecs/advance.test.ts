@@ -16,7 +16,7 @@ const Health = defineComponent<Hp>('Health');
 
 describe('CommandQueue', () => {
   it('drain() returns commands in FIFO order and empties the queue', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const e = w.createEntity();
     const q = new CommandQueue();
     q.submit({ kind: 'EndTurn', entity: e });
@@ -32,7 +32,7 @@ describe('CommandQueue', () => {
 
 describe('advance() — systems, events, and commands', () => {
   it('runs systems in registration order', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const log: string[] = [];
     const record =
       (name: string): System =>
@@ -48,7 +48,7 @@ describe('advance() — systems, events, and commands', () => {
   });
 
   it('returns events emitted this step and clears the bus and command queue', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const e = w.createEntity();
     w.addSystem((world) => {
       for (const cmd of world.commands()) {
@@ -66,7 +66,7 @@ describe('advance() — systems, events, and commands', () => {
   });
 
   it('a later system sees events emitted earlier in the same step', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const seen: string[] = [];
     w.addSystem((world) => world.emit({ kind: 'EntityDied', entity: world.createEntity() }));
     w.addSystem((world) => {

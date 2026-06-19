@@ -13,7 +13,7 @@ const Health = defineComponent<Hp>('Health');
 
 describe('ComponentStore', () => {
   it('add then get returns the component; remove clears it', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const e = w.createEntity();
     const store = w.store(Position);
     expect(store.has(e)).toBe(false);
@@ -31,7 +31,7 @@ describe('ComponentStore', () => {
 
 describe('World.entitiesWith', () => {
   it('returns only entities possessing ALL queried types, ascending', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const a = w.createEntity();
     const b = w.createEntity();
     const c = w.createEntity();
@@ -48,7 +48,7 @@ describe('World.entitiesWith', () => {
 
 describe('Entity ids are never reused within a run', () => {
   it('ids are monotonic and a destroyed id is not reissued', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const a = w.createEntity();
     const b = w.createEntity();
     expect(b).toBeGreaterThan(a);
@@ -60,7 +60,7 @@ describe('Entity ids are never reused within a run', () => {
   });
 
   it('a stale handle resolves to not-found', () => {
-    const w = createWorld();
+    const w = createWorld(1);
     const e = w.createEntity();
     w.store(Position).add(e, { x: 3, y: 4 });
 

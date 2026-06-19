@@ -119,8 +119,12 @@ class WorldImpl implements InternalWorld {
   }
 }
 
-/** Create an empty, seeded World. */
-export function createWorld(seed: number = 0xc0ffee): World {
+/**
+ * Create an empty World seeded with the given RNG seed. Deterministic for a
+ * given seed (the ADR-002 contract); callers wanting per-run variety pass a
+ * clock-derived seed at the boundary rather than baking one in here.
+ */
+export function createWorld(seed: number): World {
   return new WorldImpl(seed);
 }
 

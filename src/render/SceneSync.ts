@@ -7,6 +7,8 @@ export interface RenderableView {
   readonly x: number;
   readonly y: number;
   readonly texture: string;
+  /** Optional frame index for multi-frame textures (spritesheets/strips). */
+  readonly frame?: number;
 }
 
 /**
@@ -27,7 +29,7 @@ export class SceneSync {
       seen.add(v.id);
       const existing = this.sprites.get(v.id);
       if (existing === undefined) {
-        this.sprites.set(v.id, this.scene.add.sprite(v.x, v.y, v.texture));
+        this.sprites.set(v.id, this.scene.add.sprite(v.x, v.y, v.texture, v.frame));
       } else if (existing.x !== v.x || existing.y !== v.y) {
         this.scene.tweens.add({ targets: existing, x: v.x, y: v.y, duration: 150 });
       }

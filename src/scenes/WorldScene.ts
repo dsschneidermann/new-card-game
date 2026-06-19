@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { advance, createWorld, defineComponent, type EntityId, type World } from '@core/index';
+import { advance, createWorld, defineComponent, AssetKeys, type EntityId, type World } from '@core/index';
 import { SceneSync, type RenderableView } from '@render/SceneSync';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 
@@ -9,15 +9,17 @@ interface Position {
 }
 interface Renderable {
   texture: string;
+  frame?: number;
 }
 const Position = defineComponent<Position>('Position');
 const Renderable = defineComponent<Renderable>('Renderable');
 
-const PLAYER_TEXTURE = 'placeholder.square';
-
 /**
  * Gameplay scene (the InLevel state). The minimal ECS harness from feature 02,
  * plus a Pause hook routed through the screen-flow controller (Esc opens Pause).
+ * Sprites come from the asset manifest (feature 03) via SceneSync; the run's RNG
+ * seed is derived from the clock so each run differs (feature 12 will persist it
+ * for resume/replay).
  */
 export class WorldScene extends Phaser.Scene {
   private world!: World;
@@ -30,9 +32,10 @@ export class WorldScene extends Phaser.Scene {
 
   create(): void {
     const router = this.registry.get('router') as ScreenRouter;
-    this.world = createWorld(0xc0ffee);
+    const seed = Date.now() >>> 0;
+    console.info('[world] run seed:', seed);
+    this.world = createWorld(seed);
     this.sync = new SceneSync(this);
-    this.ensureTexture(PLAYER_TEXTURE);
 
     this.world.addSystem((world) => {
       for (const cmd of world.commands()) {
@@ -51,7 +54,9 @@ export class WorldScene extends Phaser.Scene {
       x: this.scale.width / 2,
       y: this.scale.height / 2,
     });
-    this.world.store(Renderable).add(this.player, { texture: PLAYER_TEXTURE });
+    // Player token uses the manifest's player.idle placeholder (frame 0) via the
+    // feature-03 pipeline — no scene-local texture generation.
+    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, frame: 0 });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.world.submit({ kind: 'MoveTo', entity: this.player, x: p.worldX, y: p.worldY });
@@ -76,16 +81,14 @@ export class WorldScene extends Phaser.Scene {
     for (const [id, renderable] of this.world.store(Renderable).entries()) {
       const pos = positions.get(id);
       if (pos !== undefined) {
-        yield { id, x: pos.x, y: pos.y, texture: renderable.texture };
+        yield {
+          id,
+          x: pos.x,
+          y: pos.y,
+          texture: renderable.texture,
+          ...(renderable.frame !== undefined ? { frame: renderable.frame } : {}),
+        };
       }
     }
-  }
-
-  private ensureTexture(key: string): void {
-    if (this.textures.exists(key)) return;
-    const g = this.add.graphics();
-    g.fillStyle(0x4fd1c5, 1).fillRect(0, 0, 24, 24);
-    g.generateTexture(key, 24, 24);
-    g.destroy();
   }
 }
