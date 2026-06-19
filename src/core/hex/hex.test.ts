@@ -122,6 +122,23 @@ describe('findPath (BFS)', () => {
       expect(Math.abs(hexToPixel(LAYOUT, h).x - sx)).toBeLessThanOrEqual(LAYOUT.width / 2);
     }
   });
+
+  it('reroutes around a wall — a longer path is still found, never through blocked hexes', () => {
+    const grid = new HexGrid(12, 12);
+    const from = offsetToAxial({ col: 2, row: 6 });
+    const to = offsetToAxial({ col: 9, row: 6 });
+    // A wall down column 5 with a single gap at row 0 forces a detour over the top.
+    for (let row = 1; row < 12; row += 1) grid.setWalkable(offsetToAxial({ col: 5, row }), false);
+    const path = findPath(grid, from, to);
+    expect(path.length).toBeGreaterThan(0); // reachable via the gap
+    expect(path.length).toBeGreaterThan(hexDistance(from, to) + 1); // had to detour
+    expect(path[0]).toEqual(from);
+    expect(path[path.length - 1]).toEqual(to);
+    for (let i = 0; i < path.length; i += 1) {
+      expect(grid.isWalkable(path[i] as Hex)).toBe(true); // never routes through the wall
+      if (i > 0) expect(hexDistance(path[i - 1] as Hex, path[i] as Hex)).toBe(1); // contiguous
+    }
+  });
 });
 
 describe('movement system', () => {
