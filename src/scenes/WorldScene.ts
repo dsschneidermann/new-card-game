@@ -6,10 +6,14 @@ import {
   AssetKeys,
   HexGrid,
   HexPosition,
+  MovePath,
   makeMovementSystem,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
+  facingFromDelta,
+  type Facing,
+  type Hex,
   type HexLayout,
   type EntityId,
   type World,
@@ -23,18 +27,19 @@ const GRID_COLS = 28;
 const GRID_ROWS = 28;
 const STEP_MS = 110;
 
-/** What an entity looks like — texture + optional frame (presentation only). */
+/** What an entity looks like; animBase (e.g. 'player') drives state+facing anims. */
 interface RenderableData {
   texture: string;
   frame?: number;
+  animBase?: string;
 }
 const Renderable = defineComponent<RenderableData>('Renderable');
 
 /**
  * Gameplay scene (the InLevel state): a hex world grid (feature 05) over the
- * ECS. Click a hex to walk there — a BFS path is planned and the player hops
- * hex-to-hex in rapid succession via the movement system. Esc opens Pause. The
- * run's RNG seed is clock-derived (feature 12 will persist it for replay).
+ * ECS, with an animated player (feature 14). Click a hex to walk there — a BFS
+ * path is planned and the player hops hex-to-hex, playing its walk animation
+ * facing the direction of travel and idling when stopped. Esc opens Pause.
  */
 export class WorldScene extends Phaser.Scene {
   private world!: World;
@@ -42,6 +47,8 @@ export class WorldScene extends Phaser.Scene {
   private sync!: SceneSync;
   private player!: EntityId;
   private stepAccum = 0;
+  private readonly facings = new Map<EntityId, Facing>();
+  private readonly lastHex = new Map<EntityId, Hex>();
 
   constructor() {
     super('WorldScene');
@@ -61,7 +68,8 @@ export class WorldScene extends Phaser.Scene {
     this.player = this.world.createEntity();
     const start = offsetToAxial({ col: Math.floor(GRID_COLS / 2), row: Math.floor(GRID_ROWS / 2) });
     this.world.store(HexPosition).add(this.player, { hex: start });
-    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, frame: 0 });
+    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, animBase: 'player' });
+    this.facings.set(this.player, 'right');
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
@@ -82,28 +90,43 @@ export class WorldScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     // Advance the simulation one hex-step per STEP_MS so the player visibly
-    // hops hex-to-hex; between steps we still sync so tweens play out.
+    // hops hex-to-hex; between steps we still sync so tweens/anims play out.
     this.stepAccum += delta;
     while (this.stepAccum >= STEP_MS) {
       advance(this.world);
       this.stepAccum -= STEP_MS;
     }
+    this.updateFacings();
     this.sync.sync(this.renderables());
+  }
+
+  /** Update each entity's facing from its latest hop (horizontal-dominant rule). */
+  private updateFacings(): void {
+    for (const [id, pos] of this.world.store(HexPosition).entries()) {
+      const last = this.lastHex.get(id);
+      if (last !== undefined && (last.q !== pos.hex.q || last.r !== pos.hex.r)) {
+        const a = hexToPixel(LAYOUT, last);
+        const b = hexToPixel(LAYOUT, pos.hex);
+        this.facings.set(id, facingFromDelta(this.facings.get(id) ?? 'right', b.x - a.x, b.y - a.y));
+      }
+      this.lastHex.set(id, pos.hex);
+    }
   }
 
   private *renderables(): Generator<RenderableView> {
     const positions = this.world.store(HexPosition);
+    const paths = this.world.store(MovePath);
     for (const [id, r] of this.world.store(Renderable).entries()) {
       const pos = positions.get(id);
       if (pos === undefined) continue;
       const { x, y } = hexToPixel(LAYOUT, pos.hex);
-      yield {
-        id,
-        x,
-        y,
-        texture: r.texture,
-        ...(r.frame !== undefined ? { frame: r.frame } : {}),
-      };
+      if (r.animBase !== undefined) {
+        const facing = this.facings.get(id) ?? 'right';
+        const state = paths.has(id) ? 'walk' : 'idle';
+        yield { id, x, y, texture: r.texture, anim: `${r.animBase}.${state}.${facing}` };
+      } else {
+        yield { id, x, y, texture: r.texture, ...(r.frame !== undefined ? { frame: r.frame } : {}) };
+      }
     }
   }
 

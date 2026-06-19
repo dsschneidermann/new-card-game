@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, AssetKeys, PLAYER_ROWS, rowFrameRange } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
 
 /**
@@ -76,6 +76,27 @@ export class PreloadScene extends Phaser.Scene {
       console.info('[assets] registered but unused (seeded ahead of use):', report.unused);
     }
 
+    this.createPlayerAnims();
     this.scene.start('MainMenuScene');
+  }
+
+  /** Define the player's looping idle/walk animations for left/right facings (feature 14). */
+  private createPlayerAnims(): void {
+    const defs = [
+      { key: 'player.idle.left', sheet: AssetKeys.playerIdle, cols: 6, row: PLAYER_ROWS.left, fps: 6 },
+      { key: 'player.idle.right', sheet: AssetKeys.playerIdle, cols: 6, row: PLAYER_ROWS.right, fps: 6 },
+      { key: 'player.walk.left', sheet: AssetKeys.playerWalk, cols: 8, row: PLAYER_ROWS.left, fps: 12 },
+      { key: 'player.walk.right', sheet: AssetKeys.playerWalk, cols: 8, row: PLAYER_ROWS.right, fps: 12 },
+    ];
+    for (const d of defs) {
+      if (this.anims.exists(d.key)) continue;
+      const { start, end } = rowFrameRange(d.cols, d.row);
+      this.anims.create({
+        key: d.key,
+        frames: this.anims.generateFrameNumbers(d.sheet, { start, end }),
+        frameRate: d.fps,
+        repeat: -1,
+      });
+    }
   }
 }

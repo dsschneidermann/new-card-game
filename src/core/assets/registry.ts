@@ -31,8 +31,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset('world.tile.floor', [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
   asset('world.tile.wall', [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
   asset('world.tile.exit', [32, 32], 'glowing portal/stairs', 'Level exit', { frameWidth: 32, frameHeight: 32, count: 2 }),
-  asset('player.idle', [32, 32], 'heroic adventurer, bright palette', 'Player idle', { frameWidth: 32, frameHeight: 32, count: 4 }),
-  asset('player.walk', [32, 32], 'same character', 'Player walk cycle', { frameWidth: 32, frameHeight: 32, count: 6 }),
+  asset('player.idle', [64, 64], 'heroic adventurer, 4-direction sheet', 'Player idle (64px; rows down/up/left/right, 6 frames each)', { frameWidth: 64, frameHeight: 64, count: 24 }),
+  asset('player.walk', [64, 64], 'same character, 4-direction sheet', 'Player walk (64px; rows down/up/left/right, 8 frames each)', { frameWidth: 64, frameHeight: 64, count: 32 }),
   asset('enemy.melee.idle', [32, 32], 'brutish red with a club', 'Melee enemy idle', { frameWidth: 32, frameHeight: 32, count: 4 }),
   asset('resource.icon.energy', [24, 24], 'yellow lightning bolt', 'Energy icon'),
   asset('resource.icon.mana', [24, 24], 'blue droplet', 'Mana icon'),
@@ -50,7 +50,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
  * the Asset Placeholders plan.
  */
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
-  // 'brand.logo',  ← example: add once assets/brand.logo.png exists
+  'player.idle', // 64px directional spritesheet (feature 14)
+  'player.walk',
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */
@@ -66,6 +67,7 @@ export const AssetKeys = {
   worldWall: 'world.tile.wall',
   worldExit: 'world.tile.exit',
   playerIdle: 'player.idle',
+  playerWalk: 'player.walk',
 } as const;
 export type AssetKey = (typeof AssetKeys)[keyof typeof AssetKeys];
 

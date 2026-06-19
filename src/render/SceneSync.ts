@@ -7,18 +7,20 @@ export interface RenderableView {
   readonly x: number;
   readonly y: number;
   readonly texture: string;
-  /** Optional frame index for multi-frame textures (spritesheets/strips). */
+  /** Optional frame index for a static multi-frame texture. */
   readonly frame?: number;
+  /** Optional animation key to play (looping); takes precedence over frame. */
+  readonly anim?: string;
 }
 
 /**
  * Presentation bridge (ADR-002): reconciles renderable views to Phaser sprites
- * — creating new ones, tweening existing ones toward their new stand-point, and
- * destroying sprites whose entity is gone. The ECS never references sprites; the
- * scene calls sync() after each step. Sprites stand ON their hex (bottom-anchored)
- * and are depth-sorted by screen-Y so nearer (lower) sprites draw in front.
- * Tweens are only (re)started when an entity's target changes, so calling sync()
- * every frame during a hop does not spawn duplicate tweens.
+ * — creating new ones, tweening existing ones toward their new stand-point,
+ * playing animations, and destroying sprites whose entity is gone. The ECS never
+ * references sprites; the scene calls sync() after each step. Sprites stand ON
+ * their hex (bottom-anchored) and are depth-sorted by screen-Y so nearer (lower)
+ * sprites draw in front. Tweens and animations are only (re)started when their
+ * inputs change, so calling sync() every frame does not restart them.
  */
 export class SceneSync {
   private readonly sprites = new Map<EntityId, Phaser.GameObjects.Sprite>();
@@ -44,6 +46,11 @@ export class SceneSync {
           this.scene.tweens.add({ targets: sprite, x: v.x, y: v.y, duration: this.stepDurationMs });
           this.targets.set(v.id, { x: v.x, y: v.y });
         }
+      }
+      if (v.anim !== undefined) {
+        if (sprite.anims.currentAnim?.key !== v.anim) sprite.play(v.anim);
+      } else if (v.frame !== undefined) {
+        sprite.setFrame(v.frame);
       }
       sprite.setDepth(v.y);
     }
