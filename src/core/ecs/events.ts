@@ -8,4 +8,5 @@ import type { EntityId } from './entity';
 export type GameEvent =
   | { kind: 'CardPlayed'; entity: EntityId; cardId: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
-  | { kind: 'EntityDied'; entity: EntityId };
+  | { kind: 'EntityDied'; entity: EntityId }
+  | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number };

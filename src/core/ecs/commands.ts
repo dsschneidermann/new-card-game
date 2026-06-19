@@ -5,7 +5,7 @@ import type { EntityId } from './entity';
  * Gameplay features extend this union with their own command kinds.
  */
 export type Command =
-  | { kind: 'MoveTo'; entity: EntityId; x: number; y: number }
+  | { kind: 'MoveTo'; entity: EntityId; q: number; r: number }
   | { kind: 'PlayCard'; entity: EntityId; cardId: string; target?: EntityId }
   | { kind: 'PlaySpell'; entity: EntityId; spellId: string; target?: EntityId }
   | { kind: 'EndTurn'; entity: EntityId };

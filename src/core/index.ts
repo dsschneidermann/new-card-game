@@ -27,3 +27,13 @@ export type { AssetDescriptor, ManifestEntry, ValidationReport } from './assets/
 export { AssetManifest, frameConfig } from './assets/manifest';
 export type { AssetKey } from './assets/registry';
 export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validateManifest } from './assets/registry';
+
+// Hex grid, pathfinding & movement (feature 05)
+export type { Hex } from './hex/hex';
+export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } from './hex/hex';
+export type { HexLayout, Offset } from './hex/layout';
+export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial } from './hex/layout';
+export { HexGrid } from './hex/grid';
+export { findPath } from './hex/path';
+export type { HexPositionData, MovePathData } from './hex/movement';
+export { HexPosition, MovePath, makeMovementSystem } from './hex/movement';

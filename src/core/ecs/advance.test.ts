@@ -20,7 +20,7 @@ describe('CommandQueue', () => {
     const e = w.createEntity();
     const q = new CommandQueue();
     q.submit({ kind: 'EndTurn', entity: e });
-    q.submit({ kind: 'MoveTo', entity: e, x: 5, y: 6 });
+    q.submit({ kind: 'MoveTo', entity: e, q: 5, r: 6 });
     expect(q.size).toBe(2);
 
     const drained = q.drain();
