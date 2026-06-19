@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AssetKeys } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton } from '@scenes/MenuButton';
 
@@ -12,6 +13,9 @@ export class SettingsScene extends Phaser.Scene {
     const router = this.registry.get('router') as ScreenRouter;
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#0e0e12');
+
+    // Shared menu backdrop from the Asset Preload system (placeholder art for now).
+    this.add.image(width / 2, height / 2, AssetKeys.uiMenuBackground).setDisplaySize(width, height);
 
     this.add
       .text(width / 2, height * 0.18, 'Settings', {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AssetKeys } from '@core/index';
 
 export interface MenuButtonOptions {
   readonly enabled?: boolean;
@@ -11,10 +12,16 @@ export interface Button {
 const WIDTH = 280;
 const HEIGHT = 48;
 
+// `ui.button` is a 3-frame strip: 0 = normal, 1 = hover, 2 = disabled. Real
+// 3-state art drops in behind the same key; on a flat placeholder (all frames
+// one colour) alpha still gives interaction feedback.
+const FRAME_NORMAL = '0';
+const FRAME_HOVER = '1';
+const FRAME_DISABLED = '2';
+
 /**
- * A simple placeholder button: a labelled slab drawn from primitives. Real
- * `ui.button` art arrives with the Asset Preload feature (03); until then this
- * keeps the menu usable.
+ * A menu button backed by the `ui.button` texture from the Asset Preload system
+ * (feature 03). The slab is the manifest texture; the label is drawn on top.
  */
 export function makeButton(
   scene: Phaser.Scene,
@@ -25,9 +32,15 @@ export function makeButton(
   options: MenuButtonOptions = {},
 ): Button {
   const enabled = options.enabled ?? true;
+  // Degrade gracefully if real art ever loads as a single (frameless) image.
+  const texture = scene.textures.get(AssetKeys.uiButton);
+  const multiState = texture.has(FRAME_HOVER) && texture.has(FRAME_DISABLED);
+
   const bg = scene.add
-    .rectangle(x, y, WIDTH, HEIGHT, enabled ? 0x2d3142 : 0x1a1c24)
-    .setStrokeStyle(2, enabled ? 0x4fd1c5 : 0x3a3f4b);
+    .image(x, y, AssetKeys.uiButton, multiState && !enabled ? FRAME_DISABLED : FRAME_NORMAL)
+    .setDisplaySize(WIDTH, HEIGHT);
+  if (!enabled) bg.setAlpha(0.5);
+
   const text = scene.add
     .text(x, y, label, {
       fontFamily: 'monospace',
@@ -38,8 +51,14 @@ export function makeButton(
 
   if (enabled) {
     bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerover', () => bg.setFillStyle(0x3a4156));
-    bg.on('pointerout', () => bg.setFillStyle(0x2d3142));
+    bg.on('pointerover', () => {
+      if (multiState) bg.setFrame(FRAME_HOVER, false);
+      bg.setAlpha(0.85);
+    });
+    bg.on('pointerout', () => {
+      if (multiState) bg.setFrame(FRAME_NORMAL, false);
+      bg.setAlpha(1);
+    });
     bg.on('pointerdown', onClick);
   }
 

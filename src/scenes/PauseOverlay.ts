@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AssetKeys } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton, type Button } from '@scenes/MenuButton';
 
@@ -21,6 +22,8 @@ export class PauseOverlay extends Phaser.Scene {
     const { width, height } = this.scale;
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+    // Dialog panel from the Asset Preload system (ui.panel placeholder for now).
+    this.add.image(width / 2, height / 2, AssetKeys.uiPanel).setDisplaySize(width * 0.5, height * 0.62);
     this.add
       .text(width / 2, height * 0.22, 'Paused', {
         fontFamily: 'monospace',

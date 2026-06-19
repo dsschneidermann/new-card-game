@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { AssetKeys } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton } from '@scenes/MenuButton';
 
@@ -13,24 +14,20 @@ export class MainMenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#0e0e12');
 
-    this.add
-      .text(width / 2, height * 0.24, 'new-card-game', {
-        fontFamily: 'monospace',
-        fontSize: '40px',
-        color: '#e0e0e0',
-      })
-      .setOrigin(0.5);
+    // Backdrop + wordmark from the Asset Preload system (placeholder art for now).
+    this.add.image(width / 2, height / 2, AssetKeys.uiMenuBackground).setDisplaySize(width, height);
+    this.add.image(width / 2, height * 0.26, AssetKeys.brandLogo).setDisplaySize(320, 160);
 
     const canResume = router.hasSave();
-    makeButton(this, width / 2, height * 0.48, 'New Game', () => router.dispatch('NewGame'));
+    makeButton(this, width / 2, height * 0.52, 'New Game', () => router.dispatch('NewGame'));
     makeButton(
       this,
       width / 2,
-      height * 0.61,
+      height * 0.65,
       canResume ? 'Resume' : 'Resume (no save)',
       () => router.dispatch('RequestResume'),
       { enabled: canResume },
     );
-    makeButton(this, width / 2, height * 0.74, 'Settings', () => router.dispatch('OpenSettings'));
+    makeButton(this, width / 2, height * 0.78, 'Settings', () => router.dispatch('OpenSettings'));
   }
 }
