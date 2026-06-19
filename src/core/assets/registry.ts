@@ -19,7 +19,8 @@ const asset = (
 
 /**
  * The asset descriptors known to the build, mirroring the Asset Placeholders
- * plan (ADR-004). v1 has no real art, so every key resolves to a placeholder.
+ * plan (ADR-004). Real art drops in per key as it is produced (flag it in
+ * REAL_ASSET_KEYS); any key not yet supplied renders as a generated placeholder.
  * Each feature adds its own descriptors here as it introduces visual elements.
  */
 export const GAME_ASSETS: readonly AssetDescriptor[] = [
@@ -38,8 +39,22 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset('status.icon.poisoned', [24, 24], 'green skull bubble', 'Poisoned status icon'),
 ];
 
-/** The default game manifest (no real art in v1 → all placeholder). */
-export const manifest = new AssetManifest(GAME_ASSETS);
+/**
+ * The 'real' flag: keys whose real art file (assets/<key>.png) exists and should
+ * be loaded instead of a generated placeholder. Promote a key by adding it here
+ * once you drop the file — that one line is the only code change needed. A key
+ * flagged real whose file is missing logs a warning at boot and falls back to
+ * its placeholder, so typos and missing art are easy to spot in the 404 list.
+ * Add keys here as real art is produced — empty until then. Kept out of
+ * AssetDescriptor on purpose so a descriptor stays a pure art spec mirroring
+ * the Asset Placeholders plan.
+ */
+export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
+  // 'brand.logo',  ← example: add once assets/brand.logo.png exists
+]);
+
+/** The default game manifest: descriptors + which keys currently have real art. */
+export const manifest = new AssetManifest(GAME_ASSETS, REAL_ASSET_KEYS);
 
 /** Single source of truth for the logical keys code references. */
 export const AssetKeys = {
