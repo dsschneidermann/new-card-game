@@ -23,6 +23,24 @@ export type LoadResult =
   | { ok: true; state: SaveStateV1 }
   | { ok: false; reason: 'absent' | 'corrupt' | 'incompatible' };
 
+/**
+ * Structural check that a parsed `world` is a usable WorldSnapshot. loadRun's
+ * totality must reach restoreWorld: a version-matching but malformed payload
+ * (e.g. a half-written entry) is reported 'corrupt' here rather than throwing
+ * later when restoreWorld iterates a missing `living`/`components`.
+ */
+function isWorldSnapshot(w: unknown): w is WorldSnapshot {
+  if (typeof w !== 'object' || w === null) return false;
+  const s = w as Record<string, unknown>;
+  return (
+    typeof s.rng === 'number' &&
+    typeof s.nextEntityId === 'number' &&
+    Array.isArray(s.living) &&
+    typeof s.components === 'object' &&
+    s.components !== null
+  );
+}
+
 /** Build the save envelope from the current World (pure; no I/O). */
 export function serializeSave(world: World): SaveStateV1 {
   return { version: SAVE_VERSION, world: serializeWorld(world) };
@@ -55,7 +73,7 @@ export function loadRun(adapter: StorageAdapter): LoadResult {
   if (typeof parsed !== 'object' || parsed === null) return { ok: false, reason: 'corrupt' };
   const obj = parsed as { version?: unknown; world?: unknown };
   if (obj.version !== SAVE_VERSION) return { ok: false, reason: 'incompatible' };
-  if (typeof obj.world !== 'object' || obj.world === null) return { ok: false, reason: 'corrupt' };
+  if (!isWorldSnapshot(obj.world)) return { ok: false, reason: 'corrupt' };
   return { ok: true, state: obj as SaveStateV1 };
 }
 

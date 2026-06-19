@@ -136,6 +136,13 @@ describe('saveRun / loadRun / clearRun (InMemoryStorageAdapter)', () => {
     adapter.set(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION })); // missing world
     expect(loadRun(adapter)).toEqual({ ok: false, reason: 'corrupt' });
 
+    // Matching version but a structurally-invalid world: corrupt, NOT a throw on
+    // restore (loadRun's totality must reach restoreWorld).
+    adapter.set(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION, world: {} }));
+    expect(loadRun(adapter)).toEqual({ ok: false, reason: 'corrupt' });
+    adapter.set(SAVE_KEY, JSON.stringify({ version: SAVE_VERSION, world: { rng: 1, nextEntityId: 2 } }));
+    expect(loadRun(adapter)).toEqual({ ok: false, reason: 'corrupt' }); // living/components missing
+
     adapter.set(SAVE_KEY, JSON.stringify({ version: 999, world: {} })); // wrong version
     expect(loadRun(adapter)).toEqual({ ok: false, reason: 'incompatible' });
 
