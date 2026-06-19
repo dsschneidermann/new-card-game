@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   advance,
   createWorld,
+  defineComponent,
   AssetKeys,
   HexGrid,
   HexPosition,
@@ -21,6 +22,13 @@ const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, or
 const GRID_COLS = 28;
 const GRID_ROWS = 28;
 const STEP_MS = 110;
+
+/** What an entity looks like — texture + optional frame (presentation only). */
+interface RenderableData {
+  texture: string;
+  frame?: number;
+}
+const Renderable = defineComponent<RenderableData>('Renderable');
 
 /**
  * Gameplay scene (the InLevel state): a hex world grid (feature 05) over the
@@ -53,6 +61,7 @@ export class WorldScene extends Phaser.Scene {
     this.player = this.world.createEntity();
     const start = offsetToAxial({ col: Math.floor(GRID_COLS / 2), row: Math.floor(GRID_ROWS / 2) });
     this.world.store(HexPosition).add(this.player, { hex: start });
+    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, frame: 0 });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
@@ -83,10 +92,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private *renderables(): Generator<RenderableView> {
-    // Only the player carries HexPosition for now; enemies join in later features.
-    for (const [id, pos] of this.world.store(HexPosition).entries()) {
+    const positions = this.world.store(HexPosition);
+    for (const [id, r] of this.world.store(Renderable).entries()) {
+      const pos = positions.get(id);
+      if (pos === undefined) continue;
       const { x, y } = hexToPixel(LAYOUT, pos.hex);
-      yield { id, x, y, texture: AssetKeys.playerIdle, frame: 0 };
+      yield {
+        id,
+        x,
+        y,
+        texture: r.texture,
+        ...(r.frame !== undefined ? { frame: r.frame } : {}),
+      };
     }
   }
 

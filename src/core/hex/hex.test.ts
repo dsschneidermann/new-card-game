@@ -49,6 +49,16 @@ describe('hex <-> pixel layout', () => {
     expect(pixelToHex(LAYOUT, c.x + 3, c.y - 2)).toEqual(hex);
     expect(pixelToHex(LAYOUT, c.x - 4, c.y + 2)).toEqual(hex);
   });
+
+  it('pixelToHex returns the drawn hex containing the point, accurate near edges', () => {
+    const hex: Hex = offsetToAxial({ col: 4, row: 4 });
+    const c = hexToPixel(LAYOUT, hex);
+    // Just inside the right shoulder: inside the drawn hex, though a neighbour's
+    // centre is Euclidean-closer (a nearest-centre lookup would mis-assign this).
+    expect(pixelToHex(LAYOUT, c.x + 14, c.y - 6)).toEqual(hex);
+    // Clearly across the upper-right edge -> a different hex.
+    expect(pixelToHex(LAYOUT, c.x + 20, c.y - 12)).not.toEqual(hex);
+  });
 });
 
 describe('HexGrid', () => {

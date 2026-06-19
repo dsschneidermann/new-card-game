@@ -39,22 +39,56 @@ export function hexToPixel(l: HexLayout, h: Hex): { x: number; y: number } {
   };
 }
 
-/** Nearest hex to a pixel (Voronoi-by-centre; exact for cell centres). */
+/** True if a point (relative to a hex centre) lies within the drawn hexagon. */
+function pointInHexCell(l: HexLayout, dx: number, dy: number): boolean {
+  const hw = l.width / 2;
+  const q1 = l.height / 4;
+  const q2 = l.height / 2;
+  const verts: ReadonlyArray<readonly [number, number]> = [
+    [0, -q2],
+    [hw, -q1],
+    [hw, q1],
+    [0, q2],
+    [-hw, q1],
+    [-hw, -q1],
+  ];
+  let sign = 0;
+  for (let i = 0; i < verts.length; i += 1) {
+    const [ax, ay] = verts[i] as readonly [number, number];
+    const [bx, by] = verts[(i + 1) % verts.length] as readonly [number, number];
+    const cross = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
+    if (cross === 0) continue; // on an edge: treat as inside
+    const s = cross > 0 ? 1 : -1;
+    if (sign === 0) sign = s;
+    else if (s !== sign) return false;
+  }
+  return true;
+}
+
+/**
+ * The hex whose drawn cell contains the pixel. The foreshortened hexes
+ * tessellate, so exactly one candidate around the rounded estimate contains an
+ * interior point (an edge tie resolves to the first match, deterministically);
+ * a point off the grid falls back to the nearest centre. This matches the drawn
+ * outline exactly — unlike a nearest-centre lookup, which mis-assigns the
+ * corners of a non-regular (perspective) hex.
+ */
 export function pixelToHex(l: HexLayout, x: number, y: number): Hex {
   const approxRow = Math.round((y - l.originY) / l.rowPitch);
   const approxCol = Math.round((x - l.originX - (approxRow & 1) * (l.width / 2)) / l.width);
-  let best = offsetToAxial({ col: approxCol, row: approxRow });
-  let bestD = Infinity;
+  let nearest = offsetToAxial({ col: approxCol, row: approxRow });
+  let nearestD = Infinity;
   for (let dr = -1; dr <= 1; dr += 1) {
     for (let dc = -1; dc <= 1; dc += 1) {
       const cand = offsetToAxial({ col: approxCol + dc, row: approxRow + dr });
       const p = hexToPixel(l, cand);
+      if (pointInHexCell(l, x - p.x, y - p.y)) return cand;
       const d = (p.x - x) ** 2 + (p.y - y) ** 2;
-      if (d < bestD) {
-        bestD = d;
-        best = cand;
+      if (d < nearestD) {
+        nearestD = d;
+        nearest = cand;
       }
     }
   }
-  return best;
+  return nearest;
 }
