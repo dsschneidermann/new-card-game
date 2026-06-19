@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AssetKeys } from '@core/index';
+import { AssetKeys, clearRun, type StorageAdapter } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton, type Button } from '@scenes/MenuButton';
 
@@ -49,7 +49,11 @@ export class PauseOverlay extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.confirmButtons = [
-      makeButton(this, width / 2, height * 0.56, 'Yes, abandon', () => router.dispatch('ConfirmAbandon')),
+      makeButton(this, width / 2, height * 0.56, 'Yes, abandon', () => {
+        // Discard the saved run, then return to the title (feature 06).
+        clearRun(this.registry.get('storage') as StorageAdapter);
+        router.dispatch('ConfirmAbandon');
+      }),
       makeButton(this, width / 2, height * 0.69, 'Cancel', () => {
         router.dispatch('CancelAbandon');
         this.setConfirm(false);

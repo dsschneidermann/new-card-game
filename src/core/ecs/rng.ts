@@ -6,6 +6,14 @@ export interface SeededRNG {
   int(maxExclusive: number): number;
   /** Uniformly pick an element; throws on an empty array. */
   pick<T>(xs: readonly T[]): T;
+  /**
+   * The live internal state (feature 06). For mulberry32 this is the single
+   * 32-bit accumulator; capturing and restoring it resumes the exact stream,
+   * so a save continues randomness mid-run rather than restarting from a seed.
+   */
+  state(): number;
+  /** Restore a previously captured state (see {@link state}). */
+  setState(s: number): void;
 }
 
 /**
@@ -26,5 +34,11 @@ export function makeRng(seed: number): SeededRNG {
     if (xs.length === 0) throw new Error('SeededRNG.pick: cannot pick from an empty array');
     return xs[int(xs.length)] as T;
   };
-  return { next, int, pick };
+  // mulberry32's entire state is `s`, and seeding is just setting it (next()
+  // advances `s` before producing output), so state()/setState() round-trips.
+  const state = (): number => s >>> 0;
+  const setState = (value: number): void => {
+    s = value >>> 0;
+  };
+  return { next, int, pick, state, setState };
 }

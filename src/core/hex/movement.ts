@@ -17,11 +17,17 @@ export interface FacingData {
   facing: Facing;
 }
 
-/** An entity's hex location. */
+/** An entity's hex location (persisted — feature 06). */
 export const HexPosition: ComponentType<HexPositionData> = defineComponent<HexPositionData>('HexPosition');
-/** A queued route the entity walks, one hex per step. */
-export const MovePath: ComponentType<MovePathData> = defineComponent<MovePathData>('MovePath');
-/** Which way the entity faces (left/right), set from move intent. */
+/**
+ * A queued route the entity walks, one hex per step. Transient (not persisted):
+ * autosave happens on turn/level boundaries, not mid-hop, and a route is
+ * replanned from the restored HexPosition when the next MoveTo arrives.
+ */
+export const MovePath: ComponentType<MovePathData> = defineComponent<MovePathData>('MovePath', {
+  persistent: false,
+});
+/** Which way the entity faces (left/right), set from move intent (persisted). */
 export const FacingState: ComponentType<FacingData> = defineComponent<FacingData>('Facing');
 
 /**

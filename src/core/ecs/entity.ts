@@ -29,4 +29,19 @@ export class EntityAllocator {
   living(): EntityId[] {
     return [...this.alive].sort((a, b) => a - b);
   }
+
+  /** Capture the allocator state for a save (feature 06). */
+  snapshot(): { nextId: number; living: EntityId[] } {
+    return { nextId: this.nextId, living: this.living() };
+  }
+
+  /**
+   * Restore a captured state. The monotonic counter is preserved, so the next
+   * create() yields a fresh, never-reused id and destroyed ids stay destroyed.
+   */
+  restore(nextId: number, living: readonly EntityId[]): void {
+    this.nextId = nextId;
+    this.alive.clear();
+    for (const id of living) this.alive.add(id);
+  }
 }

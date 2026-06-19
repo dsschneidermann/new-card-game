@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
-import type { SavePresence } from '@core/index';
+import { hasSave, type SavePresence, type StorageAdapter } from '@core/index';
 import { ScreenRouter } from '@scenes/ScreenRouter';
+import { LocalStorageAdapter } from '@scenes/LocalStorageAdapter';
 
 /**
- * Boot/entry scene: constructs the ScreenRouter (app-flow controller), registers
- * it for all scenes, and hands off to the asset PreloadScene, which then enters
- * the main menu. Real save-presence arrives with Persistence (feature 12).
+ * Boot/entry scene: constructs the persistence StorageAdapter and the
+ * ScreenRouter (app-flow controller), registers both for all scenes, and hands
+ * off to the asset PreloadScene, which then enters the main menu. The save
+ * adapter is the single source for both save-presence (Resume availability) and
+ * the WorldScene autosave/resume (feature 06).
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -13,7 +16,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    const save: SavePresence = { hasSave: () => false }; // no persistence yet (feature 12)
+    const storage: StorageAdapter = new LocalStorageAdapter();
+    this.registry.set('storage', storage);
+    const save: SavePresence = { hasSave: () => hasSave(storage) };
     const router = new ScreenRouter(this.game, save);
     this.registry.set('router', router);
     this.scene.start('PreloadScene');

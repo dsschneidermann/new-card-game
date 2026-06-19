@@ -67,7 +67,8 @@ export class ScreenRouter {
         } else {
           mgr.stop('MainMenuScene');
           mgr.stop('SettingsScene');
-          mgr.start('WorldScene');
+          // Resume rebuilds the world from the save; New Game starts fresh.
+          mgr.start('WorldScene', { resume: event === 'RequestResume' });
         }
         break;
       case 'Paused':

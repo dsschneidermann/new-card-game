@@ -1,5 +1,10 @@
 import { EntityAllocator, type EntityId } from './entity';
-import { MapComponentStore, type ComponentStore, type ComponentType } from './component';
+import {
+  MapComponentStore,
+  componentByName,
+  type ComponentStore,
+  type ComponentType,
+} from './component';
 import { makeRng, type SeededRNG } from './rng';
 import { CommandQueue, EventBus } from './queue';
 import type { Command } from './commands';
@@ -38,9 +43,15 @@ export interface World {
   events(): readonly GameEvent[];
 }
 
-/** Engine-internal surface used by advance(); not part of the public API. */
+/** Engine-internal surface used by advance() and the serializer; not public API. */
 interface InternalWorld extends World {
   runStep(commands: readonly Command[]): GameEvent[];
+  /** Every populated component store, paired with its type token. */
+  componentStores(): Array<[ComponentType<unknown>, ComponentStore<unknown>]>;
+  /** Capture the entity-allocator state. */
+  allocatorSnapshot(): { nextId: number; living: EntityId[] };
+  /** Restore the entity-allocator state. */
+  restoreAllocator(nextId: number, living: readonly EntityId[]): void;
 }
 
 class WorldImpl implements InternalWorld {
@@ -117,6 +128,18 @@ class WorldImpl implements InternalWorld {
     this.cmds.drain();
     return events;
   }
+
+  componentStores(): Array<[ComponentType<unknown>, ComponentStore<unknown>]> {
+    return [...this.stores.entries()];
+  }
+
+  allocatorSnapshot(): { nextId: number; living: EntityId[] } {
+    return this.allocator.snapshot();
+  }
+
+  restoreAllocator(nextId: number, living: readonly EntityId[]): void {
+    this.allocator.restore(nextId, living);
+  }
 }
 
 /**
@@ -136,4 +159,61 @@ export function createWorld(seed: number): World {
  */
 export function advance(world: World, commands: readonly Command[] = []): GameEvent[] {
   return (world as InternalWorld).runStep(commands);
+}
+
+/**
+ * A plain, JSON-serializable snapshot of the persistent World state (feature
+ * 06): the live RNG state, the entity allocator, and every PERSISTENT component
+ * store. Render/transient components are excluded. This is the core run-state a
+ * save is built from; each feature's data rides along automatically because
+ * components are data-only (ADR-002).
+ */
+export interface WorldSnapshot {
+  /** Live RNG state (see SeededRNG.state). */
+  rng: number;
+  /** The allocator's next id, so restored entities never collide with new ones. */
+  nextEntityId: number;
+  /** Living entity ids in ascending order. */
+  living: EntityId[];
+  /** Persistent component data keyed by component name. */
+  components: Record<string, Array<[EntityId, unknown]>>;
+}
+
+/**
+ * Capture a World as a WorldSnapshot. Only persistent components are written,
+ * and their data is deep-cloned through JSON so the snapshot neither aliases
+ * live state nor smuggles in non-serializable values — non-serializable
+ * component data surfaces here (and in the per-feature round-trip tests) rather
+ * than at save time.
+ */
+export function serializeWorld(world: World): WorldSnapshot {
+  const w = world as InternalWorld;
+  const components: Record<string, Array<[EntityId, unknown]>> = {};
+  for (const [type, store] of w.componentStores()) {
+    if (!type.persistent) continue;
+    const entries = [...store.entries()];
+    if (entries.length === 0) continue;
+    components[type.name] = entries.map(([e, c]) => [e, JSON.parse(JSON.stringify(c)) as unknown]);
+  }
+  const alloc = w.allocatorSnapshot();
+  return { rng: world.rng.state(), nextEntityId: alloc.nextId, living: alloc.living, components };
+}
+
+/**
+ * Rebuild a World from a WorldSnapshot: a fresh world with the RNG stream and
+ * allocator resumed, and every recognised persistent component re-added. A
+ * component name no longer in the registry is skipped (component-granular
+ * forward/backward tolerance).
+ */
+export function restoreWorld(snap: WorldSnapshot): World {
+  const world = createWorld(0);
+  world.rng.setState(snap.rng);
+  (world as InternalWorld).restoreAllocator(snap.nextEntityId, snap.living);
+  for (const [name, entries] of Object.entries(snap.components)) {
+    const type = componentByName(name);
+    if (type === undefined) continue;
+    const store = world.store(type);
+    for (const [e, data] of entries) store.add(e, data);
+  }
+  return world;
 }

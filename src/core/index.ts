@@ -8,15 +8,29 @@
 
 // Entity Component System & Game Loop (feature 02)
 export type { EntityId } from './ecs/entity';
-export type { Component, ComponentType, ComponentStore } from './ecs/component';
-export { defineComponent } from './ecs/component';
+export type { Component, ComponentType, ComponentStore, ComponentOptions } from './ecs/component';
+export { defineComponent, componentByName } from './ecs/component';
 export type { SeededRNG } from './ecs/rng';
 export { makeRng } from './ecs/rng';
 export type { Command } from './ecs/commands';
 export type { GameEvent } from './ecs/events';
 export { CommandQueue, EventBus } from './ecs/queue';
-export type { World, System, StepContext } from './ecs/world';
-export { createWorld, advance } from './ecs/world';
+export type { World, System, StepContext, WorldSnapshot } from './ecs/world';
+export { createWorld, advance, serializeWorld, restoreWorld } from './ecs/world';
+
+// Persistence & save foundation (feature 06)
+export type { StorageAdapter, SaveStateV1, LoadResult } from './save';
+export {
+  InMemoryStorageAdapter,
+  SAVE_KEY,
+  SAVE_VERSION,
+  serializeSave,
+  applySave,
+  saveRun,
+  loadRun,
+  clearRun,
+  hasSave,
+} from './save';
 
 // Screen-flow state machine (feature 04)
 export type { ScreenState, ScreenEvent, FlowContext, FlowResult, SavePresence } from './flow/screenFlow';
@@ -41,3 +55,7 @@ export { HexPosition, MovePath, FacingState, makeMovementSystem } from './hex/mo
 // Character sprite animation helpers (feature 14)
 export type { Facing } from './sprite';
 export { facingFromIntent } from './sprite';
+
+// Actor tags (feature 06 — the player marker survives a save/restore)
+export type { PlayerData } from './actors';
+export { Player } from './actors';

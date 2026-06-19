@@ -33,7 +33,12 @@ export interface RenderableData {
   animBase?: string;
   scale?: number;
 }
-export const Renderable: ComponentType<RenderableData> = defineComponent<RenderableData>('Renderable');
+// Transient (not persisted — feature 06): presentation only, rebuilt on load
+// by re-attaching Renderable to restored entities.
+export const Renderable: ComponentType<RenderableData> = defineComponent<RenderableData>(
+  'Renderable',
+  { persistent: false },
+);
 
 /**
  * Build the per-entity render views from world state (feature 14) — the home of
