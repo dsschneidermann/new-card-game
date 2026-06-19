@@ -56,6 +56,32 @@ export { HexPosition, MovePath, FacingState, makeMovementSystem } from './hex/mo
 export type { Facing } from './sprite';
 export { facingFromIntent } from './sprite';
 
-// Actor tags (feature 06 — the player marker survives a save/restore)
-export type { PlayerData } from './actors';
-export { Player } from './actors';
+// Actor tags (feature 06 player marker; feature 07 enemy marker)
+export type { PlayerData, EnemyData } from './actors';
+export { Player, Enemy } from './actors';
+
+// Turn Engine: phases, resource economy, enemy-turn runner (feature 07)
+export type {
+  Phase,
+  TurnStateData,
+  ResourcePoolData,
+  MovementBudgetData,
+  TurnHooks,
+  Validation,
+} from './turn';
+export {
+  TurnState,
+  ResourcePool,
+  MovementBudget,
+  refillEnergy,
+  regenMana,
+  spendEnergy,
+  spendMana,
+  canAffordEnergy,
+  canAffordMana,
+  makeTurnSystem,
+  turnActor,
+  canMove,
+  canPlayCard,
+  canPlaySpell,
+} from './turn';

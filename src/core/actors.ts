@@ -11,3 +11,14 @@ export interface PlayerData {
 }
 
 export const Player: ComponentType<PlayerData> = defineComponent<PlayerData>('Player');
+
+/**
+ * Marker tagging an enemy-controlled entity (persisted). The Turn Engine's
+ * EnemyTurnRunner iterates entitiesWith(Enemy); feature 09 attaches archetype
+ * data and feature 12 the AI behavior to these entities.
+ */
+export interface EnemyData {
+  readonly isEnemy: true;
+}
+
+export const Enemy: ComponentType<EnemyData> = defineComponent<EnemyData>('Enemy');

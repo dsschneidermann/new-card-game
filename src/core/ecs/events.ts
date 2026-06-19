@@ -7,6 +7,14 @@ import type { EntityId } from './entity';
  */
 export type GameEvent =
   | { kind: 'CardPlayed'; entity: EntityId; cardId: string }
+  | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
-  | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number };
+  | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
+  // Turn engine (feature 07). Phase is the literal 'player' | 'enemy' (kept inline
+  // so events.ts has no dependency on the turn module).
+  | { kind: 'RoundStarted'; round: number }
+  | { kind: 'TurnStarted'; phase: 'player' | 'enemy'; actor?: EntityId }
+  | { kind: 'TurnEnded'; phase: 'player' | 'enemy' }
+  | { kind: 'ResourceChanged'; entity: EntityId }
+  | { kind: 'ActionRejected'; reason: string };
