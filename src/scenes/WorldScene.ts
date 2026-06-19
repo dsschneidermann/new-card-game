@@ -16,6 +16,9 @@ import {
   MovementBudget,
   makeMovementSystem,
   makeTurnSystem,
+  DeckState,
+  drawHand,
+  STARTER_COLLECTION,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
@@ -29,6 +32,7 @@ import {
 import { SceneSync } from '@render/SceneSync';
 import { Renderable, buildCharacterViews } from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
+import { CardController } from '@scenes/CardController';
 
 /** Scene-start payload: Resume rebuilds from the save, otherwise a fresh run. */
 interface WorldSceneData {
@@ -47,6 +51,7 @@ const ENERGY_MAX = 3;
 const MANA_MAX = 5;
 const MANA_REGEN = 1;
 const MOVE_BUDGET = 5;
+const HAND_SIZE = 4;
 
 /**
  * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
@@ -65,10 +70,18 @@ export class WorldScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   private toast!: Phaser.GameObjects.Text;
   private stepAccum = 0;
+  private cards!: CardController;
 
   // Turn-start is the autosave checkpoint (the deferral feature 06 left to 07):
-  // Resume and Restart Turn both land at the start of the current player turn.
-  private readonly turnHooks: TurnHooks = { onPlayerTurnStart: () => this.autosave() };
+  // draw a fresh hand, then checkpoint. Resume and Restart Turn both land at the
+  // start of the current player turn.
+  private readonly turnHooks: TurnHooks = {
+    onPlayerTurnStart: () => {
+      this.drawFreshHand();
+      this.cards?.cancel();
+      this.autosave();
+    },
+  };
 
   constructor() {
     super('WorldScene');
@@ -86,23 +99,56 @@ export class WorldScene extends Phaser.Scene {
     this.drawGrid();
     this.buildHud();
 
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.inputLocked) return;
-      const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
-      if (this.grid.isWalkable(hex)) {
-        // RequestMove (not raw MoveTo): the turn engine validates budget/phase.
-        this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
-      }
+    this.cards = new CardController({
+      scene: this,
+      grid: this.grid,
+      layout: LAYOUT,
+      world: () => this.world,
+      player: () => this.player,
+      submit: (cmd) => this.world.submit(cmd),
+      canAct: () => !this.inputLocked && this.isPlayerPhase(),
     });
+    this.cards.create();
+
+    // A transparent, interactive world zone (below the HUD) takes grid clicks;
+    // cards/spells/deck-icon at higher depth consume their own clicks.
+    this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0)
+      .setOrigin(0)
+      .setDepth(-500_000)
+      .setInteractive()
+      .on('pointerdown', (p: Phaser.Input.Pointer) => {
+        const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
+        if (this.cards.isArmed()) {
+          this.cards.onWorldConfirm(hex); // spell click / two-step second target
+        } else if (!this.inputLocked && this.grid.isWalkable(hex)) {
+          // RequestMove (not raw MoveTo): the turn engine validates budget/phase.
+          this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
+        }
+      });
+
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (this.cards.isArmed()) this.cards.onHover(pixelToHex(LAYOUT, p.worldX, p.worldY));
+    });
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!this.cards.isArmed()) return;
+      const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
+      this.cards.onRelease(this.grid.inBounds(hex) ? hex : null); // card drag-release confirm
+    });
+
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (this.inputLocked) return;
+      this.cards.cancel();
       this.world.submit({ kind: 'EndTurn', entity: this.player });
     });
     this.input.keyboard?.on('keydown-R', () => {
       if (this.inputLocked) return;
       this.restartTurn();
     });
-    this.input.keyboard?.on('keydown-ESC', () => router.dispatch('Pause')); // pause is always allowed
+    this.input.keyboard?.on('keydown-ESC', () => {
+      if (this.cards.isArmed()) this.cards.cancel();
+      else router.dispatch('Pause');
+    });
 
     this.autosave(); // checkpoint at the start of round 1 (later turns checkpoint via the hook)
   }
@@ -163,6 +209,10 @@ export class WorldScene extends Phaser.Scene {
       manaRegen: MANA_REGEN,
     });
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
+    world.store(DeckState).add(this.player, {
+      collection: [...STARTER_COLLECTION],
+      hand: drawHand(STARTER_COLLECTION, HAND_SIZE),
+    });
     return world;
   }
 
@@ -198,10 +248,23 @@ export class WorldScene extends Phaser.Scene {
     this.world = restored;
     this.player = player;
     this.installSystems();
+    this.cards.cancel();
+    this.cards.refreshHand();
   }
 
   private autosave(): void {
     saveRun(this.storage, this.world);
+  }
+
+  private isPlayerPhase(): boolean {
+    return this.world.store(TurnState).get(this.player)?.phase === 'player';
+  }
+
+  /** Replace the hand with a freshly drawn one (called at each player-turn start). */
+  private drawFreshHand(): void {
+    const deck = this.world.store(DeckState).get(this.player);
+    if (deck !== undefined) deck.hand = drawHand(deck.collection, HAND_SIZE);
+    this.cards?.refreshHand();
   }
 
   private buildHud(): void {

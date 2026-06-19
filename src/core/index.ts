@@ -49,6 +49,7 @@ export type { HexLayout, Offset } from './hex/layout';
 export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial } from './hex/layout';
 export { HexGrid } from './hex/grid';
 export { findPath } from './hex/path';
+export { hexLine, hexesWithinRange } from './hex/range';
 export type { HexPositionData, MovePathData, FacingData } from './hex/movement';
 export { HexPosition, MovePath, FacingState, makeMovementSystem } from './hex/movement';
 
@@ -85,3 +86,16 @@ export {
   canPlayCard,
   canPlaySpell,
 } from './turn';
+
+// Cards, deck & spell definitions + targeting (feature 09)
+export type { CardDef, SpellDef, TargetSpec, Highlight, DeckStateData } from './cards';
+export {
+  DeckState,
+  drawHand,
+  CARD_DEFS,
+  SPELL_DEFS,
+  STARTER_COLLECTION,
+  cardDef,
+  spellDef,
+  resolveTargeting,
+} from './cards';
