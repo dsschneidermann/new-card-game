@@ -7,11 +7,13 @@
 export type Facing = 'left' | 'right';
 
 /**
- * Facing after a movement hop, by the horizontal-dominant rule: a hop whose
- * horizontal delta dominates (|dx| > |dy|) faces the sign of dx; a more-vertical
- * or equal hop keeps the previous facing. Presentation-only (no gameplay effect).
+ * Facing for a move, from its overall horizontal intent: a target to the left
+ * (dx < 0) faces left, to the right (dx > 0) faces right, and directly
+ * above/below (dx === 0 — e.g. an even-row-to-even-row vertical move) keeps the
+ * previous facing. Computed once per move from start->target, not per hop, so a
+ * vertical zigzag does not flicker the facing. Presentation-only.
  */
-export function facingFromDelta(prev: Facing, dx: number, dy: number): Facing {
-  if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'left' : 'right';
-  return prev;
+export function facingFromIntent(prev: Facing, dx: number): Facing {
+  if (dx === 0) return prev;
+  return dx < 0 ? 'left' : 'right';
 }

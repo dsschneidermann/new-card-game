@@ -2,23 +2,20 @@ import Phaser from 'phaser';
 import {
   advance,
   createWorld,
-  defineComponent,
   AssetKeys,
   HexGrid,
   HexPosition,
-  MovePath,
+  FacingState,
   makeMovementSystem,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
-  facingFromDelta,
-  type Facing,
-  type Hex,
   type HexLayout,
   type EntityId,
   type World,
 } from '@core/index';
-import { SceneSync, type RenderableView } from '@render/SceneSync';
+import { SceneSync } from '@render/SceneSync';
+import { Renderable, buildCharacterViews } from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 
 /** Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006). */
@@ -26,21 +23,14 @@ const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, or
 const GRID_COLS = 28;
 const GRID_ROWS = 28;
 const STEP_MS = 110;
-
-/** What an entity looks like; animBase (e.g. 'player') drives state+facing anims. */
-interface RenderableData {
-  texture: string;
-  frame?: number;
-  animBase?: string;
-  scale?: number;
-}
-const Renderable = defineComponent<RenderableData>('Renderable');
+const PLAYER_SCALE = 0.5; // 128px art on a 32px hex (tunable)
 
 /**
- * Gameplay scene (the InLevel state): a hex world grid (feature 05) over the
- * ECS, with an animated player (feature 14). Click a hex to walk there — a BFS
- * path is planned and the player hops hex-to-hex, playing its walk animation
- * facing the direction of travel and idling when stopped. Esc opens Pause.
+ * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
+ * (feature 05) over the ECS and the animated player (feature 14): click a hex
+ * to walk there — the movement system plans a line-hugging path and sets facing
+ * from the move's intent, and buildCharacterViews + SceneSync render/animate it.
+ * Esc opens Pause.
  */
 export class WorldScene extends Phaser.Scene {
   private world!: World;
@@ -48,8 +38,6 @@ export class WorldScene extends Phaser.Scene {
   private sync!: SceneSync;
   private player!: EntityId;
   private stepAccum = 0;
-  private readonly facings = new Map<EntityId, Facing>();
-  private readonly lastHex = new Map<EntityId, Hex>();
 
   constructor() {
     super('WorldScene');
@@ -62,16 +50,19 @@ export class WorldScene extends Phaser.Scene {
     this.world = createWorld(seed);
     this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
     this.sync = new SceneSync(this, STEP_MS);
-    this.world.addSystem(makeMovementSystem(this.grid));
+    this.world.addSystem(makeMovementSystem(this.grid, LAYOUT));
 
     this.drawGrid();
 
     this.player = this.world.createEntity();
     const start = offsetToAxial({ col: Math.floor(GRID_COLS / 2), row: Math.floor(GRID_ROWS / 2) });
     this.world.store(HexPosition).add(this.player, { hex: start });
-    // 128px art on a 32px hex: scale down to roughly the old footprint (tunable).
-    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, animBase: 'player', scale: 0.5 });
-    this.facings.set(this.player, 'right');
+    this.world.store(FacingState).add(this.player, { facing: 'right' });
+    this.world.store(Renderable).add(this.player, {
+      texture: AssetKeys.playerIdle,
+      animBase: 'player',
+      scale: PLAYER_SCALE,
+    });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
@@ -91,54 +82,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    // Advance the simulation one hex-step per STEP_MS so the player visibly
-    // hops hex-to-hex; between steps we still sync so tweens/anims play out.
+    // Advance one hex-step per STEP_MS so the player visibly hops hex-to-hex;
+    // between steps we still sync so tweens/animations play out.
     this.stepAccum += delta;
     while (this.stepAccum >= STEP_MS) {
       advance(this.world);
       this.stepAccum -= STEP_MS;
     }
-    this.updateFacings();
-    this.sync.sync(this.renderables());
-  }
-
-  /** Update each entity's facing from its latest hop (horizontal-dominant rule). */
-  private updateFacings(): void {
-    for (const [id, pos] of this.world.store(HexPosition).entries()) {
-      const last = this.lastHex.get(id);
-      if (last !== undefined && (last.q !== pos.hex.q || last.r !== pos.hex.r)) {
-        const a = hexToPixel(LAYOUT, last);
-        const b = hexToPixel(LAYOUT, pos.hex);
-        this.facings.set(id, facingFromDelta(this.facings.get(id) ?? 'right', b.x - a.x, b.y - a.y));
-      }
-      this.lastHex.set(id, pos.hex);
-    }
-  }
-
-  private *renderables(): Generator<RenderableView> {
-    const positions = this.world.store(HexPosition);
-    const paths = this.world.store(MovePath);
-    for (const [id, r] of this.world.store(Renderable).entries()) {
-      const pos = positions.get(id);
-      if (pos === undefined) continue;
-      const { x, y } = hexToPixel(LAYOUT, pos.hex);
-      if (r.animBase !== undefined) {
-        const facing = this.facings.get(id) ?? 'right';
-        const state = paths.has(id) ? 'walk' : 'idle';
-        // Single right-facing sheet; mirror for left (feature 14).
-        yield {
-          id,
-          x,
-          y,
-          texture: r.texture,
-          anim: `${r.animBase}.${state}.right`,
-          flipX: facing === 'left',
-          ...(r.scale !== undefined ? { scale: r.scale } : {}),
-        };
-      } else {
-        yield { id, x, y, texture: r.texture, ...(r.frame !== undefined ? { frame: r.frame } : {}) };
-      }
-    }
+    this.sync.sync(buildCharacterViews(this.world, LAYOUT));
   }
 
   private drawGrid(): void {

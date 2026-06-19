@@ -1,21 +1,6 @@
 import Phaser from 'phaser';
 import type { EntityId } from '@core/index';
-
-/** A renderable view of an entity, derived from component state by the scene. */
-export interface RenderableView {
-  readonly id: EntityId;
-  readonly x: number;
-  readonly y: number;
-  readonly texture: string;
-  /** Optional frame index for a static multi-frame texture. */
-  readonly frame?: number;
-  /** Optional animation key to play (looping); takes precedence over frame. */
-  readonly anim?: string;
-  /** Mirror horizontally — e.g. a right-facing sheet shown facing left. */
-  readonly flipX?: boolean;
-  /** Display scale (1 = native frame size). */
-  readonly scale?: number;
-}
+import type { RenderableView } from './characterViews';
 
 /**
  * Presentation bridge (ADR-002): reconciles renderable views to Phaser sprites

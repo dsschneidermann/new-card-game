@@ -4,6 +4,7 @@ import {
   createWorld,
   HexGrid,
   HexPosition,
+  FacingState,
   makeMovementSystem,
   findPath,
   neighbors,
@@ -108,6 +109,19 @@ describe('findPath (BFS)', () => {
     const to = offsetToAxial({ col: 6, row: 6 });
     expect(findPath(new HexGrid(8, 8), from, to)).toEqual(findPath(new HexGrid(8, 8), from, to));
   });
+
+  it('hugs the straight line for a vertical move (no all-one-direction detour)', () => {
+    const grid = new HexGrid(12, 12);
+    const start = offsetToAxial({ col: 5, row: 8 }); // even row
+    const goal = offsetToAxial({ col: 5, row: 0 }); // same column directly above
+    const path = findPath(grid, start, goal);
+    expect(path.length).toBe(hexDistance(start, goal) + 1); // still shortest
+    // Every hop stays within one hex-width/2 of the vertical line through start.
+    const sx = hexToPixel(LAYOUT, start).x;
+    for (const h of path) {
+      expect(Math.abs(hexToPixel(LAYOUT, h).x - sx)).toBeLessThanOrEqual(LAYOUT.width / 2);
+    }
+  });
 });
 
 describe('movement system', () => {
@@ -117,7 +131,7 @@ describe('movement system', () => {
   it('plans a MovePath and steps one hex per advance, emitting EntityStepped, clearing on arrival', () => {
     const grid = new HexGrid(8, 8);
     const world = createWorld(1);
-    world.addSystem(makeMovementSystem(grid));
+    world.addSystem(makeMovementSystem(grid, LAYOUT));
     const e = world.createEntity();
     const from = offsetToAxial({ col: 0, row: 0 });
     const to = offsetToAxial({ col: 3, row: 0 });
@@ -136,7 +150,7 @@ describe('movement system', () => {
   it('a MoveTo to a blocked or OOB hex causes no movement and no event', () => {
     const grid = new HexGrid(8, 8);
     const world = createWorld(1);
-    world.addSystem(makeMovementSystem(grid));
+    world.addSystem(makeMovementSystem(grid, LAYOUT));
     const e = world.createEntity();
     const from = offsetToAxial({ col: 2, row: 2 });
     world.store(HexPosition).add(e, { hex: from });
@@ -152,7 +166,7 @@ describe('movement system', () => {
     const run = (): { pos: Hex; evs: GameEvent[] } => {
       const grid = new HexGrid(8, 8);
       const world = createWorld(7);
-      world.addSystem(makeMovementSystem(grid));
+      world.addSystem(makeMovementSystem(grid, LAYOUT));
       const e = world.createEntity();
       world.store(HexPosition).add(e, { hex: offsetToAxial({ col: 0, row: 0 }) });
       const to = offsetToAxial({ col: 5, row: 3 });
@@ -165,5 +179,33 @@ describe('movement system', () => {
     const b = run();
     expect(a.pos).toEqual(b.pos);
     expect(a.evs).toEqual(b.evs);
+  });
+});
+
+describe('facing (movement intent)', () => {
+  it('sets facing once from the start->target intent and holds it across hops', () => {
+    const grid = new HexGrid(12, 12);
+    const world = createWorld(1);
+    world.addSystem(makeMovementSystem(grid, LAYOUT));
+    const e = world.createEntity();
+    world.store(HexPosition).add(e, { hex: offsetToAxial({ col: 8, row: 6 }) });
+    world.store(FacingState).add(e, { facing: 'right' });
+    const target = offsetToAxial({ col: 2, row: 6 }); // to the left
+    advance(world, [{ kind: 'MoveTo', entity: e, q: target.q, r: target.r }]);
+    expect(world.store(FacingState).get(e)?.facing).toBe('left');
+    for (let i = 0; i < 5; i += 1) advance(world);
+    expect(world.store(FacingState).get(e)?.facing).toBe('left'); // unchanged across hops
+  });
+
+  it('keeps the previous facing for a same-column vertical move', () => {
+    const grid = new HexGrid(12, 12);
+    const world = createWorld(1);
+    world.addSystem(makeMovementSystem(grid, LAYOUT));
+    const e = world.createEntity();
+    world.store(HexPosition).add(e, { hex: offsetToAxial({ col: 5, row: 8 }) });
+    world.store(FacingState).add(e, { facing: 'left' });
+    const target = offsetToAxial({ col: 5, row: 0 }); // directly above (dx == 0)
+    advance(world, [{ kind: 'MoveTo', entity: e, q: target.q, r: target.r }]);
+    expect(world.store(FacingState).get(e)?.facing).toBe('left'); // kept, not reset
   });
 });

@@ -1,28 +1,71 @@
-import { type Hex, hexEquals, hexKey } from './hex';
+import { type Hex, hexEquals, hexKey, hexDistance } from './hex';
 import type { HexGrid } from './grid';
 
 /**
- * Deterministic shortest path (BFS) over walkable, in-bounds hexes, inclusive
- * of both endpoints. Returns [] if either endpoint is not walkable or `to` is
- * unreachable; returns [from] when from == to. The fixed neighbour order makes
- * the route reproducible (ADR-006: no RNG in pathfinding).
+ * Deterministic shortest path over walkable, in-bounds hexes, inclusive of both
+ * endpoints. Returns [] if either endpoint is not walkable or `to` is
+ * unreachable; returns [from] when from == to.
+ *
+ * A* with a lexicographic cost (min steps, then min accumulated distance from
+ * the straight start->goal line). Among equally-short paths it picks the one
+ * that hugs the straight line, so e.g. a "straight up" move takes a tight
+ * alternating zigzag rather than drifting one way then correcting. The
+ * line-distance is the |cross product| of (node-from) and (goal-from) in axial
+ * space; a fixed insertion-order tie-break keeps the result reproducible (no RNG).
  */
 export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
   if (!grid.isWalkable(from) || !grid.isWalkable(to)) return [];
   if (hexEquals(from, to)) return [from];
 
-  const frontier: Hex[] = [from];
-  const cameFrom = new Map<string, Hex | null>([[hexKey(from), null]]);
+  const dq = to.q - from.q;
+  const dr = to.r - from.r;
+  const lineDist = (h: Hex): number => Math.abs((h.q - from.q) * dr - (h.r - from.r) * dq);
 
-  while (frontier.length > 0) {
-    const current = frontier.shift() as Hex;
-    if (hexEquals(current, to)) break;
-    for (const next of grid.walkableNeighbors(current)) {
-      const key = hexKey(next);
-      if (!cameFrom.has(key)) {
-        cameFrom.set(key, current);
-        frontier.push(next);
+  interface QNode {
+    readonly hex: Hex;
+    readonly steps: number;
+    readonly line: number;
+    readonly f: number;
+    readonly seq: number;
+  }
+  const open: QNode[] = [];
+  const bestSteps = new Map<string, number>();
+  const bestLine = new Map<string, number>();
+  const cameFrom = new Map<string, Hex | null>();
+  let seq = 0;
+
+  /** Relax a node: accept it only if (steps, line) is lexicographically better. */
+  const relax = (hex: Hex, steps: number, line: number, parent: Hex | null): void => {
+    const k = hexKey(hex);
+    const cs = bestSteps.get(k);
+    if (cs !== undefined && (cs < steps || (cs === steps && (bestLine.get(k) as number) <= line))) {
+      return;
+    }
+    bestSteps.set(k, steps);
+    bestLine.set(k, line);
+    cameFrom.set(k, parent);
+    open.push({ hex, steps, line, f: steps + hexDistance(hex, to), seq });
+    seq += 1;
+  };
+
+  relax(from, 0, lineDist(from), null);
+
+  while (open.length > 0) {
+    // Pop the min by (f, line, seq) — a linear scan is ample at grid scale.
+    let bi = 0;
+    for (let i = 1; i < open.length; i += 1) {
+      const a = open[i] as QNode;
+      const b = open[bi] as QNode;
+      if (a.f < b.f || (a.f === b.f && (a.line < b.line || (a.line === b.line && a.seq < b.seq)))) {
+        bi = i;
       }
+    }
+    const cur = open.splice(bi, 1)[0] as QNode;
+    const ck = hexKey(cur.hex);
+    if (cur.steps !== bestSteps.get(ck) || cur.line !== bestLine.get(ck)) continue; // stale
+    if (hexEquals(cur.hex, to)) break;
+    for (const next of grid.walkableNeighbors(cur.hex)) {
+      relax(next, cur.steps + 1, cur.line + lineDist(next), cur.hex);
     }
   }
 
