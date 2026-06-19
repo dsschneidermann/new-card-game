@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { advance, createWorld, defineComponent, type EntityId, type World } from '@core/index';
 import { SceneSync, type RenderableView } from '@render/SceneSync';
+import type { ScreenRouter } from '@scenes/ScreenRouter';
 
 interface Position {
   x: number;
@@ -15,10 +16,8 @@ const Renderable = defineComponent<Renderable>('Renderable');
 const PLAYER_TEXTURE = 'placeholder.square';
 
 /**
- * Minimal harness proving the ECS <-> Phaser loop: input -> command ->
- * advance() -> (drained events + component state) -> SceneSync. Turn pacing
- * (when advance() is called) is the Turn Engine feature's responsibility; here
- * we advance each frame purely to demonstrate the wiring.
+ * Gameplay scene (the InLevel state). The minimal ECS harness from feature 02,
+ * plus a Pause hook routed through the screen-flow controller (Esc opens Pause).
  */
 export class WorldScene extends Phaser.Scene {
   private world!: World;
@@ -30,11 +29,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
+    const router = this.registry.get('router') as ScreenRouter;
     this.world = createWorld(0xc0ffee);
     this.sync = new SceneSync(this);
     this.ensureTexture(PLAYER_TEXTURE);
 
-    // Movement system: apply MoveTo commands to the Position component.
     this.world.addSystem((world) => {
       for (const cmd of world.commands()) {
         if (cmd.kind === 'MoveTo') {
@@ -54,9 +53,15 @@ export class WorldScene extends Phaser.Scene {
     });
     this.world.store(Renderable).add(this.player, { texture: PLAYER_TEXTURE });
 
-    // Input -> command: click to move the player.
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.world.submit({ kind: 'MoveTo', entity: this.player, x: p.worldX, y: p.worldY });
+    });
+
+    this.input.keyboard?.on('keydown-ESC', () => router.dispatch('Pause'));
+    this.add.text(8, 8, 'click: move   ·   Esc: pause', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#6b7280',
     });
   }
 

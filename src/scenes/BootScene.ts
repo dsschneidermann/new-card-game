@@ -1,8 +1,12 @@
 import Phaser from 'phaser';
+import type { SavePresence } from '@core/index';
+import { ScreenRouter } from '@scenes/ScreenRouter';
 
 /**
- * Boot/entry scene. Shows the title briefly, then hands off to WorldScene.
- * Asset preloading will live here when the Asset Preload feature lands.
+ * Boot/entry scene: constructs the ScreenRouter (the app-flow controller),
+ * registers it for all scenes, and hands off to the main menu. Real asset
+ * preloading will live here when the Asset Preload feature (03) lands; real
+ * save-presence arrives with Persistence (feature 12).
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -10,15 +14,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width, height } = this.scale;
-    this.add
-      .text(width / 2, height / 2, 'new-card-game', {
-        fontFamily: 'monospace',
-        fontSize: '24px',
-        color: '#e0e0e0',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-    this.time.delayedCall(400, () => this.scene.start('WorldScene'));
+    const save: SavePresence = { hasSave: () => false }; // no persistence yet (feature 12)
+    const router = new ScreenRouter(this.game, save);
+    this.registry.set('router', router);
+    this.scene.start('MainMenuScene');
   }
 }
