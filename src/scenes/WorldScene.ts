@@ -10,6 +10,7 @@ import {
   HexPosition,
   FacingState,
   Player,
+  MovePath,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -86,17 +87,22 @@ export class WorldScene extends Phaser.Scene {
     this.buildHud();
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.inputLocked) return;
       const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
       if (this.grid.isWalkable(hex)) {
         // RequestMove (not raw MoveTo): the turn engine validates budget/phase.
         this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
       }
     });
-    this.input.keyboard?.on('keydown-SPACE', () =>
-      this.world.submit({ kind: 'EndTurn', entity: this.player }),
-    );
-    this.input.keyboard?.on('keydown-R', () => this.restartTurn());
-    this.input.keyboard?.on('keydown-ESC', () => router.dispatch('Pause'));
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      if (this.inputLocked) return;
+      this.world.submit({ kind: 'EndTurn', entity: this.player });
+    });
+    this.input.keyboard?.on('keydown-R', () => {
+      if (this.inputLocked) return;
+      this.restartTurn();
+    });
+    this.input.keyboard?.on('keydown-ESC', () => router.dispatch('Pause')); // pause is always allowed
 
     this.autosave(); // checkpoint at the start of round 1 (later turns checkpoint via the hook)
   }
@@ -113,6 +119,17 @@ export class WorldScene extends Phaser.Scene {
     this.sync.sync(buildCharacterViews(this.world, LAYOUT));
     this.refreshHud();
     for (const e of events) if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
+  }
+
+  /**
+   * Input is locked while a move is animating (the player still has a MovePath)
+   * or a command is queued but not yet resolved — so the full move intent
+   * completes before any new move / End Turn / Restart Turn is accepted. This is
+   * an interim guard; the scheduled movement rework will replace it with explicit
+   * movementStart/movementEnd events (and let traps/status interrupt a step).
+   */
+  private get inputLocked(): boolean {
+    return this.world.store(MovePath).has(this.player) || this.world.commands().length > 0;
   }
 
   /** Register the turn + movement systems and re-attach the transient Renderable. */
