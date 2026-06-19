@@ -40,4 +40,4 @@ export { HexPosition, MovePath, makeMovementSystem } from './hex/movement';
 
 // Character sprite animation helpers (feature 14)
 export type { Facing } from './sprite';
-export { facingFromDelta, PLAYER_ROWS, rowFrameRange } from './sprite';
+export { facingFromDelta } from './sprite';

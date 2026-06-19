@@ -11,16 +11,20 @@ export interface RenderableView {
   readonly frame?: number;
   /** Optional animation key to play (looping); takes precedence over frame. */
   readonly anim?: string;
+  /** Mirror horizontally — e.g. a right-facing sheet shown facing left. */
+  readonly flipX?: boolean;
+  /** Display scale (1 = native frame size). */
+  readonly scale?: number;
 }
 
 /**
  * Presentation bridge (ADR-002): reconciles renderable views to Phaser sprites
  * — creating new ones, tweening existing ones toward their new stand-point,
- * playing animations, and destroying sprites whose entity is gone. The ECS never
- * references sprites; the scene calls sync() after each step. Sprites stand ON
- * their hex (bottom-anchored) and are depth-sorted by screen-Y so nearer (lower)
- * sprites draw in front. Tweens and animations are only (re)started when their
- * inputs change, so calling sync() every frame does not restart them.
+ * playing animations, mirroring/scaling, and destroying sprites whose entity is
+ * gone. The ECS never references sprites; the scene calls sync() after each step.
+ * Sprites stand ON their hex (bottom-anchored) and are depth-sorted by screen-Y
+ * so nearer (lower) sprites draw in front. Tweens and animations are only
+ * (re)started when their inputs change, so calling sync() every frame is cheap.
  */
 export class SceneSync {
   private readonly sprites = new Map<EntityId, Phaser.GameObjects.Sprite>();
@@ -52,6 +56,8 @@ export class SceneSync {
       } else if (v.frame !== undefined) {
         sprite.setFrame(v.frame);
       }
+      sprite.setFlipX(v.flipX ?? false);
+      sprite.setScale(v.scale ?? 1);
       sprite.setDepth(v.y);
     }
     for (const [id, sprite] of this.sprites) {

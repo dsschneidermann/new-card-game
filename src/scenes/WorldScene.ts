@@ -32,6 +32,7 @@ interface RenderableData {
   texture: string;
   frame?: number;
   animBase?: string;
+  scale?: number;
 }
 const Renderable = defineComponent<RenderableData>('Renderable');
 
@@ -68,7 +69,8 @@ export class WorldScene extends Phaser.Scene {
     this.player = this.world.createEntity();
     const start = offsetToAxial({ col: Math.floor(GRID_COLS / 2), row: Math.floor(GRID_ROWS / 2) });
     this.world.store(HexPosition).add(this.player, { hex: start });
-    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, animBase: 'player' });
+    // 128px art on a 32px hex: scale down to roughly the old footprint (tunable).
+    this.world.store(Renderable).add(this.player, { texture: AssetKeys.playerIdle, animBase: 'player', scale: 0.5 });
     this.facings.set(this.player, 'right');
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -123,7 +125,16 @@ export class WorldScene extends Phaser.Scene {
       if (r.animBase !== undefined) {
         const facing = this.facings.get(id) ?? 'right';
         const state = paths.has(id) ? 'walk' : 'idle';
-        yield { id, x, y, texture: r.texture, anim: `${r.animBase}.${state}.${facing}` };
+        // Single right-facing sheet; mirror for left (feature 14).
+        yield {
+          id,
+          x,
+          y,
+          texture: r.texture,
+          anim: `${r.animBase}.${state}.right`,
+          flipX: facing === 'left',
+          ...(r.scale !== undefined ? { scale: r.scale } : {}),
+        };
       } else {
         yield { id, x, y, texture: r.texture, ...(r.frame !== undefined ? { frame: r.frame } : {}) };
       }

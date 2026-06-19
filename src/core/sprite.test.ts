@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  facingFromDelta,
-  rowFrameRange,
-  PLAYER_ROWS,
-  manifest,
-  validateManifest,
-  USED_ASSET_KEYS,
-} from '@core/index';
+import { facingFromDelta, manifest, validateManifest, USED_ASSET_KEYS } from '@core/index';
 
 describe('facingFromDelta', () => {
   it('horizontal-dominant hops face the sign of dx, regardless of previous facing', () => {
@@ -23,24 +16,15 @@ describe('facingFromDelta', () => {
   });
 });
 
-describe('rowFrameRange', () => {
-  it('maps directional rows to inclusive frame-index ranges', () => {
-    expect(rowFrameRange(6, PLAYER_ROWS.left)).toEqual({ start: 12, end: 17 }); // idle
-    expect(rowFrameRange(6, PLAYER_ROWS.right)).toEqual({ start: 18, end: 23 });
-    expect(rowFrameRange(8, PLAYER_ROWS.left)).toEqual({ start: 16, end: 23 }); // walk
-    expect(rowFrameRange(8, PLAYER_ROWS.right)).toEqual({ start: 24, end: 31 });
-  });
-});
-
 describe('player spritesheets in the manifest', () => {
-  it('player.idle and player.walk are 64px real spritesheets with the right frame counts', () => {
+  it('player.idle and player.walk are 128px right-facing real sheets with the right frame counts', () => {
     const idle = manifest.resolve('player.idle');
     expect(idle?.kind).toBe('real');
-    expect(idle?.descriptor.frames).toEqual({ frameWidth: 64, frameHeight: 64, count: 24 });
+    expect(idle?.descriptor.frames).toEqual({ frameWidth: 128, frameHeight: 128, count: 6 });
 
     const walk = manifest.resolve('player.walk');
     expect(walk?.kind).toBe('real');
-    expect(walk?.descriptor.frames).toEqual({ frameWidth: 64, frameHeight: 64, count: 32 });
+    expect(walk?.descriptor.frames).toEqual({ frameWidth: 128, frameHeight: 128, count: 8 });
   });
 
   it('both player keys are used and registered (not missing, not unused)', () => {
