@@ -1,4 +1,6 @@
 import { AssetManifest, type AssetDescriptor, type ManifestEntry, type ValidationReport } from './manifest';
+import { AssetKeys } from './keys';
+import type { AssetKey } from './keys';
 
 type Frames = { frameWidth: number; frameHeight: number; count: number };
 
@@ -24,15 +26,16 @@ const asset = (
  * Each feature adds its own descriptors here as it introduces visual elements.
  */
 export const GAME_ASSETS: readonly AssetDescriptor[] = [
-  asset('brand.logo', [256, 128], 'bold high-contrast wordmark', 'Game logo for boot/menu'),
-  asset('ui.menuBackground', [1280, 720], 'moody low-detail worldmap vista', 'Main menu backdrop'),
-  asset('ui.button', [200, 56], 'rounded slab + accent border', 'Generic UI button', { frameWidth: 200, frameHeight: 56, count: 3 }),
-  asset('ui.panel', [64, 64], 'semi-transparent dark parchment', 'Dialog/HUD panel'),
-  asset('world.tile.floor', [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
-  asset('world.tile.wall', [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
-  asset('world.tile.exit', [32, 32], 'glowing portal/stairs', 'Level exit', { frameWidth: 32, frameHeight: 32, count: 2 }),
-  asset('player.idle', [128, 128], 'anime fox-girl, right-facing', 'Player idle (128px, single right-facing row, 6 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 6 }),
-  asset('player.walk', [128, 128], 'same character, right-facing', 'Player walk (128px, single right-facing row, 8 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 8 }),
+  asset(AssetKeys.brandLogo, [256, 128], 'bold high-contrast wordmark', 'Game logo for boot/menu'),
+  asset(AssetKeys.uiMenuBackground, [1280, 720], 'moody low-detail worldmap vista', 'Main menu backdrop'),
+  asset(AssetKeys.uiButton, [200, 56], 'rounded slab + accent border', 'Generic UI button', { frameWidth: 200, frameHeight: 56, count: 3 }),
+  asset(AssetKeys.uiPanel, [64, 64], 'semi-transparent dark parchment', 'Dialog/HUD panel'),
+  asset(AssetKeys.worldFloor, [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
+  asset(AssetKeys.worldWall, [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
+  asset(AssetKeys.worldExit, [32, 32], 'glowing portal/stairs', 'Level exit', { frameWidth: 32, frameHeight: 32, count: 2 }),
+  asset(AssetKeys.playerIdle, [128, 128], 'anime fox-girl, right-facing', 'Player idle (128px, single right-facing row, 6 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 6 }),
+  asset(AssetKeys.playerWalk, [128, 128], 'same character, right-facing', 'Player walk (128px, single right-facing row, 8 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 8 }),
+  // Seeded ahead of code use (no AssetKeys constant until referenced):
   asset('enemy.melee.idle', [32, 32], 'brutish red with a club', 'Melee enemy idle', { frameWidth: 32, frameHeight: 32, count: 4 }),
   asset('resource.icon.energy', [24, 24], 'yellow lightning bolt', 'Energy icon'),
   asset('resource.icon.mana', [24, 24], 'blue droplet', 'Mana icon'),
@@ -50,29 +53,19 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
  * the Asset Placeholders plan.
  */
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
-  'player.idle', // 64px directional spritesheet (feature 14)
-  'player.walk',
+  AssetKeys.playerIdle, // 128px right-facing spritesheet
+  AssetKeys.playerWalk,
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */
 export const manifest = new AssetManifest(GAME_ASSETS, REAL_ASSET_KEYS);
 
-/** Single source of truth for the logical keys code references. */
-export const AssetKeys = {
-  brandLogo: 'brand.logo',
-  uiMenuBackground: 'ui.menuBackground',
-  uiButton: 'ui.button',
-  uiPanel: 'ui.panel',
-  worldFloor: 'world.tile.floor',
-  worldWall: 'world.tile.wall',
-  worldExit: 'world.tile.exit',
-  playerIdle: 'player.idle',
-  playerWalk: 'player.walk',
-} as const;
-export type AssetKey = (typeof AssetKeys)[keyof typeof AssetKeys];
+/** AssetKeys / AssetKey are the single source of truth in ./keys; re-export them here. */
+export { AssetKeys };
+export type { AssetKey };
 
 /** Keys referenced by code; the validation pass checks they all resolve. */
-export const USED_ASSET_KEYS: readonly string[] = Object.values(AssetKeys);
+export const USED_ASSET_KEYS: readonly AssetKey[] = Object.values(AssetKeys);
 
 /** Resolve a key against the default game manifest. */
 export function resolveKey(key: string): ManifestEntry | undefined {
