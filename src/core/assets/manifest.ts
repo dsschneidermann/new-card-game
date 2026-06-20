@@ -12,7 +12,19 @@ export interface AssetDescriptor {
   /** Source frame size in pixels, with an optional display scale: [sizeX, sizeY, scale?]. */
   size: [number, number, number?];
   origin?: [number, number];
-  frames?: { frameWidth: number; frameHeight: number; count: number };
+  /**
+   * Spritesheet frame layout. forwardPx/downPx optionally nudge the DRAWN figure for a
+   * sheet whose character sits off-centre in its frame: forward = px in the facing
+   * direction (mirrored by flipX), down = px downward. SceneSync applies them as a static
+   * draw-origin shift (not the position tween), scaled with resolution.
+   */
+  frames?: {
+    frameWidth: number;
+    frameHeight: number;
+    count: number;
+    forwardPx?: number;
+    downPx?: number;
+  };
   style: string;
   description: string;
 }
@@ -36,6 +48,14 @@ export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeig
 /** The asset's chosen display scale (the optional 3rd size element); 1 = render at native frame size. */
 export function assetScale(d: AssetDescriptor): number {
   return d.size[2] ?? 1;
+}
+
+/**
+ * The sheet's drawn-figure alignment nudge in base px: forward (in the facing direction)
+ * and down. Defaults to 0/0 for sheets that don't declare it. Read by SceneSync.
+ */
+export function spriteOffset(d: AssetDescriptor): { forwardPx: number; downPx: number } {
+  return { forwardPx: d.frames?.forwardPx ?? 0, downPx: d.frames?.downPx ?? 0 };
 }
 
 /**

@@ -1,18 +1,6 @@
 import Phaser from 'phaser';
-import { s, assetScale, resolveKey, type EntityId } from '@core/index';
+import { s, assetScale, resolveKey, spriteOffset, type EntityId } from '@core/index';
 import type { RenderableView } from './characterViews';
-
-/**
- * Art-alignment nudge: some character sheets draw the figure off-centre in its frame,
- * so while that animation plays the figure is pushed FORWARD (in its facing direction)
- * by this many base px. Applied as a STATIC draw-origin shift — never the movement tween —
- * so the frame is simply drawn offset rather than sliding there; mirrored by flipX and
- * normalised to the frame so it scales with resolution. Keyed by animation key.
- */
-const ANIM_FORWARD_PX: Record<string, number> = {
-  'player.ready.right': 8,
-  'player.attack1.right': 8,
-};
 
 /**
  * Presentation bridge (ADR-002): reconciles renderable views to Phaser sprites
@@ -54,18 +42,23 @@ export class SceneSync {
         sprite.setFrame(v.frame);
       }
       sprite.setFlipX(v.flipX ?? false);
-      // Size the sprite from its asset definition's chosen scale, then s() for the
-      // current resolution — so per-sprite scale lives in the manifest, not the scene.
-      const art = resolveKey(v.texture)?.descriptor;
+      // Resolve the CURRENTLY displayed sheet's descriptor (the playing anim's texture, not the
+      // base texture) so both the scale and the alignment nudge come from that sheet's registry
+      // entry rather than being hardcoded in the scene.
+      const art = resolveKey(sprite.texture.key)?.descriptor;
       const scale = art ? assetScale(art) : 1;
       sprite.setDisplaySize(s(sprite.frame.width * scale), s(sprite.frame.height * scale));
-      // Forward art nudge as a STATIC origin shift (never the movement tween): shift the draw
-      // origin by a fraction of the frame so the off-centre sheet is drawn forward without
-      // sliding. Position/depth stay on the true stand-point; signed by facing (flipX).
-      const forward = v.anim !== undefined ? (ANIM_FORWARD_PX[v.anim] ?? 0) : 0;
-      const frameWidth = sprite.frame.width * scale; // base display width; origin is a fraction of it
-      const originShift = forward !== 0 && frameWidth > 0 ? forward / frameWidth : 0;
-      sprite.setOrigin(0.5 - ((v.flipX ?? false) ? -originShift : originShift), 0.85);
+      // Per-sheet art nudge from the asset definition, applied as a STATIC draw-origin shift
+      // (never the movement tween): forward = px in the facing direction (mirrored by flipX),
+      // down = px downward. Normalised to the frame so it scales with resolution; the sprite's
+      // position and depth stay on the true stand-point, so the figure is drawn offset rather
+      // than sliding into place when the animation changes.
+      const { forwardPx, downPx } = art ? spriteOffset(art) : { forwardPx: 0, downPx: 0 };
+      const frameW = sprite.frame.width * scale;
+      const frameH = sprite.frame.height * scale;
+      const fwdShift = forwardPx !== 0 && frameW > 0 ? forwardPx / frameW : 0;
+      const downShift = downPx !== 0 && frameH > 0 ? downPx / frameH : 0;
+      sprite.setOrigin(0.5 - ((v.flipX ?? false) ? -fwdShift : fwdShift), 0.85 - downShift);
       sprite.setDepth(v.y);
     }
     for (const [id, sprite] of this.sprites) {
