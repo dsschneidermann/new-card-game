@@ -47,6 +47,7 @@ const HL_DEPTH = 500_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
+const CARD_FAN_DROP_PX = 2; // each hand position away from centre sits this many px lower (the fan arc)
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -174,15 +175,20 @@ export class CardController {
     layout: { spacing: number; baseX: number; baseY: number },
     animate: boolean,
   ): void {
+    const centerOffset = i - (count - 1) / 2; // signed distance from centre (half-steps for even counts)
     const x = layout.baseX + i * layout.spacing;
-    const angle = (i - (count - 1) / 2) * 4;
+    const angle = centerOffset * 4; // existing fan rotation
+    // Downward fan arc: the centre card (odd) or two centre cards (even) sit flat, and each
+    // position outward drops CARD_FAN_DROP_PX more, symmetric both ways. floor(|centerOffset|)
+    // is 0 for the middle card(s), then 1, 2, ... — the same mirroring as the rotation above.
+    const y = layout.baseY + Math.floor(Math.abs(centerOffset)) * s(CARD_FAN_DROP_PX);
     card.setData('handIndex', i);
-    card.setData('homeY', layout.baseY);
+    card.setData('homeY', y);
     card.setDepth(HUD_DEPTH + i);
     if (animate) {
-      this.scene.tweens.add({ targets: card, x, y: layout.baseY, angle, duration: 160, ease: 'Quad.easeOut' });
+      this.scene.tweens.add({ targets: card, x, y, angle, duration: 160, ease: 'Quad.easeOut' });
     } else {
-      card.setPosition(x, layout.baseY).setAngle(angle);
+      card.setPosition(x, y).setAngle(angle);
     }
   }
 
