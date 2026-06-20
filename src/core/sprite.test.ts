@@ -17,11 +17,13 @@ describe('player spritesheets in the manifest', () => {
   it('player.idle and player.walk are 128px right-facing real sheets with the right frame counts', () => {
     const idle = manifest.resolve('player.idle');
     expect(idle?.kind).toBe('real');
-    expect(idle?.descriptor.frames).toEqual({ frameWidth: 128, frameHeight: 128, count: 6 });
+    // toMatchObject (not toEqual): assert the frame layout, leaving optional alignment
+    // props (forwardPx/downPx) free to be tuned without breaking the test.
+    expect(idle?.descriptor.frames).toMatchObject({ frameWidth: 128, frameHeight: 128, count: 6 });
 
     const walk = manifest.resolve('player.walk');
     expect(walk?.kind).toBe('real');
-    expect(walk?.descriptor.frames).toEqual({ frameWidth: 128, frameHeight: 128, count: 8 });
+    expect(walk?.descriptor.frames).toMatchObject({ frameWidth: 128, frameHeight: 128, count: 8 });
   });
 
   it('both player keys are used and registered (not missing, not unused)', () => {
