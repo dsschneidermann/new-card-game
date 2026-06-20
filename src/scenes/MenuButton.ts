@@ -7,6 +7,7 @@ export interface MenuButtonOptions {
 
 export interface Button {
   setVisible(visible: boolean): void;
+  setLabel(label: string): void;
 }
 
 const WIDTH = 280;
@@ -67,6 +68,9 @@ export function makeButton(
       bg.setVisible(visible);
       text.setVisible(visible);
       if (bg.input) bg.input.enabled = visible && enabled;
+    },
+    setLabel(label: string): void {
+      text.setText(label);
     },
   };
 }

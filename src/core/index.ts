@@ -99,3 +99,14 @@ export {
   spellDef,
   resolveTargeting,
 } from './cards';
+
+// Display settings: viewport scaling & resolution (browser pixel clarity)
+export type { ViewportMode, ResolutionTier, DisplaySettings, ScalePlan } from './display';
+export {
+  DEFAULT_DISPLAY_SETTINGS,
+  DISPLAY_SETTINGS_KEY,
+  DESKTOP_ZOOM,
+  planScale,
+  serializeDisplaySettings,
+  parseDisplaySettings,
+} from './display';
