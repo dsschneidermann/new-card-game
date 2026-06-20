@@ -36,6 +36,7 @@ export interface CardUiContext {
 interface Armed {
   kind: 'card' | 'spell';
   def: CardDef | SpellDef;
+  obj: Phaser.GameObjects.Container; // the specific armed instance — re-pressing THIS one cancels
   firstPick: Hex | null;
 }
 
@@ -152,14 +153,14 @@ export class CardController {
 
   // ---- internals ---------------------------------------------------------
 
-  /** Activate a card/spell (from its pointerdown). Re-pressing the armed one cancels. */
+  /** Activate a card/spell (from its pointerdown). Re-pressing the SAME instance cancels; picking a different card (even one of the same type) switches the arm to it. */
   private arm(
     kind: 'card' | 'spell',
     def: CardDef | SpellDef,
     obj: Phaser.GameObjects.Container,
     p: Phaser.Input.Pointer,
   ): void {
-    if (this.armed !== null && this.armed.def.id === def.id) {
+    if (this.armed !== null && this.armed.obj === obj) {
       this.disarm();
       return;
     }
@@ -175,7 +176,7 @@ export class CardController {
       return;
     }
     this.disarm();
-    this.armed = { kind, def, firstPick: null };
+    this.armed = { kind, def, obj, firstPick: null };
     this.pressDown = { x: p.x, y: p.y };
     // An armed card drops back into the hand (so the whole board stays visible) and shows
     // a yellow selected border; a spell lights up its ring — the same "selected" affordance.
