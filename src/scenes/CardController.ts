@@ -56,6 +56,7 @@ const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
+const OUTLINE_EXTEND_PX = 0.5; // range-outline segments overshoot each end by this many px so convex corners close fully
 
 /** A pixel point — a hexagon vertex / edge endpoint. */
 type Pt = { x: number; y: number };
@@ -416,7 +417,18 @@ export class CardController {
         best = [a, b];
       }
     }
-    if (best !== null) this.rangeOutline.lineBetween(best[0].x, best[0].y, best[1].x, best[1].y);
+    if (best === null) return;
+    // Overshoot both ends along the edge direction so neighbouring segments overlap at the
+    // shared vertex and the convex corners close fully (no gaps between separate strokes).
+    const [a, b] = best;
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const t = s(OUTLINE_EXTEND_PX) / len;
+    this.rangeOutline.lineBetween(
+      a.x - (b.x - a.x) * t,
+      a.y - (b.y - a.y) * t,
+      b.x + (b.x - a.x) * t,
+      b.y + (b.y - a.y) * t,
+    );
   }
 
   private fillHex(hex: Hex, color: number): void {
