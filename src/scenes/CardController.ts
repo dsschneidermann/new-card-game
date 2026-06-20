@@ -226,6 +226,9 @@ export class CardController {
   private redrawHighlight(): void {
     this.highlight.clear();
     if (this.armed === null || this.hovered === null) return;
+    // No hex under the pointer (off the board) = no target = no visual effect, matching
+    // the rule that an off-grid click cancels the armed action.
+    if (!this.ctx.grid.inBounds(this.hovered)) return;
     const origin = this.originHex();
     if (origin === null) return;
     const firstPick = this.armed.firstPick ?? undefined;
