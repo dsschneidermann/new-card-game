@@ -49,6 +49,7 @@ const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away form center is rotated
+const CARD_FAN_DROP_PX = 2; // quadratic fan arc: a card N whole steps from centre drops s(N*N*this) px
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -185,11 +186,12 @@ export class CardController {
     const centerOffset = i - (count - 1) / 2; // signed distance from centre (half-steps for even counts)
     const x = layout.baseX + i * layout.spacing;
     const angle = centerOffset * CARD_FAN_ROTATION;
-    // Downward fan arc: the centre card (odd) or two centre cards (even) sit flat, and each
-    // position outward drops more, symmetric both ways. floor(|centerOffset|) is 0 for the 
-    // middle card(s), then 1, 2, ... — the same mirroring as the rotation above.
-    const cardFanDrop = (x: number) => x < 1 ? 0 : x == 1 ? 2 : x <= 2 ? 4 : x <= 3 ? 6 : x <= 4 ? 12 : 0;
-    const y = layout.baseY + s(cardFanDrop(Math.floor(Math.abs(centerOffset))));
+    // Downward fan arc: the centre card (odd) or two centre cards (even) sit flat, and each whole
+    // step outward drops further on a quadratic curve (accelerating toward the edges), symmetric
+    // both ways. floor(|centerOffset|) is 0 for the middle card(s), then 1, 2, ... — the same
+    // centre metric as the rotation above; quadratic so it generalises to any hand size.
+    const step = Math.floor(Math.abs(centerOffset));
+    const y = layout.baseY + s(step * step * CARD_FAN_DROP_PX);
     card.setData('handIndex', i);
     card.setData('homeY', y);
     card.setDepth(HUD_DEPTH + i);
