@@ -126,7 +126,7 @@ export class CardController {
     const { width, height } = this.scene.scale;
     const spacing = 104;
     const baseX = width / 2 - ((hand.length - 1) * spacing) / 2;
-    const baseY = height - 96;
+    const baseY = height - 52; // tucked: most of each 144px card shows above the bottom edge
     hand.forEach((id, i) => {
       const def = cardDef(id);
       if (def === undefined) return;
@@ -163,8 +163,8 @@ export class CardController {
     this.disarm();
     this.armed = { kind, def, firstPick: null };
     this.pressDown = { x: p.x, y: p.y };
-    if (kind === 'card') obj.setY((obj.getData('homeY') as number) - 36);
-    else this.setSpellSelected(obj, true);
+    // A card stays at its hover-raised height when armed (no extra raise); spells just light up.
+    if (kind === 'spell') this.setSpellSelected(obj, true);
     this.tooltip.setVisible(false);
   }
 

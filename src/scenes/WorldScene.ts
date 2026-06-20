@@ -40,9 +40,9 @@ interface WorldSceneData {
 }
 
 /** Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006). */
-const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, originY: 28 };
-const GRID_COLS = 28;
-const GRID_ROWS = 28;
+const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 96, originY: 28 };
+const GRID_COLS = 26;
+const GRID_ROWS = 21;
 const STEP_MS = 110;
 const PLAYER_SCALE = 0.5; // 128px art on a 32px hex (tunable)
 
