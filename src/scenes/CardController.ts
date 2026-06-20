@@ -7,6 +7,8 @@ import {
   hexToPixel,
   pixelToHex,
   SPELL_DEFS,
+  canPlayCard,
+  canPlaySpell,
   type World,
   type EntityId,
   type HexGrid,
@@ -27,6 +29,8 @@ export interface CardUiContext {
   submit(cmd: Command): void;
   /** True when the player may act (player phase + no move animating). */
   canAct(): boolean;
+  /** Surface a transient message to the player (e.g. why a card can't be played). */
+  notify(message: string): void;
 }
 
 interface Armed {
@@ -160,6 +164,16 @@ export class CardController {
       return;
     }
     if (!this.ctx.canAct()) return;
+    // Tell the player at SELECTION time if it can't be played (not enough energy/mana, or
+    // out of phase), rather than only after they target a hex.
+    const v =
+      kind === 'card'
+        ? canPlayCard(this.ctx.world(), this.ctx.player(), def.cost)
+        : canPlaySpell(this.ctx.world(), this.ctx.player(), def.cost);
+    if (!v.ok) {
+      this.ctx.notify(v.reason);
+      return;
+    }
     this.disarm();
     this.armed = { kind, def, firstPick: null };
     this.pressDown = { x: p.x, y: p.y };

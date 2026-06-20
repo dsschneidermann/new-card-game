@@ -107,6 +107,7 @@ export class WorldScene extends Phaser.Scene {
       player: () => this.player,
       submit: (cmd) => this.world.submit(cmd),
       canAct: () => !this.inputLocked && this.isPlayerPhase(),
+      notify: (m) => this.flashRejected(m),
     });
     this.cards.create();
 
