@@ -35,6 +35,9 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.worldExit, [32, 32], 'glowing portal/stairs', 'Level exit', { frameWidth: 32, frameHeight: 32, count: 2 }),
   asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle (128px art shown at 0.5 on a 32px hex, single right-facing row, 6 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 6 }),
   asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk (128px art shown at 0.5 on a 32px hex, single right-facing row, 8 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 8 }),
+  asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance (128px art at 0.5 on a 32px hex, single right-facing row, 2 frames, looping; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 2 }),
+  asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1 (128px art at 0.5 on a 32px hex, single right-facing row, 3 frames, one-shot; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 3 }),
+  asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2 (128px art at 0.5 on a 32px hex, single right-facing row, 7 frames, one-shot; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 7 }),
   // Seeded ahead of code use (no AssetKeys constant until referenced):
   asset('enemy.melee.idle', [32, 32], 'brutish red with a club', 'Melee enemy idle', { frameWidth: 32, frameHeight: 32, count: 4 }),
   asset('resource.icon.energy', [24, 24], 'yellow lightning bolt', 'Energy icon'),
@@ -55,6 +58,9 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.playerIdle, // 128px right-facing spritesheet
   AssetKeys.playerWalk,
+  AssetKeys.playerReady,
+  AssetKeys.playerAttack1,
+  AssetKeys.playerAttack2,
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */

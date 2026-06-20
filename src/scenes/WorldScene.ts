@@ -19,6 +19,7 @@ import {
   DeckState,
   drawHand,
   STARTER_COLLECTION,
+  isAttackCard,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
@@ -31,7 +32,7 @@ import {
   type TurnHooks,
 } from '@core/index';
 import { SceneSync } from '@render/SceneSync';
-import { Renderable, buildCharacterViews } from '@render/characterViews';
+import { Renderable, AnimState, buildCharacterViews, type AnimStateData } from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 
@@ -46,6 +47,11 @@ interface WorldSceneData {
 const GRID_COLS = 26;
 const GRID_ROWS = 21;
 const STEP_MS = 110;
+
+// Attack one-shot animation lengths (frame count at ATTACK_FPS); used to time the
+// scene timer that drops the player's attack overlay back to its resting stance.
+const ATTACK_FPS = 12;
+const ATTACK_FRAMES: Record<'attack1' | 'attack2', number> = { attack1: 3, attack2: 7 };
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -73,6 +79,8 @@ export class WorldScene extends Phaser.Scene {
   private stepAccum = 0;
   private cards!: CardController;
   private layout!: HexLayout;
+  // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
+  private attackClearTimer: Phaser.Time.TimerEvent | undefined;
 
   // Turn-start is the autosave checkpoint (the deferral feature 06 left to 07):
   // draw a fresh hand, then checkpoint. Resume and Restart Turn both land at the
@@ -161,9 +169,60 @@ export class WorldScene extends Phaser.Scene {
       events.push(...advance(this.world));
       this.stepAccum -= STEP_MS;
     }
+    this.syncPlayerAnim(events);
     this.sync.sync(buildCharacterViews(this.world, this.layout));
     this.refreshHud();
     for (const e of events) if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
+  }
+
+  /**
+   * Drive the player's transient AnimState (card-play feel). 'armed' mirrors the
+   * CardController each frame; 'base' becomes 'ready' after playing any card or spell
+   * and 'idle' at turn start or after a move. An attack card additionally plays a
+   * random one-shot overlay that a scene timer clears back to the resting stance.
+   * The variant pick uses Math.random (scene-side), never world.rng, so this purely
+   * visual choice cannot perturb the gameplay stream (drawHand / determinism).
+   */
+  private syncPlayerAnim(events: GameEvent[]): void {
+    const anim = this.world.store(AnimState).get(this.player);
+    if (anim === undefined) return;
+    anim.armed = this.cards.isArmed();
+    for (const e of events) {
+      switch (e.kind) {
+        case 'CardPlayed':
+          if (e.entity !== this.player) break;
+          anim.base = 'ready';
+          if (isAttackCard(e.cardId)) this.playAttack(anim);
+          break;
+        case 'SpellCast':
+          if (e.entity === this.player) anim.base = 'ready';
+          break;
+        case 'EntityStepped':
+          if (e.entity === this.player) anim.base = 'idle';
+          break;
+        case 'TurnStarted':
+          if (e.phase === 'player') {
+            anim.base = 'idle';
+            anim.oneShot = null;
+            this.attackClearTimer?.remove();
+            this.attackClearTimer = undefined;
+          }
+          break;
+      }
+    }
+  }
+
+  /** Start a random attack overlay and schedule its clear after it plays once. */
+  private playAttack(anim: AnimStateData): void {
+    const variant: 'attack1' | 'attack2' = Math.random() < 0.5 ? 'attack1' : 'attack2';
+    anim.oneShot = variant;
+    this.attackClearTimer?.remove(); // a rapid second attack restarts the clear timer
+    const durationMs = (ATTACK_FRAMES[variant] / ATTACK_FPS) * 1000;
+    this.attackClearTimer = this.time.delayedCall(durationMs, () => {
+      const a = this.world.store(AnimState).get(this.player);
+      if (a !== undefined && a.oneShot === variant) a.oneShot = null;
+      this.attackClearTimer = undefined;
+    });
   }
 
   /**
@@ -186,6 +245,9 @@ export class WorldScene extends Phaser.Scene {
       texture: AssetKeys.playerIdle,
       animBase: 'player',
     });
+    // Transient animation stance (card-play feel), rebuilt here so Resume/Restart Turn
+    // start the player in a neutral idle. Driven each frame from input + this turn's events.
+    this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
   }
 
   /** A brand-new run: a clock-seeded world with the player and its turn state. */

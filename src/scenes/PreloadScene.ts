@@ -80,11 +80,18 @@ export class PreloadScene extends Phaser.Scene {
     this.scene.start('MainMenuScene');
   }
 
-  /** Define the player's looping idle/walk animations from the right-facing sheets (feature 14). */
+  /**
+   * Define the player's right-facing animations from the sheets (features 14 + card-play feel).
+   * idle/walk/ready loop (repeat -1); the two attack variants are one-shots (repeat 0) so they
+   * play once and the scene returns the sprite to its resting stance.
+   */
   private createPlayerAnims(): void {
     const defs = [
-      { key: 'player.idle.right', sheet: AssetKeys.playerIdle, fps: 6 },
-      { key: 'player.walk.right', sheet: AssetKeys.playerWalk, fps: 12 },
+      { key: 'player.idle.right', sheet: AssetKeys.playerIdle, fps: 6, repeat: -1 },
+      { key: 'player.walk.right', sheet: AssetKeys.playerWalk, fps: 12, repeat: -1 },
+      { key: 'player.ready.right', sheet: AssetKeys.playerReady, fps: 6, repeat: -1 },
+      { key: 'player.attack1.right', sheet: AssetKeys.playerAttack1, fps: 12, repeat: 0 },
+      { key: 'player.attack2.right', sheet: AssetKeys.playerAttack2, fps: 12, repeat: 0 },
     ];
     for (const d of defs) {
       if (this.anims.exists(d.key)) continue;
@@ -92,7 +99,7 @@ export class PreloadScene extends Phaser.Scene {
         key: d.key,
         frames: this.anims.generateFrameNumbers(d.sheet),
         frameRate: d.fps,
-        repeat: -1,
+        repeat: d.repeat,
       });
     }
   }

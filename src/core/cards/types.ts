@@ -23,6 +23,8 @@ export interface CardDef {
   readonly art: string; // asset key, conventionally card.art.<id>
   readonly effectText: string;
   readonly target: TargetSpec;
+  /** Attack cards (melee/ranged) trigger the player's attack animation when played. */
+  readonly attack?: boolean;
 }
 
 /** A spell definition. Each SpellDef IS a spell type, identified by id (spell.icon.<id>). */

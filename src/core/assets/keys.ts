@@ -18,6 +18,9 @@ export const AssetKeys = {
   worldExit: 'world.tile.exit',
   playerIdle: 'player.idle',
   playerWalk: 'player.walk',
+  playerReady: 'player.ready',
+  playerAttack1: 'player.attack1',
+  playerAttack2: 'player.attack2',
 } as const;
 
 /** Union of the canonical logical asset keys. */

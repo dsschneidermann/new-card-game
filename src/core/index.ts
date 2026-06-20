@@ -97,6 +97,7 @@ export {
   STARTER_COLLECTION,
   cardDef,
   spellDef,
+  isAttackCard,
   resolveTargeting,
 } from './cards';
 

@@ -13,6 +13,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     art: 'card.art.melee',
     effectText: 'Deal damage to an adjacent enemy.',
     target: { kind: 'singleHex' },
+    attack: true,
   },
   {
     id: 'ranged',
@@ -21,6 +22,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     art: 'card.art.ranged',
     effectText: 'Deal damage to a target in line of sight.',
     target: { kind: 'lineOfSight' },
+    attack: true,
   },
   {
     id: 'defend',
@@ -71,10 +73,13 @@ export const SPELL_DEFS: readonly SpellDef[] = [
 export const STARTER_COLLECTION: readonly string[] = [
   'melee',
   'melee',
+  'melee',
+  'ranged',
   'ranged',
   'ranged',
   'defend',
   'defend',
+  'jump',
   'jump',
 ];
 
@@ -83,6 +88,11 @@ const SPELL_BY_ID = new Map<string, SpellDef>(SPELL_DEFS.map((s) => [s.id, s]));
 
 export function cardDef(id: string): CardDef | undefined {
   return CARD_BY_ID.get(id);
+}
+
+/** True for attack cards (melee/ranged) — they trigger the player's attack animation. */
+export function isAttackCard(id: string): boolean {
+  return CARD_BY_ID.get(id)?.attack === true;
 }
 export function spellDef(id: string): SpellDef | undefined {
   return SPELL_BY_ID.get(id);

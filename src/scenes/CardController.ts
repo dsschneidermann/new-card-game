@@ -3,6 +3,7 @@ import {
   HexPosition,
   DeckState,
   cardDef,
+  isAttackCard,
   resolveTargeting,
   hexToPixel,
   pixelToHex,
@@ -123,26 +124,21 @@ export class CardController {
     this.disarm();
   }
 
-  /** (Re)build the hand fan from DeckState.hand. */
+  /** (Re)build the hand fan from DeckState.hand (called at turn start with a fresh hand). */
   refreshHand(): void {
     for (const c of this.handCards) c.destroy();
     this.handCards = [];
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
     const hand = deck?.hand ?? [];
-    const { width, height } = this.scene.scale;
-    const spacing = s(104);
-    const baseX = width / 2 - ((hand.length - 1) * spacing) / 2;
-    const baseY = height - s(52); // tucked: most of each card shows above the bottom edge
+    const layout = this.fanLayout(hand.length);
     hand.forEach((id, i) => {
       const def = cardDef(id);
       if (def === undefined) return;
       const card = this.makeCardFace(def, 1);
-      card.setPosition(baseX + i * spacing, baseY).setDepth(HUD_DEPTH + i);
-      card.setAngle((i - (hand.length - 1) / 2) * 4);
-      card.setData('homeY', baseY);
+      this.placeCard(card, i, hand.length, layout, false);
       card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
       card.on('pointerover', () => {
-        if (this.armed === null) card.setY(baseY - s(28));
+        if (this.armed === null) card.setY((card.getData('homeY') as number) - s(28));
       });
       card.on('pointerout', () => {
         if (this.armed === null) card.setY(card.getData('homeY') as number);
@@ -150,6 +146,71 @@ export class CardController {
       card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
       this.handCards.push(card);
     });
+  }
+
+  /**
+   * Fan geometry for a hand of `count` cards. Spacing is the base s(104) but shrinks
+   * for larger hands so the whole fan stays within the screen width (half-card margins
+   * each side); cards are centred horizontally and tucked near the bottom edge.
+   */
+  private fanLayout(count: number): { spacing: number; baseX: number; baseY: number } {
+    const { width, height } = this.scene.scale;
+    const maxSpan = width - s(192); // outermost card centres stay inside the screen
+    const spacing = count > 1 ? Math.min(s(104), maxSpan / (count - 1)) : 0;
+    const baseX = width / 2 - ((count - 1) * spacing) / 2;
+    const baseY = height - s(52); // tucked: most of each card shows above the bottom edge
+    return { spacing, baseX, baseY };
+  }
+
+  /**
+   * Position one hand card at slot `i` of `count`, recording its slot index and home Y.
+   * animate=true tweens it to the slot (used when the hand reflows after a play);
+   * animate=false snaps it (used when the hand is freshly built).
+   */
+  private placeCard(
+    card: Phaser.GameObjects.Container,
+    i: number,
+    count: number,
+    layout: { spacing: number; baseX: number; baseY: number },
+    animate: boolean,
+  ): void {
+    const x = layout.baseX + i * layout.spacing;
+    const angle = (i - (count - 1) / 2) * 4;
+    card.setData('handIndex', i);
+    card.setData('homeY', layout.baseY);
+    card.setDepth(HUD_DEPTH + i);
+    if (animate) {
+      this.scene.tweens.add({ targets: card, x, y: layout.baseY, angle, duration: 160, ease: 'Quad.easeOut' });
+    } else {
+      card.setPosition(x, layout.baseY).setAngle(angle);
+    }
+  }
+
+  /**
+   * Remove the just-played card from the hand: drop its instance from DeckState.hand
+   * (by slot, so a duplicate removes the right copy), tween the card out, then reflow
+   * the survivors to their new fan positions. The hand only fully rebuilds at turn start.
+   */
+  private removePlayedCard(card: Phaser.GameObjects.Container): void {
+    const arrayPos = this.handCards.indexOf(card);
+    if (arrayPos === -1) return;
+    const handIndex = card.getData('handIndex') as number;
+    const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
+    if (deck !== undefined && handIndex >= 0 && handIndex < deck.hand.length) {
+      deck.hand.splice(handIndex, 1);
+    }
+    this.handCards.splice(arrayPos, 1);
+    this.scene.tweens.add({
+      targets: card,
+      y: card.y - s(60),
+      alpha: 0,
+      scale: 0.6,
+      duration: 160,
+      ease: 'Quad.easeOut',
+      onComplete: () => card.destroy(),
+    });
+    const layout = this.fanLayout(this.handCards.length);
+    this.handCards.forEach((c, i) => this.placeCard(c, i, this.handCards.length, layout, true));
   }
 
   // ---- internals ---------------------------------------------------------
@@ -200,7 +261,7 @@ export class CardController {
 
   private play(finalHex: Hex): void {
     if (this.armed === null) return;
-    const { kind, def, firstPick } = this.armed;
+    const { kind, def, firstPick, obj } = this.armed;
     const spec = def.target;
     // Record the aimed hex(es) for when effects land: the selected hex, both picks for a
     // two-step, or none for a self-target (whose chosen hex is ignored).
@@ -225,6 +286,8 @@ export class CardController {
       );
     }
     this.disarm();
+    // A played card leaves the hand for the rest of the turn (spells stay in the sidebar).
+    if (kind === 'card') this.removePlayedCard(obj);
   }
 
   private disarm(): void {
@@ -306,7 +369,7 @@ export class CardController {
   }
 
   private frameColor(id: string): number {
-    return id === 'melee' || id === 'ranged' ? 0xb91c1c : 0x2563eb; // attack red / skill blue
+    return isAttackCard(id) ? 0xb91c1c : 0x2563eb; // attack red / skill blue
   }
 
   /** Toggle a hand card's "selected" border: yellow when armed, its frame colour otherwise. */

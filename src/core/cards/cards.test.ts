@@ -9,6 +9,7 @@ import {
   resolveTargeting,
   cardDef,
   spellDef,
+  isAttackCard,
   drawHand,
   makeRng,
   DeckState,
@@ -96,9 +97,24 @@ describe('resolveTargeting', () => {
 });
 
 describe('starter content', () => {
-  it('the starter collection is the expected multiset of defined cards', () => {
-    expect(STARTER_COLLECTION).toEqual(['melee', 'melee', 'ranged', 'ranged', 'defend', 'defend', 'jump']);
+  it('the starter collection is the expected 10-card multiset of defined cards', () => {
+    expect(STARTER_COLLECTION).toEqual([
+      'melee', 'melee', 'melee',
+      'ranged', 'ranged', 'ranged',
+      'defend', 'defend',
+      'jump', 'jump',
+    ]);
+    expect(STARTER_COLLECTION).toHaveLength(10);
     for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
+  });
+
+  it('isAttackCard is true only for melee/ranged, false for skills, spells and unknown ids', () => {
+    expect(isAttackCard('melee')).toBe(true);
+    expect(isAttackCard('ranged')).toBe(true);
+    expect(isAttackCard('defend')).toBe(false);
+    expect(isAttackCard('jump')).toBe(false);
+    expect(isAttackCard('blizzard')).toBe(false); // a spell id, not a card
+    expect(isAttackCard('nope')).toBe(false);
   });
 
   it('cards carry per-id art, the right costs and target specs', () => {
@@ -139,5 +155,15 @@ describe('DeckState persistence (feature 06 obligation)', () => {
       collection: [...STARTER_COLLECTION],
       hand: ['melee', 'ranged'],
     });
+  });
+
+  it('round-trips a hand shrunk by playing a card (removal persists)', () => {
+    const world = createWorld(1);
+    const e = world.createEntity();
+    const deck = { collection: [...STARTER_COLLECTION], hand: ['melee', 'melee', 'ranged', 'jump'] };
+    world.store(DeckState).add(e, deck);
+    deck.hand.splice(1, 1); // play the second card (one of the two melee) — removed by slot
+    const restored = restoreWorld(serializeWorld(world));
+    expect(restored.store(DeckState).get(e)?.hand).toEqual(['melee', 'ranged', 'jump']);
   });
 });
