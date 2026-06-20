@@ -48,7 +48,10 @@ interface Armed {
 
 const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
-const HL_DEPTH = 500_000;
+// Targeting paint (tint + range outline) sits on the GROUND: above the grid (drawn at
+// -1_000_000) but below every character sprite (SceneSync depth = screen-Y, always > 0), so
+// sprites draw over it and it reads as painted on the floor rather than covering the player.
+const HL_DEPTH = -1_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
