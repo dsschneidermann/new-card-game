@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { manifest, USED_ASSET_KEYS, validateManifest, AssetKeys, s } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
+import { PLAYER_ATTACK_ANIMS } from '@render/characterViews';
 
 /**
  * Boot-time asset pipeline (feature 03): loads any real files flagged in the
@@ -90,8 +91,8 @@ export class PreloadScene extends Phaser.Scene {
       { key: 'player.idle.right', sheet: AssetKeys.playerIdle, fps: 6, repeat: -1 },
       { key: 'player.walk.right', sheet: AssetKeys.playerWalk, fps: 12, repeat: -1 },
       { key: 'player.ready.right', sheet: AssetKeys.playerReady, fps: 6, repeat: -1 },
-      { key: 'player.attack1.right', sheet: AssetKeys.playerAttack1, fps: 12, repeat: 0 },
-      { key: 'player.attack2.right', sheet: AssetKeys.playerAttack2, fps: 12, repeat: 0 },
+      { key: 'player.attack1.right', sheet: AssetKeys.playerAttack1, fps: PLAYER_ATTACK_ANIMS.attack1.fps, repeat: 0 },
+      { key: 'player.attack2.right', sheet: AssetKeys.playerAttack2, fps: PLAYER_ATTACK_ANIMS.attack2.fps, repeat: 0 },
     ];
     for (const d of defs) {
       if (this.anims.exists(d.key)) continue;

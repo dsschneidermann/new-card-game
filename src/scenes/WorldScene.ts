@@ -33,7 +33,13 @@ import {
   type TurnHooks,
 } from '@core/index';
 import { SceneSync } from '@render/SceneSync';
-import { Renderable, AnimState, buildCharacterViews, type AnimStateData } from '@render/characterViews';
+import {
+  Renderable,
+  AnimState,
+  buildCharacterViews,
+  PLAYER_ATTACK_ANIMS,
+  type AnimStateData,
+} from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 
@@ -48,11 +54,6 @@ interface WorldSceneData {
 const GRID_COLS = 26;
 const GRID_ROWS = 21;
 const STEP_MS = 110;
-
-// Attack one-shot animation lengths (frame count at ATTACK_FPS); used to time the
-// scene timer that drops the player's attack overlay back to its resting stance.
-const ATTACK_FPS = 12;
-const ATTACK_FRAMES: Record<'attack1' | 'attack2', number> = { attack1: 3, attack2: 7 };
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -234,7 +235,8 @@ export class WorldScene extends Phaser.Scene {
     const variant: 'attack1' | 'attack2' = Math.random() < 0.5 ? 'attack1' : 'attack2';
     anim.oneShot = variant;
     this.attackClearTimer?.remove(); // a rapid second attack restarts the clear timer
-    const durationMs = (ATTACK_FRAMES[variant] / ATTACK_FPS) * 1000;
+    const spec = PLAYER_ATTACK_ANIMS[variant]; // per-variant timing: attack1 is dragged out
+    const durationMs = (spec.frames / spec.fps) * 1000;
     this.attackClearTimer = this.time.delayedCall(durationMs, () => {
       const a = this.world.store(AnimState).get(this.player);
       if (a !== undefined && a.oneShot === variant) a.oneShot = null;

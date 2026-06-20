@@ -3,6 +3,16 @@ import { s, assetScale, resolveKey, type EntityId } from '@core/index';
 import type { RenderableView } from './characterViews';
 
 /**
+ * Art-alignment nudge: some character sheets draw the figure off-centre in its frame,
+ * so while that animation plays the sprite is pushed FORWARD (in its facing direction)
+ * by this many base px — scaled via s() and mirrored by flipX. Keyed by animation key.
+ */
+const ANIM_FORWARD_PX: Record<string, number> = {
+  'player.ready.right': 32,
+  'player.attack1.right': 32,
+};
+
+/**
  * Presentation bridge (ADR-002): reconciles renderable views to Phaser sprites
  * — creating new ones, tweening existing ones toward their new stand-point,
  * playing animations, mirroring/scaling, and destroying sprites whose entity is
@@ -24,16 +34,21 @@ export class SceneSync {
     const seen = new Set<EntityId>();
     for (const v of views) {
       seen.add(v.id);
+      // Stand-point plus the per-animation forward nudge (mirrored with facing). Only x is
+      // offset; depth still sorts by the true hex y so the nudge can't change draw order.
+      const forward = v.anim !== undefined ? (ANIM_FORWARD_PX[v.anim] ?? 0) : 0;
+      const px = v.x + (forward === 0 ? 0 : s(forward) * ((v.flipX ?? false) ? -1 : 1));
+      const py = v.y;
       let sprite = this.sprites.get(v.id);
       if (sprite === undefined) {
-        sprite = this.scene.add.sprite(v.x, v.y, v.texture, v.frame).setOrigin(0.5, 0.85);
+        sprite = this.scene.add.sprite(px, py, v.texture, v.frame).setOrigin(0.5, 0.85);
         this.sprites.set(v.id, sprite);
-        this.targets.set(v.id, { x: v.x, y: v.y });
+        this.targets.set(v.id, { x: px, y: py });
       } else {
         const target = this.targets.get(v.id);
-        if (target === undefined || target.x !== v.x || target.y !== v.y) {
-          this.scene.tweens.add({ targets: sprite, x: v.x, y: v.y, duration: this.stepDurationMs });
-          this.targets.set(v.id, { x: v.x, y: v.y });
+        if (target === undefined || target.x !== px || target.y !== py) {
+          this.scene.tweens.add({ targets: sprite, x: px, y: py, duration: this.stepDurationMs });
+          this.targets.set(v.id, { x: px, y: py });
         }
       }
       if (v.anim !== undefined) {

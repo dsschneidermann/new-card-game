@@ -56,6 +56,18 @@ export const AnimState: ComponentType<AnimStateData> = defineComponent<AnimState
 });
 
 /**
+ * Player attack one-shot timing (presentation tuning), the single source shared by
+ * PreloadScene (which sets each anim's frameRate) and WorldScene (which times when the
+ * overlay clears back to the resting stance) so the two can't drift apart. attack1 is a
+ * short 3-frame sheet, so it runs at a lower fps to drag it out to a readable length;
+ * attack2 is a longer 7-frame sheet. `frames` must match the registered sheet frame count.
+ */
+export const PLAYER_ATTACK_ANIMS = {
+  attack1: { frames: 3, fps: 5 },
+  attack2: { frames: 7, fps: 12 },
+} as const;
+
+/**
  * Pick the animation state for an animated entity from its movement and AnimState.
  * Priority: walking (MovePath) wins; then a one-shot attack overlay; then the
  * 'ready' stance (resting base, or while a card/spell is armed); else idle.
