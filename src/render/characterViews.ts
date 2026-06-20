@@ -63,7 +63,7 @@ export const AnimState: ComponentType<AnimStateData> = defineComponent<AnimState
  * attack2 is a longer 7-frame sheet. `frames` must match the registered sheet frame count.
  */
 export const PLAYER_ATTACK_ANIMS = {
-  attack1: { frames: 3, fps: 5 },
+  attack1: { frames: 3, fps: 8 },
   attack2: { frames: 7, fps: 12 },
 } as const;
 

@@ -60,7 +60,7 @@ const ENERGY_MAX = 3;
 const MANA_MAX = 5;
 const MANA_REGEN = 1;
 const MOVE_BUDGET = 5;
-const HAND_SIZE = 4;
+const HAND_SIZE = 10;
 
 /**
  * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
