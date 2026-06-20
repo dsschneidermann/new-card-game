@@ -9,7 +9,8 @@ export interface AssetDescriptor {
   key: string;
   /** Real-file location: flat dotted filename, assets/<key>.png. */
   path: string;
-  size: [number, number];
+  /** Source frame size in pixels, with an optional display scale: [sizeX, sizeY, scale?]. */
+  size: [number, number, number?];
   origin?: [number, number];
   frames?: { frameWidth: number; frameHeight: number; count: number };
   style: string;
@@ -30,6 +31,11 @@ export interface ValidationReport {
 /** Frame layout for a descriptor: its declared frames, or a single implicit frame. */
 export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeight: number; count: number } {
   return d.frames ?? { frameWidth: d.size[0], frameHeight: d.size[1], count: 1 };
+}
+
+/** The asset's chosen display scale (the optional 3rd size element); 1 = render at native frame size. */
+export function assetScale(d: AssetDescriptor): number {
+  return d.size[2] ?? 1;
 }
 
 /**

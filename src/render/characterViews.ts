@@ -22,8 +22,6 @@ export interface RenderableView {
   readonly anim?: string;
   /** Mirror horizontally — e.g. a right-facing sheet shown facing left. */
   readonly flipX?: boolean;
-  /** Display scale (1 = native frame size). */
-  readonly scale?: number;
 }
 
 /** Presentation data: texture + how to animate it. animBase (e.g. 'player') drives state+facing anims. */
@@ -31,7 +29,6 @@ export interface RenderableData {
   texture: string;
   frame?: number;
   animBase?: string;
-  scale?: number;
 }
 // Transient (not persisted — feature 06): presentation only, rebuilt on load
 // by re-attaching Renderable to restored entities.
@@ -66,7 +63,6 @@ export function* buildCharacterViews(world: World, layout: HexLayout): Generator
         texture: r.texture,
         anim: `${r.animBase}.${state}.right`,
         flipX: facing === 'left',
-        ...(r.scale !== undefined ? { scale: r.scale } : {}),
       };
     } else {
       yield { id, x, y, texture: r.texture, ...(r.frame !== undefined ? { frame: r.frame } : {}) };

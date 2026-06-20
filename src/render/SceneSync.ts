@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { EntityId } from '@core/index';
+import { s, assetScale, resolveKey, type EntityId } from '@core/index';
 import type { RenderableView } from './characterViews';
 
 /**
@@ -42,7 +42,11 @@ export class SceneSync {
         sprite.setFrame(v.frame);
       }
       sprite.setFlipX(v.flipX ?? false);
-      sprite.setScale(v.scale ?? 1);
+      // Size the sprite from its asset definition's chosen scale, then s() for the
+      // current resolution — so per-sprite scale lives in the manifest, not the scene.
+      const art = resolveKey(v.texture)?.descriptor;
+      const scale = art ? assetScale(art) : 1;
+      sprite.setDisplaySize(s(sprite.frame.width * scale), s(sprite.frame.height * scale));
       sprite.setDepth(v.y);
     }
     for (const [id, sprite] of this.sprites) {

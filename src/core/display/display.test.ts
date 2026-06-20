@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   s,
   setScaleFactor,
-  getScaleFactor,
   scaleFactorFor,
   viewportScaleMode,
   parseDisplaySettings,
@@ -14,14 +13,12 @@ import {
 } from '@core/index';
 
 describe('scale helper', () => {
-  it('s(n) multiplies by the current factor (rounded); getScaleFactor reflects it', () => {
+  it('s(n) multiplies by the current factor (rounded)', () => {
     setScaleFactor(1);
-    expect(getScaleFactor()).toBe(1);
     expect(s(10)).toBe(10);
     expect(s(0)).toBe(0);
 
     setScaleFactor(2);
-    expect(getScaleFactor()).toBe(2);
     expect(s(10)).toBe(20);
     expect(s(33)).toBe(66);
     expect(s(BASE_WIDTH)).toBe(1920);

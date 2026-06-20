@@ -23,7 +23,6 @@ import {
   pixelToHex,
   offsetToAxial,
   s,
-  getScaleFactor,
   type HexLayout,
   type EntityId,
   type World,
@@ -43,12 +42,10 @@ interface WorldSceneData {
 
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
 // The LAYOUT pixel fields are base (iPad) values scaled via s() into this.layout at
-// create time (s() must not run at module load). PLAYER_SCALE is a multiplier x the
-// scale factor (not s(), which is for pixel counts).
+// create time (s() must not run at module load).
 const GRID_COLS = 26;
 const GRID_ROWS = 21;
 const STEP_MS = 110;
-const PLAYER_SCALE = 0.5; // base multiplier; 128px art on a 32px hex (x scale factor)
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -188,7 +185,6 @@ export class WorldScene extends Phaser.Scene {
     this.world.store(Renderable).add(this.player, {
       texture: AssetKeys.playerIdle,
       animBase: 'player',
-      scale: PLAYER_SCALE * getScaleFactor(),
     });
   }
 

@@ -41,10 +41,6 @@ export function setScaleFactor(value: number): void {
   scaleFactor = value;
 }
 
-export function getScaleFactor(): number {
-  return scaleFactor;
-}
-
 /**
  * Scale a base (iPad) pixel value to the current factor, rounded to a whole pixel.
  * EVERY pixel number going into Phaser or a layout calculation must pass through here.

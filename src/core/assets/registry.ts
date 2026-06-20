@@ -6,7 +6,7 @@ type Frames = { frameWidth: number; frameHeight: number; count: number };
 
 const asset = (
   key: string,
-  size: [number, number],
+  size: [number, number, number?],
   style: string,
   description: string,
   frames?: Frames,
@@ -33,8 +33,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.worldFloor, [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
   asset(AssetKeys.worldWall, [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
   asset(AssetKeys.worldExit, [32, 32], 'glowing portal/stairs', 'Level exit', { frameWidth: 32, frameHeight: 32, count: 2 }),
-  asset(AssetKeys.playerIdle, [128, 128], 'anime fox-girl, right-facing', 'Player idle (128px, single right-facing row, 6 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 6 }),
-  asset(AssetKeys.playerWalk, [128, 128], 'same character, right-facing', 'Player walk (128px, single right-facing row, 8 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 8 }),
+  asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle (128px art shown at 0.5 on a 32px hex, single right-facing row, 6 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 6 }),
+  asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk (128px art shown at 0.5 on a 32px hex, single right-facing row, 8 frames; mirror for left)', { frameWidth: 128, frameHeight: 128, count: 8 }),
   // Seeded ahead of code use (no AssetKeys constant until referenced):
   asset('enemy.melee.idle', [32, 32], 'brutish red with a club', 'Melee enemy idle', { frameWidth: 32, frameHeight: 32, count: 4 }),
   asset('resource.icon.energy', [24, 24], 'yellow lightning bolt', 'Energy icon'),
