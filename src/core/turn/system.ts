@@ -150,8 +150,9 @@ function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData, hooks: T
   world.emit({ kind: 'TurnEnded', phase: 'enemy' });
   turn.phase = 'player';
   turn.round += 1;
-  hooks.onPlayerTurnStart?.(world); // ADR-008: start-of-turn DoT (feature 08)
 
+  // Refill/regen/reset FIRST, so a start-of-turn checkpoint (the autosave wired into
+  // onPlayerTurnStart) captures the fresh turn-start resources, not last turn's leftovers.
   const pool = world.store(ResourcePool).get(te);
   if (pool !== undefined) {
     refillEnergy(pool);
@@ -160,6 +161,8 @@ function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData, hooks: T
   }
   const budget = world.store(MovementBudget).get(te);
   if (budget !== undefined) budget.remaining = budget.max;
+
+  hooks.onPlayerTurnStart?.(world); // ADR-008 start-of-turn DoT (status effects) + scene autosave
 
   world.emit({ kind: 'RoundStarted', round: turn.round });
   world.emit({ kind: 'TurnStarted', phase: 'player', actor: te });

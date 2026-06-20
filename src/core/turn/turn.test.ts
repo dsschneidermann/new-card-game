@@ -151,6 +151,31 @@ describe('turn cycle & enemy phase', () => {
     ]);
   });
 
+  it('applies refill / regen / budget-reset BEFORE the start-of-turn hook (so a turn-start checkpoint sees fresh resources)', () => {
+    let atHook: { energy: number; mana: number; budget: number } | null = null;
+    const { world, player } = setup({
+      hooks: {
+        onPlayerTurnStart: (w) => {
+          const p = w.store(ResourcePool).get(player) as { energy: number; mana: number };
+          const b = w.store(MovementBudget).get(player) as { remaining: number };
+          atHook = { energy: p.energy, mana: p.mana, budget: b.remaining };
+        },
+      },
+    });
+    // Deplete this turn's resources, then end the turn.
+    const pool = world.store(ResourcePool).get(player) as { energy: number; mana: number };
+    const budget = world.store(MovementBudget).get(player) as { remaining: number };
+    pool.energy = 0;
+    pool.mana = 0;
+    budget.remaining = 0;
+
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+
+    // The hook is where WorldScene autosaves; it must observe the refilled turn-start
+    // state (energy->max, mana regen, budget->max), not the depleted leftovers.
+    expect(atHook).toEqual({ energy: 3, mana: 1, budget: 4 });
+  });
+
   it('resolves enemies sequentially in ascending-id order, skipping any removed mid-turn', () => {
     const acted: EntityId[] = [];
     const { world, player } = setup({
