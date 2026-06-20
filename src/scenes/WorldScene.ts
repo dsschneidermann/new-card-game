@@ -29,6 +29,7 @@ import {
   type World,
   type StorageAdapter,
   type GameEvent,
+  type Command,
   type TurnHooks,
 } from '@core/index';
 import { SceneSync } from '@render/SceneSync';
@@ -117,7 +118,7 @@ export class WorldScene extends Phaser.Scene {
       layout: this.layout,
       world: () => this.world,
       player: () => this.player,
-      submit: (cmd) => this.world.submit(cmd),
+      submit: (cmd) => this.submitPlayerCommand(cmd),
       canAct: () => !this.inputLocked && this.isPlayerPhase(),
       notify: (m) => this.flashRejected(m),
     });
@@ -173,6 +174,22 @@ export class WorldScene extends Phaser.Scene {
     this.sync.sync(buildCharacterViews(this.world, this.layout));
     this.refreshHud();
     for (const e of events) if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
+  }
+
+  /**
+   * Submit a player command. For a card/spell play, optimistically enter the 'ready'
+   * stance the same frame: the engine only processes the queued command on the next
+   * stepped advance() (up to STEP_MS later), so without this the player briefly falls
+   * back to 'idle' between disarming and the CardPlayed/SpellCast event — the
+   * split-second idle flash after playing a skill card. That later event re-asserts
+   * 'ready' (and adds the attack overlay for attack cards), so this is purely a head start.
+   */
+  private submitPlayerCommand(cmd: Command): void {
+    this.world.submit(cmd);
+    if (cmd.kind === 'PlayCard' || cmd.kind === 'PlaySpell') {
+      const anim = this.world.store(AnimState).get(this.player);
+      if (anim !== undefined) anim.base = 'ready';
+    }
   }
 
   /**
