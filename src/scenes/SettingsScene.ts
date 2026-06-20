@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AssetKeys, DEFAULT_DISPLAY_SETTINGS, s, type DisplaySettings, type StorageAdapter } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton, type Button } from '@scenes/MenuButton';
-import { applyViewport, applyResolution, saveDisplaySettings } from '@scenes/displaySettings';
+import { applyDisplaySettings, saveDisplaySettings } from '@scenes/displaySettings';
 
 const viewportLabel = (d: DisplaySettings): string =>
   d.viewport === 'fit' ? 'Fit to window' : '1:1 Actual pixels';
@@ -43,18 +43,19 @@ export class SettingsScene extends Phaser.Scene {
       saveDisplaySettings(storage, display);
     };
 
-    // Viewport (Fit vs 1:1) just retargets the ScaleManager — no re-layout needed.
+    // Both toggles run the same full ScaleManager configuration (applyDisplaySettings).
+    // Viewport only changes how the canvas is presented, so no re-layout is needed.
     const viewportBtn: Button = makeButton(this, width / 2, height * 0.42, viewportLabel(display), () => {
       persist({ ...display, viewport: display.viewport === 'fit' ? 'actual' : 'fit' });
-      applyViewport(this.scale, display.viewport);
+      applyDisplaySettings(this.scale, display);
       viewportBtn.setLabel(viewportLabel(display));
     });
 
     // Resolution changes the manual scale factor + canvas size, so every scene must
-    // re-run its s()-based layout. Resize the game, then restart this scene to relayout.
+    // re-run its s()-based layout — restart this scene after applying the settings.
     makeButton(this, width / 2, height * 0.54, resolutionLabel(display), () => {
       persist({ ...display, resolution: display.resolution === 'ipad' ? 'desktop' : 'ipad' });
-      applyResolution(this.scale, display.resolution);
+      applyDisplaySettings(this.scale, display);
       this.scene.restart();
     });
 

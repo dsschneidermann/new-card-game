@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { hasSave, type SavePresence, type StorageAdapter } from '@core/index';
 import { ScreenRouter } from '@scenes/ScreenRouter';
 import { LocalStorageAdapter } from '@scenes/LocalStorageAdapter';
-import { loadDisplaySettings } from '@scenes/displaySettings';
+import { applyDisplaySettings, loadDisplaySettings } from '@scenes/displaySettings';
 
 /**
  * Boot/entry scene: constructs the persistence StorageAdapter and the
@@ -20,9 +20,12 @@ export class BootScene extends Phaser.Scene {
     const storage: StorageAdapter = new LocalStorageAdapter();
     this.registry.set('storage', storage);
 
-    // The display scale + viewport are applied in main.ts before the game is created;
-    // here we just publish the settings for SettingsScene to read/toggle.
-    this.registry.set('display', loadDisplaySettings(storage));
+    // Publish the persisted settings and run the canonical full display configuration
+    // before any scene lays out — the exact same call SettingsScene makes on a change,
+    // so boot and every later toggle configure the ScaleManager identically.
+    const display = loadDisplaySettings(storage);
+    this.registry.set('display', display);
+    applyDisplaySettings(this.scale, display);
 
     const save: SavePresence = { hasSave: () => hasSave(storage) };
     const router = new ScreenRouter(this.game, save);
