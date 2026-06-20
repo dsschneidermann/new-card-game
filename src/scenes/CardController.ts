@@ -7,6 +7,7 @@ import {
   hexToPixel,
   pixelToHex,
   SPELL_DEFS,
+  s,
   canPlayCard,
   canPlaySpell,
   type World,
@@ -102,7 +103,7 @@ export class CardController {
    */
   onPointerUp(p: Phaser.Input.Pointer): void {
     if (this.armed === null || this.pressDown === null) return;
-    const moved = Phaser.Math.Distance.Between(this.pressDown.x, this.pressDown.y, p.x, p.y) > DRAG_THRESHOLD;
+    const moved = Phaser.Math.Distance.Between(this.pressDown.x, this.pressDown.y, p.x, p.y) > s(DRAG_THRESHOLD);
     this.pressDown = null;
     if (!moved) return; // click-activation: await a hex click
     const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
@@ -129,9 +130,9 @@ export class CardController {
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
     const hand = deck?.hand ?? [];
     const { width, height } = this.scene.scale;
-    const spacing = 104;
+    const spacing = s(104);
     const baseX = width / 2 - ((hand.length - 1) * spacing) / 2;
-    const baseY = height - 52; // tucked: most of each 144px card shows above the bottom edge
+    const baseY = height - s(52); // tucked: most of each card shows above the bottom edge
     hand.forEach((id, i) => {
       const def = cardDef(id);
       if (def === undefined) return;
@@ -139,9 +140,9 @@ export class CardController {
       card.setPosition(baseX + i * spacing, baseY).setDepth(HUD_DEPTH + i);
       card.setAngle((i - (hand.length - 1) / 2) * 4);
       card.setData('homeY', baseY);
-      card.setInteractive(new Phaser.Geom.Rectangle(-48, -72, 96, 144), Phaser.Geom.Rectangle.Contains);
+      card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
       card.on('pointerover', () => {
-        if (this.armed === null) card.setY(baseY - 28);
+        if (this.armed === null) card.setY(baseY - s(28));
       });
       card.on('pointerout', () => {
         if (this.armed === null) card.setY(card.getData('homeY') as number);
@@ -274,27 +275,27 @@ export class CardController {
   }
 
   private makeCardFace(def: CardDef, scale: number): Phaser.GameObjects.Container {
-    const w = 96;
-    const h = 144;
+    const w = s(96);
+    const h = s(144);
     const c = this.scene.add.container(0, 0);
     const bg = this.scene.add
       .rectangle(0, 0, w, h, 0x1f2430)
-      .setStrokeStyle(2, this.frameColor(def.id))
+      .setStrokeStyle(s(2), this.frameColor(def.id))
       .setOrigin(0.5);
     const cost = this.scene.add
-      .text(-w / 2 + 6, -h / 2 + 4, `E${def.cost}`, { fontFamily: 'monospace', fontSize: '14px', color: '#facc15' })
+      .text(-w / 2 + s(6), -h / 2 + s(4), `E${def.cost}`, { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#facc15' })
       .setOrigin(0, 0);
     const name = this.scene.add
-      .text(0, -h / 2 + 22, def.name, { fontFamily: 'monospace', fontSize: '12px', color: '#e5e7eb' })
+      .text(0, -h / 2 + s(22), def.name, { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
       .setOrigin(0.5, 0);
-    const art = this.scene.add.rectangle(0, -2, w - 16, 56, 0x394150).setOrigin(0.5); // card.art.<id> slot
+    const art = this.scene.add.rectangle(0, -s(2), w - s(16), s(56), 0x394150).setOrigin(0.5); // card.art.<id> slot
     const eff = this.scene.add
-      .text(0, h / 2 - 42, def.effectText, {
+      .text(0, h / 2 - s(42), def.effectText, {
         fontFamily: 'monospace',
-        fontSize: '10px',
+        fontSize: `${s(10)}px`,
         color: '#9ca3af',
         align: 'center',
-        wordWrap: { width: w - 12 },
+        wordWrap: { width: w - s(12) },
       })
       .setOrigin(0.5, 0);
     c.add([bg, cost, name, art, eff]);
@@ -312,23 +313,23 @@ export class CardController {
   private setCardSelected(card: Phaser.GameObjects.Container, on: boolean): void {
     const bg = card.getData('bg') as Phaser.GameObjects.Rectangle | undefined;
     if (bg === undefined) return;
-    bg.setStrokeStyle(2, on ? 0xfacc15 : (card.getData('frameColor') as number));
+    bg.setStrokeStyle(s(2), on ? 0xfacc15 : (card.getData('frameColor') as number));
   }
 
   private buildSpellSidebar(): void {
     SPELL_DEFS.forEach((def, i) => {
-      const x = 44;
-      const y = 150 + i * 84;
+      const x = s(44);
+      const y = s(150) + i * s(84);
       const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH);
-      const ring = this.scene.add.circle(0, 0, 30, 0x394150).setStrokeStyle(3, 0x6b7280);
+      const ring = this.scene.add.circle(0, 0, s(30), 0x394150).setStrokeStyle(s(3), 0x6b7280);
       const label = this.scene.add
-        .text(0, 0, def.name.slice(0, 4), { fontFamily: 'monospace', fontSize: '12px', color: '#e5e7eb' })
+        .text(0, 0, def.name.slice(0, 4), { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
         .setOrigin(0.5);
       circle.add([ring, label]);
       circle.setData('ring', ring);
-      circle.setInteractive(new Phaser.Geom.Circle(0, 0, 30), Phaser.Geom.Circle.Contains);
+      circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(30)), Phaser.Geom.Circle.Contains);
       circle.on('pointerover', () => {
-        if (this.armed === null) this.showTooltip(def, x + 44, y);
+        if (this.armed === null) this.showTooltip(def, x + s(44), y);
       });
       circle.on('pointerout', () => this.tooltip.setVisible(false));
       circle.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('spell', def, circle, p));
@@ -338,37 +339,37 @@ export class CardController {
 
   private setSpellSelected(circle: Phaser.GameObjects.Container, on: boolean): void {
     const ring = circle.getData('ring') as Phaser.GameObjects.Arc;
-    ring.setStrokeStyle(3, on ? 0xfacc15 : 0x6b7280);
+    ring.setStrokeStyle(s(3), on ? 0xfacc15 : 0x6b7280);
   }
 
   private showTooltip(def: SpellDef, x: number, y: number): void {
     this.tooltip.removeAll(true);
     const text = `${def.name}  (M${def.cost})\n${def.effectText}`;
-    const label = this.scene.add.text(8, 6, text, {
+    const label = this.scene.add.text(s(8), s(6), text, {
       fontFamily: 'monospace',
-      fontSize: '11px',
+      fontSize: `${s(11)}px`,
       color: '#e5e7eb',
-      wordWrap: { width: 180 },
+      wordWrap: { width: s(180) },
     });
     const bg = this.scene.add
-      .rectangle(0, 0, label.width + 16, label.height + 12, 0x111418, 0.92)
-      .setStrokeStyle(1, 0x6b7280)
+      .rectangle(0, 0, label.width + s(16), label.height + s(12), 0x111418, 0.92)
+      .setStrokeStyle(s(1), 0x6b7280)
       .setOrigin(0, 0);
-    this.tooltip.setPosition(x, y - 16);
+    this.tooltip.setPosition(x, y - s(16));
     this.tooltip.add([bg, label]);
     this.tooltip.setVisible(true);
   }
 
   private buildDeckIcon(): void {
     const { height } = this.scene.scale;
-    const icon = this.scene.add.container(44, height - 40).setDepth(HUD_DEPTH);
-    const r1 = this.scene.add.rectangle(4, -4, 28, 38, 0x394150).setStrokeStyle(2, 0x9ca3af);
-    const r2 = this.scene.add.rectangle(-2, 2, 28, 38, 0x4b5563).setStrokeStyle(2, 0x9ca3af);
+    const icon = this.scene.add.container(s(44), height - s(40)).setDepth(HUD_DEPTH);
+    const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
+    const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
     const label = this.scene.add
-      .text(0, 26, 'Deck', { fontFamily: 'monospace', fontSize: '11px', color: '#9ca3af' })
+      .text(0, s(26), 'Deck', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
       .setOrigin(0.5, 0);
     icon.add([r1, r2, label]);
-    icon.setInteractive(new Phaser.Geom.Rectangle(-22, -28, 44, 64), Phaser.Geom.Rectangle.Contains);
+    icon.setInteractive(new Phaser.Geom.Rectangle(-s(22), -s(28), s(44), s(64)), Phaser.Geom.Rectangle.Contains);
     icon.on('pointerdown', () => this.toggleDeck());
   }
 
@@ -378,7 +379,7 @@ export class CardController {
     const dim = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
     dim.on('pointerdown', () => this.toggleDeck());
     const title = this.scene.add
-      .text(width / 2, 40, 'Deck', { fontFamily: 'monospace', fontSize: '24px', color: '#e5e7eb' })
+      .text(width / 2, s(40), 'Deck', { fontFamily: 'monospace', fontSize: `${s(24)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     this.deckOverlay.add([dim, title]);
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
@@ -388,7 +389,7 @@ export class CardController {
       const def = cardDef(id);
       if (def === undefined) return;
       const face = this.makeCardFace(def, 0.8);
-      face.setPosition(width / 2 + ((i % cols) - (cols - 1) / 2) * 110, 150 + Math.floor(i / cols) * 130);
+      face.setPosition(width / 2 + ((i % cols) - (cols - 1) / 2) * s(110), s(150) + Math.floor(i / cols) * s(130));
       this.deckOverlay.add(face);
     });
   }

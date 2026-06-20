@@ -1,30 +1,40 @@
 import Phaser from 'phaser';
 import {
-  planScale,
   parseDisplaySettings,
   serializeDisplaySettings,
+  scaleFactorFor,
+  setScaleFactor,
+  viewportScaleMode,
+  s,
+  BASE_WIDTH,
+  BASE_HEIGHT,
   DISPLAY_SETTINGS_KEY,
+  type ViewportMode,
+  type ResolutionTier,
   type DisplaySettings,
-  type ScalePlan,
   type StorageAdapter,
 } from '@core/index';
 
 /**
- * Scene-side glue for the display settings (feature: Display Settings). Translates
- * the pure ScalePlan to the Phaser ScaleManager and persists settings via the
- * StorageAdapter. Only this file (and the scenes using it) touch Phaser scaling.
+ * Scene-side glue for the display settings. The Resolution drives the manual scale
+ * factor (native render at s()-scaled size); the Viewport drives the Phaser scale
+ * mode (fit vs 1:1). Only this file and the scenes touch the ScaleManager.
  */
 
-/** Apply a neutral scale plan to the Phaser ScaleManager — takes effect immediately. */
-export function applyScalePlan(scale: Phaser.Scale.ScaleManager, plan: ScalePlan): void {
-  scale.scaleMode = plan.mode === 'none' ? Phaser.Scale.NONE : Phaser.Scale.FIT;
-  scale.setZoom(plan.zoom);
+/** Apply the viewport mode (Fit vs 1:1 Actual) to the ScaleManager — immediate, no re-layout. */
+export function applyViewport(scale: Phaser.Scale.ScaleManager, viewport: ViewportMode): void {
+  scale.scaleMode = viewportScaleMode(viewport) === 'none' ? Phaser.Scale.NONE : Phaser.Scale.FIT;
   scale.refresh();
 }
 
-/** Apply a settings object's scale plan to the ScaleManager. */
-export function applyDisplaySettings(scale: Phaser.Scale.ScaleManager, settings: DisplaySettings): void {
-  applyScalePlan(scale, planScale(settings));
+/**
+ * Apply the resolution: set the global scale factor and resize the game to the
+ * native s()-scaled size. The CALLER must then rebuild the active scene(s) so all
+ * s()-based layout re-runs at the new factor (e.g. scene.restart()).
+ */
+export function applyResolution(scale: Phaser.Scale.ScaleManager, resolution: ResolutionTier): void {
+  setScaleFactor(scaleFactorFor(resolution));
+  scale.setGameSize(s(BASE_WIDTH), s(BASE_HEIGHT));
 }
 
 export function loadDisplaySettings(storage: StorageAdapter): DisplaySettings {

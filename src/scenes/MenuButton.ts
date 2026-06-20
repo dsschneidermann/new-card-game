@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AssetKeys } from '@core/index';
+import { AssetKeys, s } from '@core/index';
 
 export interface MenuButtonOptions {
   readonly enabled?: boolean;
@@ -39,13 +39,13 @@ export function makeButton(
 
   const bg = scene.add
     .image(x, y, AssetKeys.uiButton, multiState && !enabled ? FRAME_DISABLED : FRAME_NORMAL)
-    .setDisplaySize(WIDTH, HEIGHT);
+    .setDisplaySize(s(WIDTH), s(HEIGHT));
   if (!enabled) bg.setAlpha(0.5);
 
   const text = scene.add
     .text(x, y, label, {
       fontFamily: 'monospace',
-      fontSize: '20px',
+      fontSize: `${s(20)}px`,
       color: enabled ? '#e0e0e0' : '#6b7280',
     })
     .setOrigin(0.5);

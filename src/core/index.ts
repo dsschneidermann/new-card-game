@@ -100,13 +100,19 @@ export {
   resolveTargeting,
 } from './cards';
 
-// Display settings: viewport scaling & resolution (browser pixel clarity)
-export type { ViewportMode, ResolutionTier, DisplaySettings, ScalePlan } from './display';
+// Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)
+export type { ViewportMode, ResolutionTier, DisplaySettings } from './display';
 export {
   DEFAULT_DISPLAY_SETTINGS,
   DISPLAY_SETTINGS_KEY,
-  DESKTOP_ZOOM,
-  planScale,
+  DESKTOP_SCALE,
+  BASE_WIDTH,
+  BASE_HEIGHT,
+  scaleFactorFor,
+  setScaleFactor,
+  getScaleFactor,
+  s,
+  viewportScaleMode,
   serializeDisplaySettings,
   parseDisplaySettings,
 } from './display';

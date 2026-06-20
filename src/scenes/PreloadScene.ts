@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest, AssetKeys } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, AssetKeys, s } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
 
 /**
@@ -16,16 +16,16 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     const { width, height } = this.scale;
     this.add
-      .text(width / 2, height / 2 - 30, 'loading…', {
+      .text(width / 2, height / 2 - s(30), 'loading…', {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: `${s(18)}px`,
         color: '#9aa0aa',
       })
       .setOrigin(0.5);
-    this.add.rectangle(width / 2, height / 2, 322, 22, 0x1a1c24).setStrokeStyle(1, 0x3a3f4b);
-    const fill = this.add.rectangle(width / 2 - 159, height / 2, 1, 16, 0x4fd1c5).setOrigin(0, 0.5);
+    this.add.rectangle(width / 2, height / 2, s(322), s(22), 0x1a1c24).setStrokeStyle(s(1), 0x3a3f4b);
+    const fill = this.add.rectangle(width / 2 - s(159), height / 2, 1, s(16), 0x4fd1c5).setOrigin(0, 0.5);
     this.load.on('progress', (p: number) => {
-      fill.width = Math.max(1, 318 * p);
+      fill.width = Math.max(1, s(318) * p);
     });
 
     // A key flagged 'real' whose file is missing: warn (visible in the 404 list)

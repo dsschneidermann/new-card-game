@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AssetKeys } from '@core/index';
+import { AssetKeys, s } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton } from '@scenes/MenuButton';
 
@@ -16,7 +16,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Backdrop + wordmark from the Asset Preload system (placeholder art for now).
     this.add.image(width / 2, height / 2, AssetKeys.uiMenuBackground).setDisplaySize(width, height);
-    this.add.image(width / 2, height * 0.26, AssetKeys.brandLogo).setDisplaySize(320, 160);
+    this.add.image(width / 2, height * 0.26, AssetKeys.brandLogo).setDisplaySize(s(320), s(160));
 
     const canResume = router.hasSave();
     makeButton(this, width / 2, height * 0.52, 'New Game', () => router.dispatch('NewGame'));

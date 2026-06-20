@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AssetKeys, clearRun, type StorageAdapter } from '@core/index';
+import { AssetKeys, clearRun, s, type StorageAdapter } from '@core/index';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { makeButton, type Button } from '@scenes/MenuButton';
 
@@ -27,7 +27,7 @@ export class PauseOverlay extends Phaser.Scene {
     this.add
       .text(width / 2, height * 0.22, 'Paused', {
         fontFamily: 'monospace',
-        fontSize: '32px',
+        fontSize: `${s(32)}px`,
         color: '#e0e0e0',
       })
       .setOrigin(0.5);
@@ -44,7 +44,7 @@ export class PauseOverlay extends Phaser.Scene {
     this.confirmLabel = this.add
       .text(width / 2, height * 0.4, 'Abandon the run? Progress will be lost.', {
         fontFamily: 'monospace',
-        fontSize: '18px',
+        fontSize: `${s(18)}px`,
         color: '#f0a0a0',
       })
       .setOrigin(0.5);

@@ -22,6 +22,8 @@ import {
   hexToPixel,
   pixelToHex,
   offsetToAxial,
+  s,
+  getScaleFactor,
   type HexLayout,
   type EntityId,
   type World,
@@ -39,12 +41,14 @@ interface WorldSceneData {
   resume?: boolean;
 }
 
-/** Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006). */
-const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 96, originY: 28 };
+// Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
+// The LAYOUT pixel fields are base (iPad) values scaled via s() into this.layout at
+// create time (s() must not run at module load). PLAYER_SCALE is a multiplier x the
+// scale factor (not s(), which is for pixel counts).
 const GRID_COLS = 26;
 const GRID_ROWS = 21;
 const STEP_MS = 110;
-const PLAYER_SCALE = 0.5; // 128px art on a 32px hex (tunable)
+const PLAYER_SCALE = 0.5; // base multiplier; 128px art on a 32px hex (x scale factor)
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -71,6 +75,7 @@ export class WorldScene extends Phaser.Scene {
   private toast!: Phaser.GameObjects.Text;
   private stepAccum = 0;
   private cards!: CardController;
+  private layout!: HexLayout;
 
   // Turn-start is the autosave checkpoint (the deferral feature 06 left to 07):
   // draw a fresh hand, then checkpoint. Resume and Restart Turn both land at the
@@ -92,6 +97,8 @@ export class WorldScene extends Phaser.Scene {
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
     this.sync = new SceneSync(this, STEP_MS);
+    // Hex layout in current-scale pixels (s() — must run here, not at module load).
+    this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(28) };
 
     this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
     this.installSystems();
@@ -102,7 +109,7 @@ export class WorldScene extends Phaser.Scene {
     this.cards = new CardController({
       scene: this,
       grid: this.grid,
-      layout: LAYOUT,
+      layout: this.layout,
       world: () => this.world,
       player: () => this.player,
       submit: (cmd) => this.world.submit(cmd),
@@ -119,7 +126,7 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(-500_000)
       .setInteractive()
       .on('pointerdown', (p: Phaser.Input.Pointer) => {
-        const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
+        const hex = pixelToHex(this.layout, p.worldX, p.worldY);
         if (this.cards.isArmed()) {
           this.cards.onWorldDown(hex); // click-mode first target / two-step second
         } else if (!this.inputLocked && this.grid.isWalkable(hex)) {
@@ -157,7 +164,7 @@ export class WorldScene extends Phaser.Scene {
       events.push(...advance(this.world));
       this.stepAccum -= STEP_MS;
     }
-    this.sync.sync(buildCharacterViews(this.world, LAYOUT));
+    this.sync.sync(buildCharacterViews(this.world, this.layout));
     this.refreshHud();
     for (const e of events) if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
   }
@@ -177,11 +184,11 @@ export class WorldScene extends Phaser.Scene {
   private installSystems(): void {
     // Turn engine runs BEFORE movement so a valid RequestMove's MoveTo executes the same step.
     this.world.addSystem(makeTurnSystem(this.grid, this.turnHooks));
-    this.world.addSystem(makeMovementSystem(this.grid, LAYOUT));
+    this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.store(Renderable).add(this.player, {
       texture: AssetKeys.playerIdle,
       animBase: 'player',
-      scale: PLAYER_SCALE,
+      scale: PLAYER_SCALE * getScaleFactor(),
     });
   }
 
@@ -264,17 +271,17 @@ export class WorldScene extends Phaser.Scene {
 
   private buildHud(): void {
     this.hud = this.add
-      .text(8, 8, '', { fontFamily: 'monospace', fontSize: '14px', color: '#cbd5e1' })
+      .text(s(8), s(8), '', { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#cbd5e1' })
       .setDepth(1_000_000);
     this.add
-      .text(8, 28, 'click: move  ·  Space: end turn  ·  R: restart turn  ·  Esc: pause', {
+      .text(s(8), s(28), 'click: move  ·  Space: end turn  ·  R: restart turn  ·  Esc: pause', {
         fontFamily: 'monospace',
-        fontSize: '12px',
+        fontSize: `${s(12)}px`,
         color: '#6b7280',
       })
       .setDepth(1_000_000);
     this.toast = this.add
-      .text(8, 48, '', { fontFamily: 'monospace', fontSize: '13px', color: '#f0a0a0' })
+      .text(s(8), s(48), '', { fontFamily: 'monospace', fontSize: `${s(13)}px`, color: '#f0a0a0' })
       .setDepth(1_000_000);
     this.refreshHud();
   }
@@ -298,12 +305,12 @@ export class WorldScene extends Phaser.Scene {
 
   private drawGrid(): void {
     const g = this.add.graphics().setDepth(-1_000_000);
-    g.lineStyle(1, 0x2a2f3a, 0.8);
-    const hw = LAYOUT.width / 2;
-    const q1 = LAYOUT.height / 4;
-    const q2 = LAYOUT.height / 2;
+    g.lineStyle(s(1), 0x2a2f3a, 0.8);
+    const hw = this.layout.width / 2;
+    const q1 = this.layout.height / 4;
+    const q2 = this.layout.height / 2;
     for (const hex of this.grid.cells()) {
-      const { x, y } = hexToPixel(LAYOUT, hex);
+      const { x, y } = hexToPixel(this.layout, hex);
       g.beginPath();
       g.moveTo(x, y - q2);
       g.lineTo(x + hw, y - q1);
