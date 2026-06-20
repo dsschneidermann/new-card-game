@@ -1,4 +1,5 @@
 import type { EntityId } from './entity';
+import type { Hex } from '../hex/hex';
 
 /**
  * Cross-cutting intents submitted by scenes and AI and consumed by systems.
@@ -10,8 +11,9 @@ export type Command =
   // Player move INTENT: the turn engine validates it (phase + budget + reachability)
   // and, if legal, submits the MoveTo above (feature 07).
   | { kind: 'RequestMove'; entity: EntityId; q: number; r: number }
-  // energyCost/manaCost are supplied by the caller until feature 10 resolves them
-  // from the card/spell definition; the turn engine spends them.
-  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId }
-  | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId }
+  // energyCost/manaCost are supplied by the caller until card/spell definitions resolve
+  // them; the turn engine spends them. `targets` are the aimed hex(es) recorded for when
+  // effects land (the selected hex, both picks for a two-step, none for a self-target).
+  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[] }
+  | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId; targets?: readonly Hex[] }
   | { kind: 'EndTurn'; entity: EntityId };

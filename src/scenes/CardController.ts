@@ -163,8 +163,10 @@ export class CardController {
     this.disarm();
     this.armed = { kind, def, firstPick: null };
     this.pressDown = { x: p.x, y: p.y };
-    // A card stays at its hover-raised height when armed (no extra raise); spells just light up.
-    if (kind === 'spell') this.setSpellSelected(obj, true);
+    // An armed card drops back into the hand (so the whole board stays visible) and shows
+    // a yellow selected border; a spell lights up its ring — the same "selected" affordance.
+    if (kind === 'card') this.setCardSelected(obj, true);
+    else this.setSpellSelected(obj, true);
     this.tooltip.setVisible(false);
   }
 
@@ -177,17 +179,34 @@ export class CardController {
       this.redrawHighlight();
       return;
     }
-    this.play();
+    this.play(hex);
   }
 
-  private play(): void {
+  private play(finalHex: Hex): void {
     if (this.armed === null) return;
+    const { kind, def, firstPick } = this.armed;
+    const spec = def.target;
+    // Record the aimed hex(es) for when effects land: the selected hex, both picks for a
+    // two-step, or none for a self-target (whose chosen hex is ignored).
+    const targets: Hex[] =
+      spec.kind === 'self'
+        ? []
+        : spec.kind === 'twoStep' && firstPick !== null
+          ? [firstPick, finalHex]
+          : [finalHex];
     const player = this.ctx.player();
-    const def = this.armed.def;
-    if (this.armed.kind === 'card') {
-      this.ctx.submit({ kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost });
+    if (kind === 'card') {
+      this.ctx.submit(
+        targets.length > 0
+          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, targets }
+          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost },
+      );
     } else {
-      this.ctx.submit({ kind: 'PlaySpell', entity: player, spellId: def.id, manaCost: def.cost });
+      this.ctx.submit(
+        targets.length > 0
+          ? { kind: 'PlaySpell', entity: player, spellId: def.id, manaCost: def.cost, targets }
+          : { kind: 'PlaySpell', entity: player, spellId: def.id, manaCost: def.cost },
+      );
     }
     this.disarm();
   }
@@ -198,7 +217,10 @@ export class CardController {
     this.hovered = null;
     this.highlight.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
-    for (const c of this.handCards) c.setY(c.getData('homeY') as number);
+    for (const c of this.handCards) {
+      this.setCardSelected(c, false);
+      c.setY(c.getData('homeY') as number);
+    }
   }
 
   private redrawHighlight(): void {
@@ -258,12 +280,21 @@ export class CardController {
       })
       .setOrigin(0.5, 0);
     c.add([bg, cost, name, art, eff]);
+    c.setData('bg', bg);
+    c.setData('frameColor', this.frameColor(def.id));
     c.setScale(scale);
     return c;
   }
 
   private frameColor(id: string): number {
     return id === 'melee' || id === 'ranged' ? 0xb91c1c : 0x2563eb; // attack red / skill blue
+  }
+
+  /** Toggle a hand card's "selected" border: yellow when armed, its frame colour otherwise. */
+  private setCardSelected(card: Phaser.GameObjects.Container, on: boolean): void {
+    const bg = card.getData('bg') as Phaser.GameObjects.Rectangle | undefined;
+    if (bg === undefined) return;
+    bg.setStrokeStyle(2, on ? 0xfacc15 : (card.getData('frameColor') as number));
   }
 
   private buildSpellSidebar(): void {
