@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { facingFromIntent, manifest, validateManifest, USED_ASSET_KEYS } from '@core/index';
+import { facingFromIntent, manifest, validateManifest, frameConfig, USED_ASSET_KEYS } from '@core/index';
 
 describe('facingFromIntent', () => {
   it('faces the sign of the horizontal move intent', () => {
@@ -17,13 +17,12 @@ describe('player spritesheets in the manifest', () => {
   it('player.idle and player.walk are 128px right-facing real sheets with the right frame counts', () => {
     const idle = manifest.resolve('player.idle');
     expect(idle?.kind).toBe('real');
-    // toMatchObject (not toEqual): assert the frame layout, leaving optional alignment
-    // props (forwardPx/downPx) free to be tuned without breaking the test.
-    expect(idle?.descriptor.frames).toMatchObject({ frameWidth: 128, frameHeight: 128, count: 6 });
+    // frameConfig derives frame size from `size` and frameCount from the sprite options.
+    expect(frameConfig(idle!.descriptor)).toEqual({ frameWidth: 128, frameHeight: 128, frameCount: 6 });
 
     const walk = manifest.resolve('player.walk');
     expect(walk?.kind).toBe('real');
-    expect(walk?.descriptor.frames).toMatchObject({ frameWidth: 128, frameHeight: 128, count: 8 });
+    expect(frameConfig(walk!.descriptor)).toEqual({ frameWidth: 128, frameHeight: 128, frameCount: 8 });
   });
 
   it('both player keys are used and registered (not missing, not unused)', () => {

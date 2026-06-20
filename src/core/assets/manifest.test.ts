@@ -8,13 +8,13 @@ import {
   type AssetDescriptor,
 } from '@core/index';
 
-const desc = (key: string, frames?: { frameWidth: number; frameHeight: number; count: number }): AssetDescriptor => ({
+const desc = (key: string, sprite?: { frameCount: number }): AssetDescriptor => ({
   key,
   path: `assets/${key}.png`,
   size: [16, 16],
   style: 's',
   description: 'd',
-  ...(frames ? { frames } : {}),
+  ...(sprite ? { sprite } : {}),
 });
 
 describe('AssetManifest.resolve', () => {
@@ -51,16 +51,16 @@ describe('AssetManifest.validate', () => {
 });
 
 describe('frameConfig', () => {
-  it('uses the declared frames when present', () => {
-    expect(frameConfig(desc('s', { frameWidth: 32, frameHeight: 32, count: 4 }))).toEqual({
-      frameWidth: 32,
-      frameHeight: 32,
-      count: 4,
+  it('takes frameCount from the sprite options and the frame size from size', () => {
+    expect(frameConfig(desc('s', { frameCount: 4 }))).toEqual({
+      frameWidth: 16,
+      frameHeight: 16,
+      frameCount: 4,
     });
   });
 
   it('falls back to a single frame at the descriptor size', () => {
-    expect(frameConfig(desc('a'))).toEqual({ frameWidth: 16, frameHeight: 16, count: 1 });
+    expect(frameConfig(desc('a'))).toEqual({ frameWidth: 16, frameHeight: 16, frameCount: 1 });
   });
 });
 

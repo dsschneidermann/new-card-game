@@ -2,10 +2,8 @@ import { AssetManifest, type AssetDescriptor, type ManifestEntry, type Validatio
 import { AssetKeys } from './keys';
 import type { AssetKey } from './keys';
 
-type Frames = {
-  frameWidth: number;
-  frameHeight: number;
-  count: number;
+type SpriteOptions = {
+  frameCount: number;
   forwardPx?: number; // draw-origin nudge: px in the facing direction (off-centre art)
   downPx?: number; // draw-origin nudge: px downward
 };
@@ -15,12 +13,12 @@ const asset = (
   size: [number, number, number?],
   style: string,
   description: string,
-  frames?: Frames,
+  sprite?: SpriteOptions,
 ): AssetDescriptor => ({
   key,
   path: `assets/${key}.png`, // flat dotted filenames (feature 03 decision)
   size,
-  ...(frames ? { frames } : {}),
+  ...(sprite ? { sprite } : {}),
   style,
   description,
 });
@@ -34,15 +32,15 @@ const asset = (
 export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.brandLogo, [256, 128], 'bold high-contrast wordmark', 'Game logo for boot/menu'),
   asset(AssetKeys.uiMenuBackground, [1280, 720], 'moody low-detail worldmap vista', 'Main menu backdrop'),
-  asset(AssetKeys.uiButton, [200, 56], 'rounded slab + accent border', 'Generic UI button', { frameWidth: 200, frameHeight: 56, count: 3 }),
+  asset(AssetKeys.uiButton, [200, 56], 'rounded slab + accent border', 'Generic UI button', { frameCount: 3 }),
   asset(AssetKeys.uiPanel, [64, 64], 'semi-transparent dark parchment', 'Dialog/HUD panel'),
   asset(AssetKeys.world1Floor, [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
   asset(AssetKeys.world1Wall, [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
-  asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle', { frameWidth: 128, frameHeight: 128, count: 6, downPx: -6 }),
-  asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk', { frameWidth: 128, frameHeight: 128, count: 8, downPx: -6 }),
-  asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameWidth: 128, frameHeight: 128, count: 2, downPx: -6, forwardPx: 8 }),
-  asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1', { frameWidth: 128, frameHeight: 128, count: 3, downPx: -6, forwardPx: 8 }),
-  asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameWidth: 128, frameHeight: 128, count: 7, downPx: -6 }),
+  asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle', { frameCount: 6, downPx: -6 }),
+  asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk', { frameCount: 8, downPx: -6 }),
+  asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameCount: 2, downPx: -6, forwardPx: 8 }),
+  asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1', { frameCount: 3, downPx: -6, forwardPx: 8 }),
+  asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameCount: 7, downPx: -6 }),
 ];
 
 /**

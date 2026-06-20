@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest, AssetKeys, s } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, AssetKeys, s } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
 import { PLAYER_ATTACK_ANIMS } from '@render/characterViews';
 
@@ -44,12 +44,10 @@ export class PreloadScene extends Phaser.Scene {
     for (const key of manifest.keys()) {
       const entry = manifest.resolve(key);
       if (!entry || entry.kind !== 'real') continue;
-      const { path, frames } = entry.descriptor;
-      if (frames) {
-        this.load.spritesheet(key, path, {
-          frameWidth: frames.frameWidth,
-          frameHeight: frames.frameHeight,
-        });
+      const { path } = entry.descriptor;
+      const { frameWidth, frameHeight, frameCount } = frameConfig(entry.descriptor);
+      if (frameCount > 1) {
+        this.load.spritesheet(key, path, { frameWidth, frameHeight });
       } else {
         this.load.image(key, path);
       }

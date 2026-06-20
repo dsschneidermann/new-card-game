@@ -13,15 +13,15 @@ export interface AssetDescriptor {
   size: [number, number, number?];
   origin?: [number, number];
   /**
-   * Spritesheet frame layout. forwardPx/downPx optionally nudge the DRAWN figure for a
-   * sheet whose character sits off-centre in its frame: forward = px in the facing
-   * direction (mirrored by flipX), down = px downward. SceneSync applies them as a static
-   * draw-origin shift (not the position tween), scaled with resolution.
+   * Sprite/render options. frameCount is the spritesheet's frame count (omit, or 1, for a
+   * single static frame). forwardPx/downPx optionally nudge the DRAWN figure for a sheet
+   * whose character sits off-centre: forward = px in the facing direction (mirrored by
+   * flipX), down = px downward; SceneSync applies them as a static draw-origin shift (not
+   * the position tween), scaled with resolution. Frame width/height are NOT stored here —
+   * they are the descriptor's size[0]/size[1] (a frame is one cell of that size).
    */
-  frames?: {
-    frameWidth: number;
-    frameHeight: number;
-    count: number;
+  sprite?: {
+    frameCount: number;
     forwardPx?: number;
     downPx?: number;
   };
@@ -40,9 +40,9 @@ export interface ValidationReport {
   unused: string[];
 }
 
-/** Frame layout for a descriptor: its declared frames, or a single implicit frame. */
-export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeight: number; count: number } {
-  return d.frames ?? { frameWidth: d.size[0], frameHeight: d.size[1], count: 1 };
+/** Frame layout for a descriptor: frame size from size[0..1]; frameCount from the sprite options (1 if none). */
+export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeight: number; frameCount: number } {
+  return { frameWidth: d.size[0], frameHeight: d.size[1], frameCount: d.sprite?.frameCount ?? 1 };
 }
 
 /** The asset's chosen display scale (the optional 3rd size element); 1 = render at native frame size. */
@@ -55,7 +55,7 @@ export function assetScale(d: AssetDescriptor): number {
  * and down. Defaults to 0/0 for sheets that don't declare it. Read by SceneSync.
  */
 export function spriteOffset(d: AssetDescriptor): { forwardPx: number; downPx: number } {
-  return { forwardPx: d.frames?.forwardPx ?? 0, downPx: d.frames?.downPx ?? 0 };
+  return { forwardPx: d.sprite?.forwardPx ?? 0, downPx: d.sprite?.downPx ?? 0 };
 }
 
 /**

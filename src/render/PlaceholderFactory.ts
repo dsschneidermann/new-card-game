@@ -20,18 +20,18 @@ export function generatePlaceholder(scene: Phaser.Scene, descriptor: AssetDescri
   const { key } = descriptor;
   if (scene.textures.exists(key)) return;
 
-  const { frameWidth, frameHeight, count } = frameConfig(descriptor);
+  const { frameWidth, frameHeight, frameCount } = frameConfig(descriptor);
   const color = colorFromKey(key);
   const g = scene.add.graphics();
-  for (let i = 0; i < count; i += 1) {
+  for (let i = 0; i < frameCount; i += 1) {
     g.fillStyle(color, 1).fillRect(i * frameWidth, 0, frameWidth, frameHeight);
     g.lineStyle(1, 0x000000, 0.4).strokeRect(i * frameWidth + 0.5, 0.5, frameWidth - 1, frameHeight - 1);
   }
-  g.generateTexture(key, frameWidth * count, frameHeight);
+  g.generateTexture(key, frameWidth * frameCount, frameHeight);
   g.destroy();
 
-  if (count > 1) {
+  if (frameCount > 1) {
     const texture = scene.textures.get(key);
-    for (let i = 0; i < count; i += 1) texture.add(i, 0, i * frameWidth, 0, frameWidth, frameHeight);
+    for (let i = 0; i < frameCount; i += 1) texture.add(i, 0, i * frameWidth, 0, frameWidth, frameHeight);
   }
 }
