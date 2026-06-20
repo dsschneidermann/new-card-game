@@ -99,6 +99,7 @@ export {
   spellDef,
   isAttackCard,
   resolveTargeting,
+  targetMaxRange,
 } from './cards';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)

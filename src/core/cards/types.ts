@@ -6,8 +6,10 @@ import type { Hex } from '../hex/hex';
  */
 export type TargetSpec =
   | { kind: 'self' } // any hex; the target is ignored / not stored (resolves on the caster)
-  | { kind: 'singleHex' }
-  | { kind: 'lineOfSight' }
+  // maxRange (optional): the target hex must be within this many hexes of the caster;
+  // omitted = unrestricted. Purely hex distance — no walls / line-of-sight blocking.
+  | { kind: 'singleHex'; maxRange?: number }
+  | { kind: 'lineOfSight'; maxRange?: number }
   | { kind: 'areaOfEffect'; radius: number }
   | { kind: 'twoStep'; first: TargetSpec; second: TargetSpec };
 

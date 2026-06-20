@@ -7,6 +7,7 @@ import {
   hexLine,
   hexesWithinRange,
   resolveTargeting,
+  targetMaxRange,
   cardDef,
   spellDef,
   isAttackCard,
@@ -78,6 +79,20 @@ describe('resolveTargeting', () => {
     expect(r.secondary).not.toContainEqual(hovered);
   });
 
+  it('singleHex with maxRange: highlights in range, empty beyond range', () => {
+    const near: Hex = { q: 1, r: 0 }; // distance 1
+    const far: Hex = { q: 3, r: 0 }; // distance 3
+    expect(resolveTargeting({ kind: 'singleHex', maxRange: 1 }, origin, near)).toEqual({ primary: [near], secondary: [] });
+    expect(resolveTargeting({ kind: 'singleHex', maxRange: 1 }, origin, far)).toEqual({ primary: [], secondary: [] });
+  });
+
+  it('lineOfSight with maxRange: draws the ray in range, empty beyond range', () => {
+    const within: Hex = { q: 2, r: 0 }; // distance 2
+    const beyond: Hex = { q: 6, r: 0 }; // distance 6
+    expect(resolveTargeting({ kind: 'lineOfSight', maxRange: 5 }, origin, within).primary).toEqual([within]);
+    expect(resolveTargeting({ kind: 'lineOfSight', maxRange: 5 }, origin, beyond)).toEqual({ primary: [], secondary: [] });
+  });
+
   it('areaOfEffect(1): the 7-hex disk around hovered', () => {
     const r = resolveTargeting({ kind: 'areaOfEffect', radius: 1 }, origin, hovered);
     expect(r.primary).toHaveLength(7);
@@ -96,20 +111,35 @@ describe('resolveTargeting', () => {
   });
 });
 
+describe('targetMaxRange', () => {
+  it('returns the singleHex/lineOfSight maxRange, undefined for unranged specs', () => {
+    expect(targetMaxRange({ kind: 'singleHex', maxRange: 1 })).toBe(1);
+    expect(targetMaxRange({ kind: 'lineOfSight', maxRange: 5 })).toBe(5);
+    expect(targetMaxRange({ kind: 'singleHex' })).toBeUndefined();
+    expect(targetMaxRange({ kind: 'self' })).toBeUndefined();
+    expect(targetMaxRange({ kind: 'areaOfEffect', radius: 1 })).toBeUndefined();
+    expect(
+      targetMaxRange({ kind: 'twoStep', first: { kind: 'singleHex' }, second: { kind: 'singleHex' } }),
+    ).toBeUndefined();
+  });
+});
+
 describe('starter content', () => {
-  it('the starter collection is the expected 10-card multiset of defined cards', () => {
+  it('the starter collection is the expected 12-card multiset of defined cards', () => {
     expect(STARTER_COLLECTION).toEqual([
       'melee', 'melee', 'melee',
+      'longstrike', 'longstrike',
       'ranged', 'ranged', 'ranged',
       'defend', 'defend',
       'jump', 'jump',
     ]);
-    expect(STARTER_COLLECTION).toHaveLength(10);
+    expect(STARTER_COLLECTION).toHaveLength(12);
     for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
   });
 
-  it('isAttackCard is true only for melee/ranged, false for skills, spells and unknown ids', () => {
+  it('isAttackCard is true for attack cards, false for skills, spells and unknown ids', () => {
     expect(isAttackCard('melee')).toBe(true);
+    expect(isAttackCard('longstrike')).toBe(true);
     expect(isAttackCard('ranged')).toBe(true);
     expect(isAttackCard('defend')).toBe(false);
     expect(isAttackCard('jump')).toBe(false);
@@ -117,9 +147,10 @@ describe('starter content', () => {
     expect(isAttackCard('nope')).toBe(false);
   });
 
-  it('cards carry per-id art, the right costs and target specs', () => {
-    expect(cardDef('melee')).toMatchObject({ art: 'card.art.melee', cost: 1, target: { kind: 'singleHex' } });
-    expect(cardDef('ranged')?.target).toEqual({ kind: 'lineOfSight' });
+  it('attack cards carry per-id art, costs, and their ranged target specs', () => {
+    expect(cardDef('melee')).toMatchObject({ art: 'card.art.melee', cost: 1, target: { kind: 'singleHex', maxRange: 1 } });
+    expect(cardDef('longstrike')?.target).toEqual({ kind: 'singleHex', maxRange: 2 });
+    expect(cardDef('ranged')?.target).toEqual({ kind: 'lineOfSight', maxRange: 5 });
     expect(cardDef('defend')?.target).toEqual({ kind: 'self' });
     expect(cardDef('jump')?.cost).toBe(0);
   });

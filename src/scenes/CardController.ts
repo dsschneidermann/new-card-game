@@ -5,8 +5,12 @@ import {
   cardDef,
   isAttackCard,
   resolveTargeting,
+  targetMaxRange,
   hexToPixel,
   pixelToHex,
+  hexDistance,
+  neighbors,
+  hexesWithinRange,
   SPELL_DEFS,
   s,
   canPlayCard,
@@ -50,6 +54,9 @@ const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 
+/** A pixel point — a hexagon vertex / edge endpoint. */
+type Pt = { x: number; y: number };
+
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
  * screen, and the shared targeting state machine. All targeting math comes from
@@ -71,6 +78,7 @@ export class CardController {
   private handCards: Phaser.GameObjects.Container[] = [];
   private spellCircles: Phaser.GameObjects.Container[] = [];
   private highlight!: Phaser.GameObjects.Graphics;
+  private rangeOutline!: Phaser.GameObjects.Graphics; // yellow max-range boundary while a range card is armed
   private tooltip!: Phaser.GameObjects.Container;
   private deckOverlay!: Phaser.GameObjects.Container;
 
@@ -81,6 +89,7 @@ export class CardController {
 
   create(): void {
     this.highlight = this.scene.add.graphics().setDepth(HL_DEPTH);
+    this.rangeOutline = this.scene.add.graphics().setDepth(HL_DEPTH);
     this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false);
     this.buildSpellSidebar();
     this.buildDeckIcon();
@@ -263,12 +272,18 @@ export class CardController {
       this.setSpellSelected(obj, true);
     }
     this.tooltip.setVisible(false);
+    this.drawRangeOutline(); // yellow max-range boundary, if this card has a range
   }
 
   /** Apply one target selection; play if the spec is satisfied, else await the next. */
   private advanceTarget(hex: Hex): void {
     if (this.armed === null) return;
     const spec = this.armed.def.target;
+    // Out-of-range (but in-bounds) click: ignore it and stay armed so the player can pick a
+    // valid hex (the range outline stays up). Decision flagged for review.
+    const maxRange = targetMaxRange(spec);
+    const origin = this.originHex();
+    if (maxRange !== undefined && origin !== null && hexDistance(origin, hex) > maxRange) return;
     if (spec.kind === 'twoStep' && this.armed.firstPick === null) {
       this.armed.firstPick = hex; // lock the first; the next click is the second
       this.redrawHighlight();
@@ -313,6 +328,7 @@ export class CardController {
     this.pressDown = null;
     this.hovered = null;
     this.highlight.clear();
+    this.rangeOutline.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
     for (const c of this.handCards) {
       this.setCardSelected(c, false);
@@ -339,19 +355,77 @@ export class CardController {
     return this.ctx.world().store(HexPosition).get(this.ctx.player())?.hex ?? null;
   }
 
-  private fillHex(hex: Hex, color: number): void {
+  /** The 6 pointy-top hexagon vertices (px) for a hex: top, upper-right, lower-right, bottom, lower-left, upper-left. */
+  private hexVertices(hex: Hex): [Pt, Pt, Pt, Pt, Pt, Pt] {
     const { x, y } = hexToPixel(this.ctx.layout, hex);
     const hw = this.ctx.layout.width / 2;
     const q1 = this.ctx.layout.height / 4;
     const q2 = this.ctx.layout.height / 2;
+    return [
+      { x, y: y - q2 },
+      { x: x + hw, y: y - q1 },
+      { x: x + hw, y: y + q1 },
+      { x, y: y + q2 },
+      { x: x - hw, y: y + q1 },
+      { x: x - hw, y: y - q1 },
+    ];
+  }
+
+  /**
+   * Draw the yellow max-range boundary for the armed card (if its target has a maxRange):
+   * the outer edges of the in-bounds hexes within range, clipped at the board. An edge is
+   * stroked only when its neighbour is in-bounds but out of range — edges toward in-range
+   * hexes (internal) or out-of-bounds hexes (off-board) are skipped, so the line traces the
+   * range boundary and stops cleanly at the board edge. Range is purely hex distance.
+   */
+  private drawRangeOutline(): void {
+    this.rangeOutline.clear();
+    if (this.armed === null) return;
+    const maxRange = targetMaxRange(this.armed.def.target);
+    if (maxRange === undefined) return;
+    const origin = this.originHex();
+    if (origin === null) return;
+    this.rangeOutline.lineStyle(s(2), TINT_SECONDARY, 0.9);
+    for (const hex of hexesWithinRange(origin, maxRange)) {
+      if (!this.ctx.grid.inBounds(hex)) continue;
+      const verts = this.hexVertices(hex);
+      for (const n of neighbors(hex)) {
+        if (!this.ctx.grid.inBounds(n)) continue; // off-board neighbour: no line (clip at board)
+        if (hexDistance(origin, n) <= maxRange) continue; // in-range neighbour: internal edge
+        this.strokeNearestEdge(verts, hexToPixel(this.ctx.layout, n));
+      }
+    }
+  }
+
+  /** Stroke the hex edge (of the 6 in `v`) whose midpoint is nearest `target` — the edge shared with that neighbour. */
+  private strokeNearestEdge(v: [Pt, Pt, Pt, Pt, Pt, Pt], target: Pt): void {
+    const edges: [Pt, Pt][] = [
+      [v[0], v[1]], [v[1], v[2]], [v[2], v[3]], [v[3], v[4]], [v[4], v[5]], [v[5], v[0]],
+    ];
+    let best: [Pt, Pt] | null = null;
+    let bestDist = Infinity;
+    for (const [a, b] of edges) {
+      const dx = (a.x + b.x) / 2 - target.x;
+      const dy = (a.y + b.y) / 2 - target.y;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        best = [a, b];
+      }
+    }
+    if (best !== null) this.rangeOutline.lineBetween(best[0].x, best[0].y, best[1].x, best[1].y);
+  }
+
+  private fillHex(hex: Hex, color: number): void {
+    const v = this.hexVertices(hex);
     this.highlight.fillStyle(color, 0.4);
     this.highlight.beginPath();
-    this.highlight.moveTo(x, y - q2);
-    this.highlight.lineTo(x + hw, y - q1);
-    this.highlight.lineTo(x + hw, y + q1);
-    this.highlight.lineTo(x, y + q2);
-    this.highlight.lineTo(x - hw, y + q1);
-    this.highlight.lineTo(x - hw, y - q1);
+    this.highlight.moveTo(v[0].x, v[0].y);
+    this.highlight.lineTo(v[1].x, v[1].y);
+    this.highlight.lineTo(v[2].x, v[2].y);
+    this.highlight.lineTo(v[3].x, v[3].y);
+    this.highlight.lineTo(v[4].x, v[4].y);
+    this.highlight.lineTo(v[5].x, v[5].y);
     this.highlight.closePath();
     this.highlight.fillPath();
   }
