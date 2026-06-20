@@ -5,6 +5,7 @@ import {
   cardDef,
   resolveTargeting,
   hexToPixel,
+  pixelToHex,
   SPELL_DEFS,
   type World,
   type EntityId,
@@ -28,27 +29,34 @@ export interface CardUiContext {
   canAct(): boolean;
 }
 
-type Armed =
-  | { kind: 'card'; def: CardDef; firstPick: Hex | null }
-  | { kind: 'spell'; def: SpellDef; firstPick: Hex | null }
-  | null;
+interface Armed {
+  kind: 'card' | 'spell';
+  def: CardDef | SpellDef;
+  firstPick: Hex | null;
+}
 
 const HUD_DEPTH = 2_000_000;
-const HL_DEPTH = 500_000; // above the grid, below sprites' high values is fine; tinted overlay
+const HL_DEPTH = 500_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
+const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
  * screen, and the shared targeting state machine. All targeting math comes from
  * the pure core (resolveTargeting); this class only renders and routes input.
- * Cards activate by drag (press a card, release on a hex); spells by click
- * (select a circle, click a hex). Playing pays energy/mana via the Turn Engine.
+ *
+ * Cards AND spells activate the same way, by either gesture: press one and DRAG
+ * onto a hex (release = first target), or CLICK it (a second click on a hex =
+ * first target). Any further two-step targets are clicks. Confirming pays the
+ * cost via the Turn Engine; no card/spell effects yet (feature 12).
  */
 export class CardController {
   private readonly ctx: CardUiContext;
   private readonly scene: Phaser.Scene;
-  private armed: Armed = null;
+  private armed: Armed | null = null;
+  /** Set while the activating press is held — its release decides drag vs click. */
+  private pressDown: { x: number; y: number } | null = null;
   private hovered: Hex | null = null;
 
   private handCards: Phaser.GameObjects.Container[] = [];
@@ -75,27 +83,33 @@ export class CardController {
     return this.armed !== null;
   }
 
-  /** Pointer moved over the world: update the targeting highlight. */
-  onHover(hex: Hex): void {
-    this.hovered = hex;
+  /** Pointer moved: update the targeting highlight if something is armed. */
+  onPointerMove(p: Phaser.Input.Pointer): void {
+    if (this.armed === null) return;
+    this.hovered = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
     this.redrawHighlight();
   }
 
-  /** A click on the world while armed (spell first/second target; card two-step second). */
-  onWorldConfirm(hex: Hex): void {
-    if (this.armed === null) return;
-    if (this.armed.kind === 'spell') this.advanceTarget(hex);
-    else if (this.armed.firstPick !== null) this.advanceTarget(hex); // card awaiting its 2nd target
+  /**
+   * Pointer released: if it ended the activating press AND travelled like a drag,
+   * the release IS the first target (drag-to-cast). A near-stationary release is
+   * a click-activation: stay armed and wait for a click on a hex.
+   */
+  onPointerUp(p: Phaser.Input.Pointer): void {
+    if (this.armed === null || this.pressDown === null) return;
+    const moved = Phaser.Math.Distance.Between(this.pressDown.x, this.pressDown.y, p.x, p.y) > DRAG_THRESHOLD;
+    this.pressDown = null;
+    if (!moved) return; // click-activation: await a hex click
+    const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
+    if (this.ctx.grid.inBounds(hex)) this.advanceTarget(hex);
+    else this.disarm(); // dragged off the grid: cancel
   }
 
-  /** Mouse released over the world: a card's first target (drag-release). */
-  onRelease(hex: Hex | null): void {
-    if (this.armed?.kind !== 'card' || this.armed.firstPick !== null) return;
-    if (hex === null || !this.ctx.grid.inBounds(hex)) {
-      this.disarm();
-      return;
-    }
-    this.advanceTarget(hex);
+  /** A click on the world while armed: a click-mode first target, or a two-step second. */
+  onWorldDown(hex: Hex): void {
+    if (this.armed === null || this.pressDown !== null) return;
+    if (this.ctx.grid.inBounds(hex)) this.advanceTarget(hex);
+    else this.disarm(); // clicked off the grid: cancel
   }
 
   /** Esc / cancel: drop any armed card/spell. */
@@ -120,7 +134,6 @@ export class CardController {
       card.setPosition(baseX + i * spacing, baseY).setDepth(HUD_DEPTH + i);
       card.setAngle((i - (hand.length - 1) / 2) * 4);
       card.setData('homeY', baseY);
-      card.setData('def', def);
       card.setInteractive(new Phaser.Geom.Rectangle(-48, -72, 96, 144), Phaser.Geom.Rectangle.Contains);
       card.on('pointerover', () => {
         if (this.armed === null) card.setY(baseY - 28);
@@ -128,29 +141,31 @@ export class CardController {
       card.on('pointerout', () => {
         if (this.armed === null) card.setY(card.getData('homeY') as number);
       });
-      card.on('pointerdown', () => this.armCard(def, card));
+      card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
       this.handCards.push(card);
     });
   }
 
   // ---- internals ---------------------------------------------------------
 
-  private armCard(def: CardDef, card: Phaser.GameObjects.Container): void {
-    if (!this.ctx.canAct() || this.armed !== null) return;
-    card.setY((card.getData('homeY') as number) - 36);
-    this.armed = { kind: 'card', def, firstPick: null };
-  }
-
-  private armSpell(def: SpellDef, circle: Phaser.GameObjects.Container): void {
-    if (!this.ctx.canAct()) return;
-    if (this.armed?.kind === 'spell' && this.armed.def.id === def.id) {
-      this.disarm(); // click again to deselect
+  /** Activate a card/spell (from its pointerdown). Re-pressing the armed one cancels. */
+  private arm(
+    kind: 'card' | 'spell',
+    def: CardDef | SpellDef,
+    obj: Phaser.GameObjects.Container,
+    p: Phaser.Input.Pointer,
+  ): void {
+    if (this.armed !== null && this.armed.def.id === def.id) {
+      this.disarm();
       return;
     }
+    if (!this.ctx.canAct()) return;
     this.disarm();
-    this.armed = { kind: 'spell', def, firstPick: null };
+    this.armed = { kind, def, firstPick: null };
+    this.pressDown = { x: p.x, y: p.y };
+    if (kind === 'card') obj.setY((obj.getData('homeY') as number) - 36);
+    else this.setSpellSelected(obj, true);
     this.tooltip.setVisible(false);
-    this.setSpellSelected(circle, true);
   }
 
   /** Apply one target selection; play if the spec is satisfied, else await the next. */
@@ -168,11 +183,10 @@ export class CardController {
   private play(): void {
     if (this.armed === null) return;
     const player = this.ctx.player();
+    const def = this.armed.def;
     if (this.armed.kind === 'card') {
-      const def = this.armed.def;
       this.ctx.submit({ kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost });
     } else {
-      const def = this.armed.def;
       this.ctx.submit({ kind: 'PlaySpell', entity: player, spellId: def.id, manaCost: def.cost });
     }
     this.disarm();
@@ -180,6 +194,7 @@ export class CardController {
 
   private disarm(): void {
     this.armed = null;
+    this.pressDown = null;
     this.hovered = null;
     this.highlight.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
@@ -267,7 +282,7 @@ export class CardController {
         if (this.armed === null) this.showTooltip(def, x + 44, y);
       });
       circle.on('pointerout', () => this.tooltip.setVisible(false));
-      circle.on('pointerdown', () => this.armSpell(def, circle));
+      circle.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('spell', def, circle, p));
       this.spellCircles.push(circle);
     });
   }

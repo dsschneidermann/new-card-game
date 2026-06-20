@@ -10,6 +10,7 @@ import {
   cardDef,
   spellDef,
   drawHand,
+  makeRng,
   DeckState,
   STARTER_COLLECTION,
   type Hex,
@@ -119,10 +120,12 @@ describe('starter content', () => {
 });
 
 describe('drawHand', () => {
-  it('draws n card ids (default 4), clamped to the collection size', () => {
-    expect(drawHand(STARTER_COLLECTION, 4)).toEqual(['melee', 'melee', 'ranged', 'ranged']);
-    expect(drawHand(STARTER_COLLECTION, 4)).toHaveLength(4);
-    expect(drawHand(['a', 'b'], 4)).toEqual(['a', 'b']);
+  it('draws a random hand of n from the collection, reproducible for a given seed', () => {
+    const hand = drawHand(STARTER_COLLECTION, 4, makeRng(7));
+    expect(hand).toHaveLength(4);
+    for (const id of hand) expect(STARTER_COLLECTION).toContain(id);
+    expect(drawHand(STARTER_COLLECTION, 4, makeRng(7))).toEqual(hand); // same seed -> same hand
+    expect(drawHand(['a', 'b'], 4, makeRng(1))).toHaveLength(2); // clamped to collection size
   });
 });
 

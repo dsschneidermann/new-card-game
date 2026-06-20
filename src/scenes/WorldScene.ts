@@ -120,21 +120,15 @@ export class WorldScene extends Phaser.Scene {
       .on('pointerdown', (p: Phaser.Input.Pointer) => {
         const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
         if (this.cards.isArmed()) {
-          this.cards.onWorldConfirm(hex); // spell click / two-step second target
+          this.cards.onWorldDown(hex); // click-mode first target / two-step second
         } else if (!this.inputLocked && this.grid.isWalkable(hex)) {
           // RequestMove (not raw MoveTo): the turn engine validates budget/phase.
           this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
         }
       });
 
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (this.cards.isArmed()) this.cards.onHover(pixelToHex(LAYOUT, p.worldX, p.worldY));
-    });
-    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (!this.cards.isArmed()) return;
-      const hex = pixelToHex(LAYOUT, p.worldX, p.worldY);
-      this.cards.onRelease(this.grid.inBounds(hex) ? hex : null); // card drag-release confirm
-    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.cards.onPointerMove(p));
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.cards.onPointerUp(p));
 
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (this.inputLocked) return;
@@ -211,7 +205,7 @@ export class WorldScene extends Phaser.Scene {
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
     world.store(DeckState).add(this.player, {
       collection: [...STARTER_COLLECTION],
-      hand: drawHand(STARTER_COLLECTION, HAND_SIZE),
+      hand: drawHand(STARTER_COLLECTION, HAND_SIZE, world.rng),
     });
     return world;
   }
@@ -263,7 +257,7 @@ export class WorldScene extends Phaser.Scene {
   /** Replace the hand with a freshly drawn one (called at each player-turn start). */
   private drawFreshHand(): void {
     const deck = this.world.store(DeckState).get(this.player);
-    if (deck !== undefined) deck.hand = drawHand(deck.collection, HAND_SIZE);
+    if (deck !== undefined) deck.hand = drawHand(deck.collection, HAND_SIZE, this.world.rng);
     this.cards?.refreshHand();
   }
 
