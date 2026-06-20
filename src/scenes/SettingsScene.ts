@@ -5,9 +5,9 @@ import { makeButton, type Button } from '@scenes/MenuButton';
 import { applyDisplaySettings, saveDisplaySettings } from '@scenes/displaySettings';
 
 const viewportLabel = (s: DisplaySettings): string =>
-  `Viewport: ${s.viewport === 'fit' ? 'Fit to window' : '1:1 Actual pixels'}`;
+  s.viewport === 'fit' ? 'Fit to window' : '1:1 Actual pixels';
 const resolutionLabel = (s: DisplaySettings): string =>
-  `Resolution: ${s.resolution === 'ipad' ? 'iPad (960x540)' : 'Desktop (1920x1080)'}`;
+  s.resolution === 'ipad' ? 'iPad (960x540)' : 'Desktop (1920x1080)';
 
 /** v1 settings: display (viewport + resolution) + fullscreen. Audio is a placeholder. */
 export class SettingsScene extends Phaser.Scene {
