@@ -43,11 +43,12 @@ interface Armed {
 }
 
 const HUD_DEPTH = 2_000_000;
+const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
 const HL_DEPTH = 500_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
-const CARD_FAN_DROP_PX = 2; // each hand position away from centre sits this many px lower (the fan arc)
+const CARD_FAN_ROTATION = 2; // each hand position away form center is rotated
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -139,10 +140,16 @@ export class CardController {
       this.placeCard(card, i, hand.length, layout, false);
       card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
       card.on('pointerover', () => {
-        if (this.armed === null) card.setY((card.getData('homeY') as number) - s(28));
+        if (this.armed === null) {
+          card.setY((card.getData('homeY') as number) - s(28));
+          card.setDepth(CARD_FRONT_DEPTH); // lift the hovered card above its neighbours
+        }
       });
       card.on('pointerout', () => {
-        if (this.armed === null) card.setY(card.getData('homeY') as number);
+        if (this.armed === null) {
+          card.setY(card.getData('homeY') as number);
+          card.setDepth(HUD_DEPTH + (card.getData('handIndex') as number)); // back to its fan slot
+        }
       });
       card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
       this.handCards.push(card);
@@ -177,11 +184,12 @@ export class CardController {
   ): void {
     const centerOffset = i - (count - 1) / 2; // signed distance from centre (half-steps for even counts)
     const x = layout.baseX + i * layout.spacing;
-    const angle = centerOffset * 4; // existing fan rotation
+    const angle = centerOffset * CARD_FAN_ROTATION;
     // Downward fan arc: the centre card (odd) or two centre cards (even) sit flat, and each
-    // position outward drops CARD_FAN_DROP_PX more, symmetric both ways. floor(|centerOffset|)
-    // is 0 for the middle card(s), then 1, 2, ... — the same mirroring as the rotation above.
-    const y = layout.baseY + Math.floor(Math.abs(centerOffset)) * s(CARD_FAN_DROP_PX);
+    // position outward drops more, symmetric both ways. floor(|centerOffset|) is 0 for the 
+    // middle card(s), then 1, 2, ... — the same mirroring as the rotation above.
+    const cardFanDrop = (x: number) => x < 1 ? 0 : x == 1 ? 2 : x <= 2 ? 4 : x <= 3 ? 6 : x <= 4 ? 12 : 0;
+    const y = layout.baseY + s(cardFanDrop(Math.floor(Math.abs(centerOffset))));
     card.setData('handIndex', i);
     card.setData('homeY', y);
     card.setDepth(HUD_DEPTH + i);
@@ -248,8 +256,12 @@ export class CardController {
     this.pressDown = { x: p.x, y: p.y };
     // An armed card drops back into the hand (so the whole board stays visible) and shows
     // a yellow selected border; a spell lights up its ring — the same "selected" affordance.
-    if (kind === 'card') this.setCardSelected(obj, true);
-    else this.setSpellSelected(obj, true);
+    if (kind === 'card') {
+      this.setCardSelected(obj, true);
+      obj.setDepth(CARD_FRONT_DEPTH); // the selected card draws above its neighbours
+    } else {
+      this.setSpellSelected(obj, true);
+    }
     this.tooltip.setVisible(false);
   }
 
@@ -305,6 +317,7 @@ export class CardController {
     for (const c of this.handCards) {
       this.setCardSelected(c, false);
       c.setY(c.getData('homeY') as number);
+      c.setDepth(HUD_DEPTH + (c.getData('handIndex') as number)); // restore the fan draw order
     }
   }
 
