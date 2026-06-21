@@ -112,8 +112,11 @@ function resolveEffect(world: World, owner: EntityId, deck: DeckStateData, effec
       break;
     }
     case 'ReduceRandomOtherCost': {
-      if (deck.hand.length === 0) return; // fizzle: no other card in hand
-      const target = deck.hand[world.rng.int(deck.hand.length)] as EntityId;
+      // Only target OTHER in-hand cards that still cost something — reducing an already-0-cost card
+      // (base 0, already reduced to 0, or free this hand) shows no change, so skip them.
+      const candidates = deck.hand.filter((inst) => cardEffectiveCost(world, inst) > 0);
+      if (candidates.length === 0) return; // fizzle: nothing worth reducing
+      const target = candidates[world.rng.int(candidates.length)] as EntityId;
       const mods = world.store(CardMods).get(target);
       if (mods !== undefined) mods.costDelta -= effect.amount;
       else world.store(CardMods).add(target, { costDelta: -effect.amount });

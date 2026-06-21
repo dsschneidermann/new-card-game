@@ -61,13 +61,14 @@ export const CARD_DEFS: readonly CardDef[] = [
     effect: { kind: 'DrawAndFree' },
   },
   {
-    // Demonstrator: a PERMANENT effect — lowers a random OTHER in-hand card's cost by 1 for the
-    // rest of the run (shown yellow, the normal cost colour). Fizzles if there is no other card.
+    // Demonstrator: a PERMANENT effect — lowers a random OTHER in-hand card that still costs energy
+    // by 1 for the rest of the run (shown yellow, the normal cost colour). Skips already-0-cost
+    // cards and fizzles if none qualify.
     id: 'sharpen',
     name: 'Sharpen',
     cost: 1,
     art: 'card.art.sharpen',
-    effectText: 'Permanently lower another random card in hand by 1 energy.',
+    effectText: 'Permanently lower a random other card that still costs energy by 1.',
     target: { kind: 'self' },
     effect: { kind: 'ReduceRandomOtherCost', amount: 1 },
   },

@@ -182,6 +182,31 @@ describe('permanent effect (Sharpen / ReduceRandomOtherCost)', () => {
     );
     expect(anyMods).toBe(false);
   });
+
+  it('only reduces a card that still costs something (skips already-0-cost cards)', () => {
+    const { world, player } = setup(['sharpen', 'jump', 'melee', 'jump']); // jump is base cost 0
+    advance(world, [{ kind: 'EndTurn', entity: player }]); // hand = sharpen + jump + melee + jump
+    const deck = deckOf(world, player);
+    const sharpen = deck.hand.find((e) => defOf(world, e) === 'sharpen') as EntityId;
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'sharpen', energyCost: 1, cardEntity: sharpen }]);
+    const melee = deck.hand.find((e) => defOf(world, e) === 'melee') as EntityId;
+    expect(world.store(CardMods).get(melee)?.costDelta).toBe(-1); // the only >0-cost card got it
+    for (const jump of deck.hand.filter((e) => defOf(world, e) === 'jump')) {
+      expect(world.store(CardMods).has(jump)).toBe(false); // 0-cost cards are never targeted
+    }
+  });
+
+  it('fizzles when every other card in hand is already 0 cost', () => {
+    const { world, player } = setup(['sharpen', 'jump', 'jump', 'jump']);
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+    const deck = deckOf(world, player);
+    const sharpen = deck.hand.find((e) => defOf(world, e) === 'sharpen') as EntityId;
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'sharpen', energyCost: 1, cardEntity: sharpen }]);
+    const anyMods = [...deck.drawPile, ...deck.hand, ...deck.discardPile].some((e) =>
+      world.store(CardMods).has(e),
+    );
+    expect(anyMods).toBe(false); // nothing worth reducing -> no-op
+  });
 });
 
 describe('temporary effect (Quick Draw / DrawAndFree)', () => {
