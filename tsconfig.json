@@ -17,7 +17,8 @@
     "paths": {
       "@core/*": ["src/core/*"],
       "@scenes/*": ["src/scenes/*"],
-      "@render/*": ["src/render/*"]
+      "@render/*": ["src/render/*"],
+      "@platform/*": ["src/platform/*"]
     }
   },
   "include": ["src"]

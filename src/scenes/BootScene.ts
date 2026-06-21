@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { hasSave, type SavePresence, type StorageAdapter } from '@core/index';
 import { ScreenRouter } from '@scenes/ScreenRouter';
-import { LocalStorageAdapter } from '@scenes/LocalStorageAdapter';
+import { LocalStorageAdapter } from '@platform/LocalStorageAdapter';
 import { applyDisplaySettings, loadDisplaySettings } from '@scenes/displaySettings';
 
 /**

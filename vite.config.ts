@@ -10,6 +10,7 @@ export default defineConfig({
       '@core': fileURLToPath(new URL('./src/core', import.meta.url)),
       '@scenes': fileURLToPath(new URL('./src/scenes', import.meta.url)),
       '@render': fileURLToPath(new URL('./src/render', import.meta.url)),
+      '@platform': fileURLToPath(new URL('./src/platform', import.meta.url)),
     },
   },
   build: {
