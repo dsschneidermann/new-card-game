@@ -18,6 +18,11 @@ const config: Phaser.Types.Core.GameConfig = {
   width: BASE_WIDTH,
   height: BASE_HEIGHT,
   backgroundColor: '#0e0e12',
+  render: {
+    // Snap sprites to integer device pixels so the position tween (SceneSync) never leaves a
+    // sub-pixel seam at the top edge of a moving sprite's frame (bug mqo2118o, trying empirically).
+    roundPixels: true,
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
