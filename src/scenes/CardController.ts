@@ -156,72 +156,105 @@ export class CardController {
   }
 
   /**
-   * (Re)build the hand fan from DeckState.hand (called whenever the hand composition or a card's
-   * cost changes — turn start, a play, or an effect). The hand now holds card-INSTANCE entity ids;
-   * each card renders its def art, its EFFECTIVE cost, and the cost colour (green if free this hand).
+   * Deal a brand-new hand at turn start (driven by the HandDealt event): discard EVERY card on
+   * screen, then deal EVERY card of the new hand in. The hand is wholesale-replaced here, so a card
+   * that was discarded and then reshuffled + redrawn this turn is a genuinely new draw and must still
+   * animate out then back in. Instance coincidence must NOT suppress that — which is exactly why this
+   * does NOT diff by instance id (unlike refreshHand, which is for incremental mid-turn changes).
+   */
+  dealNewHand(): void {
+    const leaving = this.handCards; // the whole hand is being discarded
+    this.animateHandDiscard(leaving);
+    const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
+    this.buildHand(dealBase, () => true); // every card is freshly dealt, so all fade in
+  }
+
+  /**
+   * Incrementally refresh the fan mid-turn (driven by HandDrawn: an effect drew a card or changed a
+   * cost). Existing cards stay put; only a genuinely-new instance fades in. This diffs the on-screen
+   * sprites against the hand by instance id — valid ONLY mid-turn, where a card leaves the hand by
+   * being PLAYED (animateCardOut), never by being discarded-and-redrawn (that is dealNewHand's job).
    */
   refreshHand(): void {
-    const world = this.ctx.world();
-    const deck = world.store(DeckState).get(this.ctx.player());
-    const hand = deck?.hand ?? [];
-    const newSet = new Set(hand);
-    // Diff the on-screen sprites against the new hand by instance id. Cards no longer in the hand
-    // (the whole hand at turn start) animate OUT to the right; cards still in the hand are rebuilt
-    // fresh (so a changed cost re-renders); brand-new cards fade IN from the right.
+    const newSet = new Set(this.ctx.world().store(DeckState).get(this.ctx.player())?.hand ?? []);
     const leaving = this.handCards.filter((c) => !newSet.has(c.getData('cardEntity') as EntityId));
     const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
-    // Record which instances were already on screen BEFORE destroying their sprites: getData() on a
-    // destroyed object returns undefined, which would mark every card "new" and re-deal the whole hand
-    // (hidden at turn start, where nothing stays — but visible when e.g. Recall returns one card).
+    // Snapshot which instances are already on screen BEFORE destroying their sprites: getData() on a
+    // destroyed object returns undefined, which would mark every card "new" and re-deal the whole hand.
     const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
     this.animateHandDiscard(leaving);
-    for (const c of staying) c.destroy(); // replaced below by a fresh face snapped to its slot
-
-    // New cards wait out the discard sweep so the two don't overlap (rightmost-out meets leftmost-in
-    // travelling toward each other); a refresh with nothing leaving (an effect draw) deals at once.
+    for (const c of staying) c.destroy(); // replaced by a fresh face (so a changed cost re-renders)
     const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
-    this.handCards = [];
+    this.buildHand(dealBase, (instance) => !wasPresent.has(instance)); // only genuinely-new cards fade in
+  }
+
+  /**
+   * (Re)build the hand fan from DeckState.hand, replacing this.handCards. The hand holds card-INSTANCE
+   * entity ids; each card renders its def art, EFFECTIVE cost and cost colour (green if free this hand)
+   * and snaps to its fan slot. A card for which shouldFadeIn(instance) is true instead starts offset to
+   * the right + transparent and fades into its slot, staggered leftmost-first after `dealBase`.
+   */
+  private buildHand(dealBase: number, shouldFadeIn: (instance: EntityId) => boolean): void {
+    const world = this.ctx.world();
+    const hand = world.store(DeckState).get(this.ctx.player())?.hand ?? [];
     const layout = this.fanLayout(hand.length);
-    let newOrdinal = 0; // stagger position among the cards newly appearing (leftmost first)
+    this.handCards = [];
+    let newOrdinal = 0; // stagger position among the cards fading in (leftmost first)
     hand.forEach((instance, i) => {
       const defId = world.store(Card).get(instance)?.defId;
       const def = defId !== undefined ? cardDef(defId) : undefined;
       if (def === undefined) return;
-      const card = this.makeCardFace(def, 1, cardEffectiveCost(world, instance), isTempFree(world, instance));
-      card.setData('cardEntity', instance);
-      this.placeCard(card, i, hand.length, layout, false);
-      card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
-      card.on('pointerover', () => {
-        if (this.armed === null) {
-          card.setY((card.getData('homeY') as number) - s(28));
-          card.setDepth(CARD_FRONT_DEPTH); // lift the hovered card above its neighbours
-        }
-      });
-      card.on('pointerout', () => {
-        if (this.armed === null) {
-          card.setY(card.getData('homeY') as number);
-          card.setDepth(HUD_DEPTH + (card.getData('handIndex') as number)); // back to its fan slot
-        }
-      });
-      card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
+      const card = this.buildHandCard(def, instance, i, hand.length, layout);
       this.handCards.push(card);
-      if (!wasPresent.has(instance)) {
-        // A newly-arrived card fades in from a rightward offset, sliding left into its slot —
-        // staggered leftmost-first, after any end-of-turn discard sweep has cleared.
-        const homeX = card.x;
-        card.setAlpha(0).setX(homeX + s(DRAW_SLIDE_PX));
-        this.scene.tweens.add({
-          targets: card,
-          x: homeX,
-          alpha: 1,
-          duration: DRAW_FADE_MS,
-          delay: dealBase + newOrdinal * DRAW_STAGGER_MS,
-          ease: 'Quad.easeOut',
-        });
+      if (shouldFadeIn(instance)) {
+        this.fadeCardIn(card, dealBase + newOrdinal * DRAW_STAGGER_MS);
         newOrdinal += 1;
       }
     });
     this.refreshPileCounts();
+  }
+
+  /** Create + wire one hand-card sprite (hover lift, arm-on-press) and snap it to fan slot `i`. */
+  private buildHandCard(
+    def: CardDef,
+    instance: EntityId,
+    i: number,
+    count: number,
+    layout: { spacing: number; baseX: number; baseY: number },
+  ): Phaser.GameObjects.Container {
+    const world = this.ctx.world();
+    const card = this.makeCardFace(def, 1, cardEffectiveCost(world, instance), isTempFree(world, instance));
+    card.setData('cardEntity', instance);
+    this.placeCard(card, i, count, layout, false);
+    card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
+    card.on('pointerover', () => {
+      if (this.armed === null) {
+        card.setY((card.getData('homeY') as number) - s(28));
+        card.setDepth(CARD_FRONT_DEPTH); // lift the hovered card above its neighbours
+      }
+    });
+    card.on('pointerout', () => {
+      if (this.armed === null) {
+        card.setY(card.getData('homeY') as number);
+        card.setDepth(HUD_DEPTH + (card.getData('handIndex') as number)); // back to its fan slot
+      }
+    });
+    card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
+    return card;
+  }
+
+  /** Begin a card's deal-in: it starts offset to the RIGHT + transparent and slides/fades into its slot. */
+  private fadeCardIn(card: Phaser.GameObjects.Container, delay: number): void {
+    const homeX = card.x;
+    card.setAlpha(0).setX(homeX + s(DRAW_SLIDE_PX));
+    this.scene.tweens.add({
+      targets: card,
+      x: homeX,
+      alpha: 1,
+      duration: DRAW_FADE_MS,
+      delay,
+      ease: 'Quad.easeOut',
+    });
   }
 
   /**
@@ -272,7 +305,7 @@ export class CardController {
    * Animate a played card-instance leaving the hand and reflow the survivors — presentation ONLY.
    * The card system already moved the instance to the discard pile (the authority); this is driven
    * by the CardDiscarded event carrying the instance id. The sprite is found by its stored
-   * cardEntity. (A full rebuild happens separately on HandDrawn, e.g. at turn start.)
+   * cardEntity. (The hand is rebuilt separately: refreshHand on an effect draw, dealNewHand at turn start.)
    */
   animateCardOut(instance: EntityId): void {
     const card = this.handCards.find((c) => (c.getData('cardEntity') as EntityId) === instance);

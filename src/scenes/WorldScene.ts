@@ -180,7 +180,9 @@ export class WorldScene extends Phaser.Scene {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
       // A played card-instance left the hand for the discard pile: animate it out + reflow.
       else if (e.kind === 'CardDiscarded' && e.entity === this.player) this.cards.animateCardOut(e.instance);
-      // A fresh hand was drawn (turn start, or an effect drew / changed a card): rebuild the fan.
+      // The whole hand was replaced at turn start: discard every card, then deal the new hand in.
+      else if (e.kind === 'HandDealt' && e.entity === this.player) this.cards.dealNewHand();
+      // An effect drew a card or changed a cost mid-turn: refresh the fan incrementally.
       else if (e.kind === 'HandDrawn' && e.entity === this.player) this.cards.refreshHand();
       // A new player turn opened: drop any armed card and checkpoint the freshly-drawn turn-start state.
       else if (e.kind === 'TurnStarted' && e.phase === 'player') {

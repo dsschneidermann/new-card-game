@@ -15,9 +15,12 @@ export type GameEvent =
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
-  // Card system (Card Entities, Deck Cycle & Stat Effects): a fresh hand was drawn (turn start or
-  // an effect drew a card) -> the scene rebuilds the hand fan; a single card left the hand for the
-  // discard pile (a play) -> the scene animates that instance out.
+  // Card system (Card Entities, Deck Cycle & Stat Effects). HandDealt: the whole hand was replaced at
+  // turn start (old hand discarded, fresh hand drawn) -> the scene discards every card and deals the
+  // new hand in. HandDrawn: an effect drew a card or changed a cost mid-turn -> the scene refreshes
+  // the fan incrementally. CardDiscarded: a single card left the hand for the discard pile (a play)
+  // -> the scene animates that instance out.
+  | { kind: 'HandDealt'; entity: EntityId }
   | { kind: 'HandDrawn'; entity: EntityId }
   | { kind: 'CardDiscarded'; entity: EntityId; instance: EntityId; defId: string }
   // Turn engine (feature 07). Phase is the literal 'player' | 'enemy' (kept inline

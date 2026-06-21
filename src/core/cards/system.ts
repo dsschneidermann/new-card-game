@@ -55,7 +55,9 @@ function startTurn(world: World, owner: EntityId, deck: DeckStateData, handSize:
   }
   deck.hand.length = 0;
   drawUpTo(deck, handSize, world.rng);
-  world.emit({ kind: 'HandDrawn', entity: owner });
+  // A wholesale hand replacement (distinct from the incremental HandDrawn that effects emit) so the
+  // UI discards the whole old hand and deals the new one in, even when a card is reshuffled + redrawn.
+  world.emit({ kind: 'HandDealt', entity: owner });
 }
 
 /** A played card leaves the hand -> discard (clearing temporaries), then its effect resolves. */

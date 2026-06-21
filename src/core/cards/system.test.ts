@@ -130,7 +130,7 @@ describe('card system: turn-start draw', () => {
     const evs = advance(world, [{ kind: 'EndTurn', entity: player }]); // -> TurnStarted{player} -> draw
     expect(deck.hand.length).toBe(HAND);
     for (const c of leftover) expect(deck.discardPile).toContain(c); // old hand discarded
-    expect(kinds(evs)).toContain('HandDrawn');
+    expect(kinds(evs)).toContain('HandDealt'); // turn start = a wholesale fresh hand (not incremental HandDrawn)
   });
 });
 
