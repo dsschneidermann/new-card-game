@@ -159,9 +159,15 @@ export class CardController {
     else this.disarm(); // clicked off the grid: cancel
   }
 
-  /** Esc / cancel: drop any armed card/spell. */
+  /**
+   * Esc / cancel / turn change: drop any armed card/spell AND close the Deck/Discard overlay. Ending
+   * the turn (Space) and restarting it (R) both call this, and after either the piles change — so a
+   * still-open overlay would show stale cards. Closing here also covers TurnStarted. (When a card is
+   * armed the overlay is already closed, so this is a no-op in the Esc/right-click cancel paths.)
+   */
   cancel(): void {
     this.disarm();
+    this.closeOverlay();
   }
 
   /**
