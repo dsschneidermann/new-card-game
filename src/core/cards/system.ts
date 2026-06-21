@@ -40,6 +40,26 @@ export function isTempFree(world: World, instance: EntityId): boolean {
 }
 
 /**
+ * Order a pile's card instances for display in the Deck / Discard overlay: attack cards first, then
+ * by effective energy cost ascending, then by card name alphabetically (a stable tiebreak). Pure
+ * (reads Card.defId + cardDef + cardEffectiveCost) so it is unit-testable and reused by the UI. A
+ * DISPLAY sort only: it deliberately does NOT reflect the draw pile's real (shuffled) next-draw order.
+ */
+export function sortPileForDisplay(world: World, ids: readonly EntityId[]): EntityId[] {
+  const keyed = ids.map((id) => {
+    const defId = world.store(Card).get(id)?.defId;
+    const def = defId !== undefined ? cardDef(defId) : undefined;
+    return { id, attack: def?.attack === true, cost: cardEffectiveCost(world, id), name: def?.name ?? '' };
+  });
+  keyed.sort((a, b) => {
+    if (a.attack !== b.attack) return a.attack ? -1 : 1; // attacks before skills
+    if (a.cost !== b.cost) return a.cost - b.cost; // then cheaper first
+    return a.name.localeCompare(b.name); // then by name
+  });
+  return keyed.map((k) => k.id);
+}
+
+/**
  * The card system (Card Entities, Deck Cycle & Stat Effects). Registered AFTER the turn engine,
  * it coordinates with it through THIS step's events (same-step visible on the event bus):
  *  - TurnStarted{player}: discard the leftover hand (clearing temporaries) then draw a fresh hand.

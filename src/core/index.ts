@@ -121,6 +121,7 @@ export {
   makeCardSystem,
   cardEffectiveCost,
   isTempFree,
+  sortPileForDisplay,
 } from './cards';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)

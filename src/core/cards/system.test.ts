@@ -26,6 +26,7 @@ import {
   effectiveCost,
   cardEffectiveCost,
   isTempFree,
+  sortPileForDisplay,
   type World,
   type EntityId,
   type HexLayout,
@@ -243,6 +244,24 @@ describe('temporary effect (Quick Draw / DrawAndFree)', () => {
     expect(freed).toBeDefined();
     advance(world, [{ kind: 'EndTurn', entity: player }]); // leftover hand discarded -> temp cleared
     expect(isTempFree(world, freed)).toBe(false);
+  });
+});
+
+describe('sortPileForDisplay (overlay display order)', () => {
+  it('orders attacks before skills, then by effective cost ascending, then by name', () => {
+    // melee/ranged: attack cost 1; whirlwind: attack cost 2; jump: skill cost 0; defend/quickdraw: skill cost 1
+    const { world, player } = setup(['whirlwind', 'defend', 'melee', 'quickdraw', 'jump', 'ranged']);
+    const sorted = sortPileForDisplay(world, deckOf(world, player).drawPile).map((e) => defOf(world, e));
+    expect(sorted).toEqual(['melee', 'ranged', 'whirlwind', 'jump', 'defend', 'quickdraw']);
+  });
+
+  it('uses EFFECTIVE cost: a permanent reduction moves a card to its reduced slot', () => {
+    const { world, player } = setup(['whirlwind', 'melee']); // melee attack cost 1, whirlwind attack cost 2
+    const deck = deckOf(world, player);
+    expect(sortPileForDisplay(world, deck.drawPile).map((e) => defOf(world, e))).toEqual(['melee', 'whirlwind']);
+    const whirlwind = deck.drawPile.find((e) => defOf(world, e) === 'whirlwind') as EntityId;
+    world.store(CardMods).add(whirlwind, { costDelta: -2 }); // 2 -> 0, now cheaper than melee
+    expect(sortPileForDisplay(world, deck.drawPile).map((e) => defOf(world, e))).toEqual(['whirlwind', 'melee']);
   });
 });
 

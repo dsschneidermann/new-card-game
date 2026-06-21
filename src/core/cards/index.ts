@@ -13,4 +13,4 @@ export {
 } from './deck';
 export { CARD_DEFS, SPELL_DEFS, STARTER_COLLECTION, cardDef, spellDef, isAttackCard } from './content';
 export { resolveTargeting, targetMaxRange } from './targeting';
-export { makeCardSystem, cardEffectiveCost, isTempFree, effectiveCost } from './system';
+export { makeCardSystem, cardEffectiveCost, isTempFree, effectiveCost, sortPileForDisplay } from './system';
