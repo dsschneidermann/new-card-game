@@ -11,11 +11,11 @@ export type Command =
   // Player move INTENT: the turn engine validates it (phase + budget + reachability)
   // and, if legal, submits the MoveTo above (feature 07).
   | { kind: 'RequestMove'; entity: EntityId; q: number; r: number }
-  // energyCost/manaCost are supplied by the caller until card/spell definitions resolve
-  // them; the turn engine spends them. `targets` are the aimed hex(es) recorded for when
-  // effects land (the selected hex, both picks for a two-step, none for a self-target).
-  // `handIndex` is the hand slot of the played copy: the turn engine removes that slot from
-  // DeckState.hand when the play is accepted (omit it for a non-hand play, e.g. AI/effects).
-  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; handIndex?: number }
+  // energyCost/manaCost are the EFFECTIVE cost the caller computed (base + per-instance modifiers);
+  // the turn engine spends it. `targets` are the aimed hex(es) recorded for when effects land (the
+  // selected hex, both picks for a two-step, none for a self-target). `cardEntity` is the played
+  // card-instance entity: on an accepted play the card system moves it to the discard pile and
+  // resolves its effect (omit it for a non-hand play, e.g. AI/effects).
+  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; cardEntity?: EntityId }
   | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId; targets?: readonly Hex[] }
   | { kind: 'EndTurn'; entity: EntityId };

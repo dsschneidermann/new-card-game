@@ -49,6 +49,28 @@ export const CARD_DEFS: readonly CardDef[] = [
     effectText: 'Refund your movement points.',
     target: { kind: 'self' },
   },
+  {
+    // Demonstrator: a TEMPORARY effect — draws a card and frees it (cost 0, shown green) until it
+    // is played or discarded. Always draws via the deck's cycling draw (reshuffles if needed).
+    id: 'quickdraw',
+    name: 'Quick Draw',
+    cost: 1,
+    art: 'card.art.quickdraw',
+    effectText: 'Draw a card. It costs 0 this turn.',
+    target: { kind: 'self' },
+    effect: { kind: 'DrawAndFree' },
+  },
+  {
+    // Demonstrator: a PERMANENT effect — lowers a random OTHER in-hand card's cost by 1 for the
+    // rest of the run (shown yellow, the normal cost colour). Fizzles if there is no other card.
+    id: 'sharpen',
+    name: 'Sharpen',
+    cost: 1,
+    art: 'card.art.sharpen',
+    effectText: 'Permanently lower another random card in hand by 1 energy.',
+    target: { kind: 'self' },
+    effect: { kind: 'ReduceRandomOtherCost', amount: 1 },
+  },
 ];
 
 export const SPELL_DEFS: readonly SpellDef[] = [
@@ -78,7 +100,10 @@ export const SPELL_DEFS: readonly SpellDef[] = [
   },
 ];
 
-/** The static starter deck: a multiset of card ids (duplicates are copies). */
+/**
+ * The static starter deck: a multiset of card ids. At deck-build each id becomes its own
+ * card-instance entity (duplicates are distinct instances that can carry different modifiers).
+ */
 export const STARTER_COLLECTION: readonly string[] = [
   'melee',
   'melee',
@@ -92,6 +117,10 @@ export const STARTER_COLLECTION: readonly string[] = [
   'defend',
   'jump',
   'jump',
+  'quickdraw',
+  'quickdraw',
+  'sharpen',
+  'sharpen',
 ];
 
 const CARD_BY_ID = new Map<string, CardDef>(CARD_DEFS.map((c) => [c.id, c]));

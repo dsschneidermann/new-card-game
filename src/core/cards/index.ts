@@ -1,6 +1,17 @@
-/** Cards, deck & spell definitions + targeting (feature 09). */
-export type { CardDef, SpellDef, TargetSpec, Highlight } from './types';
-export type { DeckStateData } from './deck';
-export { DeckState, drawHand } from './deck';
+/** Cards, deck & spell definitions, targeting, and the card-entity deck cycle + stat effects. */
+export type { CardDef, SpellDef, TargetSpec, Highlight, CardEffect } from './types';
+export type { DeckStateData, CardData, CardModsData, TempCardModsData } from './deck';
+export {
+  DeckState,
+  Card,
+  CardMods,
+  TempCardMods,
+  effectiveCost,
+  buildCardInstances,
+  reshuffle,
+  drawOne,
+  drawUpTo,
+} from './deck';
 export { CARD_DEFS, SPELL_DEFS, STARTER_COLLECTION, cardDef, spellDef, isAttackCard } from './content';
 export { resolveTargeting, targetMaxRange } from './targeting';
+export { makeCardSystem, cardEffectiveCost, isTempFree } from './system';

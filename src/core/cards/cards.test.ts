@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createWorld,
-  serializeWorld,
-  restoreWorld,
   hexDistance,
   hexLine,
   hexesWithinRange,
@@ -11,9 +8,6 @@ import {
   cardDef,
   spellDef,
   isAttackCard,
-  drawHand,
-  makeRng,
-  DeckState,
   STARTER_COLLECTION,
   type Hex,
 } from '@core/index';
@@ -125,15 +119,17 @@ describe('targetMaxRange', () => {
 });
 
 describe('starter content', () => {
-  it('the starter collection is the expected 12-card multiset of defined cards', () => {
+  it('the starter collection is the expected 16-card multiset of defined cards', () => {
     expect(STARTER_COLLECTION).toEqual([
       'melee', 'melee', 'melee',
       'longstrike', 'longstrike',
       'ranged', 'ranged', 'ranged',
       'defend', 'defend',
       'jump', 'jump',
+      'quickdraw', 'quickdraw',
+      'sharpen', 'sharpen',
     ]);
-    expect(STARTER_COLLECTION).toHaveLength(12);
+    expect(STARTER_COLLECTION).toHaveLength(16);
     for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
   });
 
@@ -143,8 +139,16 @@ describe('starter content', () => {
     expect(isAttackCard('ranged')).toBe(true);
     expect(isAttackCard('defend')).toBe(false);
     expect(isAttackCard('jump')).toBe(false);
+    expect(isAttackCard('quickdraw')).toBe(false); // a skill demonstrator
+    expect(isAttackCard('sharpen')).toBe(false); // a skill demonstrator
     expect(isAttackCard('blizzard')).toBe(false); // a spell id, not a card
     expect(isAttackCard('nope')).toBe(false);
+  });
+
+  it('the demonstrator skills carry their effects', () => {
+    expect(cardDef('quickdraw')).toMatchObject({ cost: 1, effect: { kind: 'DrawAndFree' } });
+    expect(cardDef('sharpen')).toMatchObject({ cost: 1, effect: { kind: 'ReduceRandomOtherCost', amount: 1 } });
+    expect(cardDef('melee')?.effect).toBeUndefined();
   });
 
   it('attack cards carry per-id art, costs, and their ranged target specs', () => {
@@ -166,35 +170,4 @@ describe('starter content', () => {
   });
 });
 
-describe('drawHand', () => {
-  it('draws a random hand of n from the collection, reproducible for a given seed', () => {
-    const hand = drawHand(STARTER_COLLECTION, 4, makeRng(7));
-    expect(hand).toHaveLength(4);
-    for (const id of hand) expect(STARTER_COLLECTION).toContain(id);
-    expect(drawHand(STARTER_COLLECTION, 4, makeRng(7))).toEqual(hand); // same seed -> same hand
-    expect(drawHand(['a', 'b'], 4, makeRng(1))).toHaveLength(2); // clamped to collection size
-  });
-});
-
-describe('DeckState persistence (feature 06 obligation)', () => {
-  it('round-trips the collection and hand through a save', () => {
-    const world = createWorld(1);
-    const e = world.createEntity();
-    world.store(DeckState).add(e, { collection: [...STARTER_COLLECTION], hand: ['melee', 'ranged'] });
-    const restored = restoreWorld(serializeWorld(world));
-    expect(restored.store(DeckState).get(e)).toEqual({
-      collection: [...STARTER_COLLECTION],
-      hand: ['melee', 'ranged'],
-    });
-  });
-
-  it('round-trips a hand shrunk by playing a card (removal persists)', () => {
-    const world = createWorld(1);
-    const e = world.createEntity();
-    const deck = { collection: [...STARTER_COLLECTION], hand: ['melee', 'melee', 'ranged', 'jump'] };
-    world.store(DeckState).add(e, deck);
-    deck.hand.splice(1, 1); // play the second card (one of the two melee) — removed by slot
-    const restored = restoreWorld(serializeWorld(world));
-    expect(restored.store(DeckState).get(e)?.hand).toEqual(['melee', 'ranged', 'jump']);
-  });
-});
+// Deck-cycle behaviour and DeckState v3 persistence are covered in src/core/cards/system.test.ts.

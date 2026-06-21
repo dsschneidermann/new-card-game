@@ -14,19 +14,31 @@ export type TargetSpec =
   | { kind: 'twoStep'; first: TargetSpec; second: TargetSpec };
 
 /**
- * A card definition. Each CardDef IS a card type, identified by id; the deck
- * holds ids (duplicates = copies). Art is keyed by id (card.art.<id>). No
- * mechanical effect yet — effectText is display-only until feature 12.
+ * A mechanical card effect resolved by the card system when the card is played (Card Entities,
+ * Deck Cycle & Stat Effects). Extensible: a new effect is one variant here + one case in the card
+ * system's resolveEffect. DrawAndFree draws an extra card and makes it free this hand (temporary);
+ * ReduceRandomOtherCost permanently lowers a random OTHER in-hand card's cost by `amount`.
+ */
+export type CardEffect =
+  | { kind: 'DrawAndFree' }
+  | { kind: 'ReduceRandomOtherCost'; amount: number };
+
+/**
+ * A card definition. Each CardDef IS a card type, identified by id; the deck holds card-instance
+ * entities (duplicates = separate instances). Art is keyed by id (card.art.<id>). effectText is the
+ * display string; `effect` (if present) is the mechanical effect the card system resolves on play.
  */
 export interface CardDef {
   readonly id: string;
   readonly name: string;
-  readonly cost: number; // energy
+  readonly cost: number; // energy (base; per-instance modifiers adjust the effective cost)
   readonly art: string; // asset key, conventionally card.art.<id>
   readonly effectText: string;
   readonly target: TargetSpec;
   /** Attack cards (melee/ranged) trigger the player's attack animation when played. */
   readonly attack?: boolean;
+  /** Mechanical effect resolved by the card system on play (skills like Quick Draw / Sharpen). */
+  readonly effect?: CardEffect;
 }
 
 /** A spell definition. Each SpellDef IS a spell type, identified by id (spell.icon.<id>). */

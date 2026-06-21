@@ -15,7 +15,6 @@ import {
   TurnState,
   ResourcePool,
   MovementBudget,
-  DeckState,
   makeTurnSystem,
   type World,
   type GameEvent,
@@ -128,66 +127,8 @@ describe('action validation', () => {
   });
 });
 
-describe('card play removes from hand (simulation-owned)', () => {
-  // Give the player a DeckState hand on top of the standard setup (energy 3).
-  function withHand(hand: string[]): { world: World; player: EntityId } {
-    const { world, player } = setup();
-    world.store(DeckState).add(player, { collection: [...hand], hand: [...hand] });
-    return { world, player };
-  }
-
-  it('removes exactly the played slot (a duplicate elsewhere is left intact) and spends energy', () => {
-    const { world, player } = withHand(['melee', 'ranged', 'melee', 'jump']);
-    const pool = world.store(ResourcePool).get(player) as { energy: number };
-    const evs = advance(world, [
-      { kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, handIndex: 0 },
-    ]);
-    expect(world.store(DeckState).get(player)?.hand).toEqual(['ranged', 'melee', 'jump']);
-    expect(pool.energy).toBe(2);
-    expect(evs.find((e) => e.kind === 'CardPlayed')).toMatchObject({
-      kind: 'CardPlayed',
-      entity: player,
-      cardId: 'melee',
-      handIndex: 0,
-    });
-    expect(kinds(evs)).toContain('ResourceChanged');
-  });
-
-  it('round-trips the shrunk hand through a save (removal lives in the persisted DeckState)', () => {
-    const { world, player } = withHand(['melee', 'ranged', 'jump']);
-    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'ranged', energyCost: 1, handIndex: 1 }]);
-    const restored = restoreWorld(serializeWorld(world));
-    expect(restored.store(DeckState).get(player)?.hand).toEqual(['melee', 'jump']);
-  });
-
-  it('a rejected play (too expensive) removes nothing and spends no energy', () => {
-    const { world, player } = withHand(['melee', 'ranged']);
-    const pool = world.store(ResourcePool).get(player) as { energy: number };
-    const evs = advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 99, handIndex: 0 }]);
-    expect(kinds(evs)).toContain('ActionRejected');
-    expect(world.store(DeckState).get(player)?.hand).toEqual(['melee', 'ranged']);
-    expect(pool.energy).toBe(3);
-  });
-
-  it('a stale (slot does not hold cardId) or out-of-range handIndex removes nothing', () => {
-    const { world, player } = withHand(['melee', 'ranged']);
-    // slot 1 holds 'ranged', not 'melee' -> the guard skips removal (the play still resolves)
-    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, handIndex: 1 }]);
-    expect(world.store(DeckState).get(player)?.hand).toEqual(['melee', 'ranged']);
-    // out-of-range slot -> removal skipped, no throw
-    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, handIndex: 9 }]);
-    expect(world.store(DeckState).get(player)?.hand).toEqual(['melee', 'ranged']);
-  });
-
-  it('a PlayCard without a handIndex plays (energy + CardPlayed) but leaves the hand unchanged', () => {
-    const { world, player } = withHand(['melee', 'ranged']);
-    const pool = world.store(ResourcePool).get(player) as { energy: number };
-    const evs = advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1 }]);
-    expect(kinds(evs)).toContain('CardPlayed');
-    expect(world.store(DeckState).get(player)?.hand).toEqual(['melee', 'ranged']);
-    expect(pool.energy).toBe(2);
-  });
-});
+// Card play -> hand removal / discard + effects moved to the card system; see
+// src/core/cards/system.test.ts. The turn engine here only validates phase + spends energy.
 
 describe('turn cycle & enemy phase', () => {
   it('EndTurn cycles player->enemy->player, bumps the round, and fires end then start hooks', () => {

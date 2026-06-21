@@ -87,11 +87,29 @@ export {
   canPlaySpell,
 } from './turn';
 
-// Cards, deck & spell definitions + targeting (feature 09)
-export type { CardDef, SpellDef, TargetSpec, Highlight, DeckStateData } from './cards';
+// Cards: definitions, targeting, the card-entity deck cycle, and stat effects (feature 09 + Card
+// Entities, Deck Cycle & Stat Effects)
+export type {
+  CardDef,
+  SpellDef,
+  TargetSpec,
+  Highlight,
+  CardEffect,
+  DeckStateData,
+  CardData,
+  CardModsData,
+  TempCardModsData,
+} from './cards';
 export {
   DeckState,
-  drawHand,
+  Card,
+  CardMods,
+  TempCardMods,
+  effectiveCost,
+  buildCardInstances,
+  reshuffle,
+  drawOne,
+  drawUpTo,
   CARD_DEFS,
   SPELL_DEFS,
   STARTER_COLLECTION,
@@ -100,6 +118,9 @@ export {
   isAttackCard,
   resolveTargeting,
   targetMaxRange,
+  makeCardSystem,
+  cardEffectiveCost,
+  isTempFree,
 } from './cards';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)

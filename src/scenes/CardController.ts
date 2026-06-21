@@ -2,7 +2,10 @@ import Phaser from 'phaser';
 import {
   HexPosition,
   DeckState,
+  Card,
   cardDef,
+  cardEffectiveCost,
+  isTempFree,
   isAttackCard,
   resolveTargeting,
   targetMaxRange,
@@ -85,6 +88,7 @@ export class CardController {
   private rangeOutline!: Phaser.GameObjects.Graphics; // yellow max-range boundary while a range card is armed
   private tooltip!: Phaser.GameObjects.Container;
   private deckOverlay!: Phaser.GameObjects.Container;
+  private deckFaces: Phaser.GameObjects.Container[] = []; // overlay card faces, rebuilt each open
 
   constructor(ctx: CardUiContext) {
     this.ctx = ctx;
@@ -139,17 +143,24 @@ export class CardController {
     this.disarm();
   }
 
-  /** (Re)build the hand fan from DeckState.hand (called at turn start with a fresh hand). */
+  /**
+   * (Re)build the hand fan from DeckState.hand (called whenever the hand composition or a card's
+   * cost changes — turn start, a play, or an effect). The hand now holds card-INSTANCE entity ids;
+   * each card renders its def art, its EFFECTIVE cost, and the cost colour (green if free this hand).
+   */
   refreshHand(): void {
     for (const c of this.handCards) c.destroy();
     this.handCards = [];
-    const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
+    const world = this.ctx.world();
+    const deck = world.store(DeckState).get(this.ctx.player());
     const hand = deck?.hand ?? [];
     const layout = this.fanLayout(hand.length);
-    hand.forEach((id, i) => {
-      const def = cardDef(id);
+    hand.forEach((instance, i) => {
+      const defId = world.store(Card).get(instance)?.defId;
+      const def = defId !== undefined ? cardDef(defId) : undefined;
       if (def === undefined) return;
-      const card = this.makeCardFace(def, 1);
+      const card = this.makeCardFace(def, 1, cardEffectiveCost(world, instance), isTempFree(world, instance));
+      card.setData('cardEntity', instance);
       this.placeCard(card, i, hand.length, layout, false);
       card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
       card.on('pointerover', () => {
@@ -214,15 +225,13 @@ export class CardController {
   }
 
   /**
-   * Animate the just-played card leaving the hand and reflow the survivors — presentation
-   * ONLY. The card was already removed from DeckState.hand by the turn system (the authority);
-   * this is driven by the CardPlayed event carrying the played slot. The sprite is found by its
-   * stored handIndex, which stays in lockstep with the recompacted hand because each reflow
-   * re-indexes the survivors (placeCard sets handIndex = new slot). The hand fully rebuilds at
-   * turn start.
+   * Animate a played card-instance leaving the hand and reflow the survivors — presentation ONLY.
+   * The card system already moved the instance to the discard pile (the authority); this is driven
+   * by the CardDiscarded event carrying the instance id. The sprite is found by its stored
+   * cardEntity. (A full rebuild happens separately on HandDrawn, e.g. at turn start.)
    */
-  animateCardOut(handIndex: number): void {
-    const card = this.handCards.find((c) => (c.getData('handIndex') as number) === handIndex);
+  animateCardOut(instance: EntityId): void {
+    const card = this.handCards.find((c) => (c.getData('cardEntity') as EntityId) === instance);
     if (card === undefined) return;
     this.handCards.splice(this.handCards.indexOf(card), 1);
     this.scene.tweens.add({
@@ -252,12 +261,13 @@ export class CardController {
       return;
     }
     if (!this.ctx.canAct()) return;
-    // Tell the player at SELECTION time if it can't be played (not enough energy/mana, or
-    // out of phase), rather than only after they target a hex.
+    // Tell the player at SELECTION time if it can't be played (not enough energy/mana, or out of
+    // phase), rather than only after they target a hex. Cards use their EFFECTIVE per-instance cost.
+    const cost = kind === 'card' ? this.cardCost(obj) : def.cost;
     const v =
       kind === 'card'
-        ? canPlayCard(this.ctx.world(), this.ctx.player(), def.cost)
-        : canPlaySpell(this.ctx.world(), this.ctx.player(), def.cost);
+        ? canPlayCard(this.ctx.world(), this.ctx.player(), cost)
+        : canPlaySpell(this.ctx.world(), this.ctx.player(), cost);
     if (!v.ok) {
       this.ctx.notify(v.reason);
       return;
@@ -308,11 +318,12 @@ export class CardController {
           : [finalHex];
     const player = this.ctx.player();
     if (kind === 'card') {
-      const handIndex = obj.getData('handIndex') as number; // the played hand slot
+      const cardEntity = obj.getData('cardEntity') as EntityId; // the played card-instance
+      const energyCost = this.cardCost(obj); // effective cost (base + permanent; 0 if free this hand)
       this.ctx.submit(
         targets.length > 0
-          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, handIndex, targets }
-          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, handIndex },
+          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity, targets }
+          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity },
       );
     } else {
       this.ctx.submit(
@@ -322,9 +333,15 @@ export class CardController {
       );
     }
     this.disarm();
-    // The played card leaves the hand for the rest of the turn, but the SIMULATION owns that:
-    // the turn system removes it from DeckState.hand and echoes the slot on CardPlayed, which
-    // the scene turns into animateCardOut(). Spells stay in the sidebar. (No DeckState write here.)
+    // The played card leaves the hand for the turn, but the SIMULATION owns that: the card system
+    // moves the instance to the discard pile (and resolves its effect) and emits CardDiscarded,
+    // which the scene turns into animateCardOut(). Spells stay in the sidebar. (No deck write here.)
+  }
+
+  /** Effective energy cost of a hand card object (reads its instance's base + permanent + temp modifiers). */
+  private cardCost(obj: Phaser.GameObjects.Container): number {
+    const instance = obj.getData('cardEntity') as EntityId | undefined;
+    return instance === undefined ? 0 : cardEffectiveCost(this.ctx.world(), instance);
   }
 
   private disarm(): void {
@@ -445,7 +462,11 @@ export class CardController {
     this.highlight.fillPath();
   }
 
-  private makeCardFace(def: CardDef, scale: number): Phaser.GameObjects.Container {
+  /**
+   * Build a card face showing its EFFECTIVE cost. The cost is GREEN when a temporary override is
+   * active (free this hand), else YELLOW — the normal colour, including a permanently-reduced cost.
+   */
+  private makeCardFace(def: CardDef, scale: number, cost: number, tempFree: boolean): Phaser.GameObjects.Container {
     const w = s(96);
     const h = s(144);
     const c = this.scene.add.container(0, 0);
@@ -453,8 +474,12 @@ export class CardController {
       .rectangle(0, 0, w, h, 0x1f2430)
       .setStrokeStyle(s(2), this.frameColor(def.id))
       .setOrigin(0.5);
-    const cost = this.scene.add
-      .text(-w / 2 + s(6), -h / 2 + s(4), `E${def.cost}`, { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#facc15' })
+    const costText = this.scene.add
+      .text(-w / 2 + s(6), -h / 2 + s(4), `E${cost}`, {
+        fontFamily: 'monospace',
+        fontSize: `${s(14)}px`,
+        color: tempFree ? '#22c55e' : '#facc15', // green = temporary free; yellow = base/permanent
+      })
       .setOrigin(0, 0);
     const name = this.scene.add
       .text(0, -h / 2 + s(22), def.name, { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
@@ -469,7 +494,7 @@ export class CardController {
         wordWrap: { width: w - s(12) },
       })
       .setOrigin(0.5, 0);
-    c.add([bg, cost, name, art, eff]);
+    c.add([bg, costText, name, art, eff]);
     c.setData('bg', bg);
     c.setData('frameColor', this.frameColor(def.id));
     c.setScale(scale);
@@ -553,19 +578,34 @@ export class CardController {
       .text(width / 2, s(40), 'Deck', { fontFamily: 'monospace', fontSize: `${s(24)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     this.deckOverlay.add([dim, title]);
-    const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
-    const ids = deck?.collection ?? [];
+  }
+
+  /**
+   * (Re)render the deck overlay's card faces from the CURRENT deck — every instance across the
+   * draw/hand/discard piles — so permanent cost changes are visible. Rebuilt each time it opens.
+   */
+  private populateDeckOverlay(): void {
+    const { width } = this.scene.scale;
+    for (const f of this.deckFaces) f.destroy();
+    this.deckFaces = [];
+    const world = this.ctx.world();
+    const deck = world.store(DeckState).get(this.ctx.player());
+    const instances = deck ? [...deck.drawPile, ...deck.hand, ...deck.discardPile] : [];
     const cols = 5;
-    ids.forEach((id, i) => {
-      const def = cardDef(id);
+    instances.forEach((instance, i) => {
+      const defId = world.store(Card).get(instance)?.defId;
+      const def = defId !== undefined ? cardDef(defId) : undefined;
       if (def === undefined) return;
-      const face = this.makeCardFace(def, 0.8);
+      const face = this.makeCardFace(def, 0.8, cardEffectiveCost(world, instance), isTempFree(world, instance));
       face.setPosition(width / 2 + ((i % cols) - (cols - 1) / 2) * s(110), s(150) + Math.floor(i / cols) * s(130));
       this.deckOverlay.add(face);
+      this.deckFaces.push(face);
     });
   }
 
   private toggleDeck(): void {
-    this.deckOverlay.setVisible(!this.deckOverlay.visible);
+    const show = !this.deckOverlay.visible;
+    if (show) this.populateDeckOverlay(); // rebuild from the live deck so costs are current
+    this.deckOverlay.setVisible(show);
   }
 }

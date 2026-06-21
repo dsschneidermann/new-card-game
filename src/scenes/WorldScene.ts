@@ -16,8 +16,12 @@ import {
   MovementBudget,
   makeMovementSystem,
   makeTurnSystem,
+  makeCardSystem,
   DeckState,
-  drawHand,
+  Card,
+  buildCardInstances,
+  reshuffle,
+  drawUpTo,
   STARTER_COLLECTION,
   isAttackCard,
   hexToPixel,
@@ -30,7 +34,7 @@ import {
   type StorageAdapter,
   type GameEvent,
   type Command,
-  type TurnHooks,
+  type DeckStateData,
 } from '@core/index';
 import { SceneSync } from '@render/SceneSync';
 import {
@@ -83,17 +87,6 @@ export class WorldScene extends Phaser.Scene {
   private layout!: HexLayout;
   // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
   private attackClearTimer: Phaser.Time.TimerEvent | undefined;
-
-  // Turn-start is the autosave checkpoint (the deferral feature 06 left to 07):
-  // draw a fresh hand, then checkpoint. Resume and Restart Turn both land at the
-  // start of the current player turn.
-  private readonly turnHooks: TurnHooks = {
-    onPlayerTurnStart: () => {
-      this.drawFreshHand();
-      this.cards?.cancel();
-      this.autosave();
-    },
-  };
 
   constructor() {
     super('WorldScene');
@@ -159,7 +152,7 @@ export class WorldScene extends Phaser.Scene {
       else router.dispatch('Pause');
     });
 
-    this.autosave(); // checkpoint at the start of round 1 (later turns checkpoint via the hook)
+    this.autosave(); // checkpoint at the start of round 1 (later turns checkpoint on TurnStarted)
   }
 
   update(_time: number, delta: number): void {
@@ -176,10 +169,15 @@ export class WorldScene extends Phaser.Scene {
     this.refreshHud();
     for (const e of events) {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
-      // The played card leaves the hand once the simulation has removed it: animate that exact
-      // card out (and reflow the survivors) from the authoritative event.
-      else if (e.kind === 'CardPlayed' && e.entity === this.player && e.handIndex !== undefined)
-        this.cards.animateCardOut(e.handIndex);
+      // A played card-instance left the hand for the discard pile: animate it out + reflow.
+      else if (e.kind === 'CardDiscarded' && e.entity === this.player) this.cards.animateCardOut(e.instance);
+      // A fresh hand was drawn (turn start, or an effect drew / changed a card): rebuild the fan.
+      else if (e.kind === 'HandDrawn' && e.entity === this.player) this.cards.refreshHand();
+      // A new player turn opened: drop any armed card and checkpoint the freshly-drawn turn-start state.
+      else if (e.kind === 'TurnStarted' && e.phase === 'player') {
+        this.cards.cancel();
+        this.autosave();
+      }
     }
   }
 
@@ -261,11 +259,14 @@ export class WorldScene extends Phaser.Scene {
     return this.world.store(MovePath).has(this.player) || this.world.commands().length > 0;
   }
 
-  /** Register the turn + movement systems and re-attach the transient Renderable. */
+  /** Register the turn, movement & card systems and re-attach the transient Renderable. */
   private installSystems(): void {
-    // Turn engine runs BEFORE movement so a valid RequestMove's MoveTo executes the same step.
-    this.world.addSystem(makeTurnSystem(this.grid, this.turnHooks));
+    // Order: turn -> movement -> card. The turn engine validates actions and emits CardPlayed /
+    // TurnStarted; the movement system executes a same-step MoveTo; the card system (last) reacts
+    // to those events to draw/discard cards and resolve effects.
+    this.world.addSystem(makeTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
+    this.world.addSystem(makeCardSystem(HAND_SIZE));
     this.world.store(Renderable).add(this.player, {
       texture: AssetKeys.playerIdle,
       animBase: 'player',
@@ -294,10 +295,16 @@ export class WorldScene extends Phaser.Scene {
       manaRegen: MANA_REGEN,
     });
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
-    world.store(DeckState).add(this.player, {
-      collection: [...STARTER_COLLECTION],
-      hand: drawHand(STARTER_COLLECTION, HAND_SIZE, world.rng),
-    });
+    // Build the deck as card-instance entities, shuffle them into the draw pile, then draw the
+    // opening hand (later turns draw via the card system on TurnStarted).
+    const deck: DeckStateData = {
+      drawPile: buildCardInstances(world, STARTER_COLLECTION),
+      hand: [],
+      discardPile: [],
+    };
+    world.store(DeckState).add(this.player, deck);
+    reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
+    drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
     return world;
   }
 
@@ -309,12 +316,36 @@ export class WorldScene extends Phaser.Scene {
       const player = world.entitiesWith(Player)[0];
       if (player !== undefined) {
         this.player = player;
+        this.migrateDeckIfNeeded(world, player);
         console.info('[world] resumed from save');
         return world;
       }
     }
     console.info('[world] no usable save; starting a new run');
     return this.freshWorld();
+  }
+
+  /**
+   * Tolerant load of pre-entity saves: older runs stored DeckState as { collection, hand } string
+   * ids. Detect that shape and rebuild it into card-instance entities (the saved hand mapped to
+   * instances, the rest seeded into the draw pile) so existing runs keep working after this feature.
+   */
+  private migrateDeckIfNeeded(world: World, player: EntityId): void {
+    const deck = world.store(DeckState).get(player);
+    if (deck === undefined) return;
+    const legacy = deck as unknown as { drawPile?: unknown; collection?: unknown; hand?: unknown };
+    if (Array.isArray(legacy.drawPile)) return; // already the entity-based shape
+    const collection: string[] = Array.isArray(legacy.collection)
+      ? (legacy.collection as string[])
+      : [...STARTER_COLLECTION];
+    const handIds: string[] = Array.isArray(legacy.hand) ? (legacy.hand as string[]) : [];
+    const remaining = buildCardInstances(world, collection);
+    const hand: EntityId[] = [];
+    for (const id of handIds) {
+      const idx = remaining.findIndex((e) => world.store(Card).get(e)?.defId === id);
+      if (idx !== -1) hand.push(...remaining.splice(idx, 1));
+    }
+    world.store(DeckState).add(player, { drawPile: remaining, hand, discardPile: [] });
   }
 
   /**
@@ -329,6 +360,7 @@ export class WorldScene extends Phaser.Scene {
     const restored = applySave(loaded.state);
     const player = restored.entitiesWith(Player)[0];
     if (player === undefined) return;
+    this.migrateDeckIfNeeded(restored, player);
     restored.rng.setState(liveRng);
     this.world = restored;
     this.player = player;
@@ -343,13 +375,6 @@ export class WorldScene extends Phaser.Scene {
 
   private isPlayerPhase(): boolean {
     return this.world.store(TurnState).get(this.player)?.phase === 'player';
-  }
-
-  /** Replace the hand with a freshly drawn one (called at each player-turn start). */
-  private drawFreshHand(): void {
-    const deck = this.world.store(DeckState).get(this.player);
-    if (deck !== undefined) deck.hand = drawHand(deck.collection, HAND_SIZE, this.world.rng);
-    this.cards?.refreshHand();
   }
 
   private buildHud(): void {

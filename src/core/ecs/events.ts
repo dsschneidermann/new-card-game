@@ -6,13 +6,19 @@ import type { EntityId } from './entity';
  * this union with their own event kinds.
  */
 export type GameEvent =
-  // handIndex (when present) is the hand slot the played card left, echoed from the PlayCard
-  // command so the renderer can animate that exact card out of the hand.
-  | { kind: 'CardPlayed'; entity: EntityId; cardId: string; handIndex?: number }
+  // cardEntity (when present) is the played card-instance entity, echoed from the PlayCard command
+  // so the card system can move it to the discard pile + resolve its effect, and the renderer can
+  // animate that exact card out of the hand.
+  | { kind: 'CardPlayed'; entity: EntityId; cardId: string; cardEntity?: EntityId }
   | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
+  // Card system (Card Entities, Deck Cycle & Stat Effects): a fresh hand was drawn (turn start or
+  // an effect drew a card) -> the scene rebuilds the hand fan; a single card left the hand for the
+  // discard pile (a play) -> the scene animates that instance out.
+  | { kind: 'HandDrawn'; entity: EntityId }
+  | { kind: 'CardDiscarded'; entity: EntityId; instance: EntityId; defId: string }
   // Turn engine (feature 07). Phase is the literal 'player' | 'enemy' (kept inline
   // so events.ts has no dependency on the turn module).
   | { kind: 'RoundStarted'; round: number }

@@ -5,7 +5,6 @@ import type { HexGrid } from '../hex/grid';
 import { HexPosition } from '../hex/movement';
 import { findPath } from '../hex/path';
 import { Enemy } from '../actors';
-import { DeckState } from '../cards/deck';
 import { TurnState, ResourcePool, MovementBudget, type TurnStateData } from './components';
 import { refillEnergy, regenMana, spendEnergy, spendMana } from './resources';
 
@@ -109,24 +108,14 @@ export function makeTurnSystem(grid: HexGrid, hooks: TurnHooks = {}): System {
           }
           const pool = world.store(ResourcePool).get(cmd.entity);
           if (pool !== undefined) spendEnergy(pool, cost);
-          // Remove the played copy from the hand BY SLOT — the simulation, not the render
-          // layer, owns the hand. The cardId match is a cheap guard against a stale/mismatched
-          // index: on mismatch (or out of range) we remove nothing rather than the wrong copy.
-          const deck = world.store(DeckState).get(cmd.entity);
-          if (
-            deck !== undefined &&
-            cmd.handIndex !== undefined &&
-            cmd.handIndex >= 0 &&
-            cmd.handIndex < deck.hand.length &&
-            deck.hand[cmd.handIndex] === cmd.cardId
-          ) {
-            deck.hand.splice(cmd.handIndex, 1);
-          }
+          // Cost + phase only here. The card system (registered after this one) reacts to the
+          // CardPlayed event below to move the played instance hand -> discard and resolve its
+          // effect; we just echo the played instance so it can find it.
           world.emit({
             kind: 'CardPlayed',
             entity: cmd.entity,
             cardId: cmd.cardId,
-            ...(cmd.handIndex !== undefined ? { handIndex: cmd.handIndex } : {}),
+            ...(cmd.cardEntity !== undefined ? { cardEntity: cmd.cardEntity } : {}),
           });
           world.emit({ kind: 'ResourceChanged', entity: cmd.entity });
           break;
