@@ -57,12 +57,12 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
  * the Asset Placeholders plan.
  */
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
-  AssetKeys.playerIdle, // 128px right-facing spritesheet
+  AssetKeys.playerIdle,
   AssetKeys.playerWalk,
   AssetKeys.playerReady,
   AssetKeys.playerAttack1,
   AssetKeys.playerAttack2,
-  AssetKeys.slimeIdle, // 64px 4-row spritesheet; anims use the first row
+  AssetKeys.slimeIdle,
   AssetKeys.slimeWalk,
   AssetKeys.slimeAttack,
 ]);

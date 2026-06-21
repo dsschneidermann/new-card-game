@@ -105,9 +105,10 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Define the slime's right-facing animations from the FIRST ROW of each 4-row 64px sheet (the
-   * rows are near-identical directions for a symmetric blob). idle/walk loop; attack is a one-shot.
-   * The first-row frame count comes from each sheet's descriptor (frameConfig).
+   * Define the slime's right-facing animations from each single-row 64px strip (idle 6 / walk 8 /
+   * attack 10). idle/walk loop; attack is a one-shot. The frame count comes from each sheet's
+   * descriptor (frameConfig); the {start,end} bounds also clamp to the first row should a sheet ever
+   * ship with extra rows.
    */
   private createSlimeAnims(): void {
     const defs = [
