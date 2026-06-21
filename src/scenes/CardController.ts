@@ -12,6 +12,7 @@ import {
   hexToPixel,
   pixelToHex,
   hexDistance,
+  hexEquals,
   neighbors,
   hexesWithinRange,
   SPELL_DEFS,
@@ -130,8 +131,8 @@ export class CardController {
     this.pressDown = null;
     if (!moved) return; // click-activation: await a hex click
     const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
-    if (this.ctx.grid.inBounds(hex)) this.advanceTarget(hex);
-    else this.disarm(); // dragged off the grid: cancel
+    if (this.ctx.grid.inBounds(hex) && !this.blocksOwnHex(hex)) this.advanceTarget(hex);
+    else this.disarm(); // dragged off the grid, or onto the caster's own hex (attacks): cancel
   }
 
   /** A click on the world while armed: a click-mode first target, or a two-step second. */
@@ -303,6 +304,7 @@ export class CardController {
     const maxRange = targetMaxRange(spec);
     const origin = this.originHex();
     if (maxRange !== undefined && origin !== null && hexDistance(origin, hex) > maxRange) return;
+    if (this.blocksOwnHex(hex)) return; // attacks can't target the caster's own hex: ignore (stay armed)
     if (spec.kind === 'twoStep' && this.armed.firstPick === null) {
       this.armed.firstPick = hex; // lock the first; the next click is the second
       this.redrawHighlight();
@@ -333,11 +335,17 @@ export class CardController {
     if (kind === 'card') {
       const cardEntity = obj.getData('cardEntity') as EntityId; // the played card-instance
       const energyCost = this.cardCost(obj); // effective cost (base + permanent; 0 if free this hand)
-      this.ctx.submit(
-        targets.length > 0
-          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity, targets }
-          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity },
-      );
+      // An attack turns the player to face the hex it was aimed at (the target hex, or the clicked
+      // hex for a self-AOE); the scene applies it. Non-attack cards keep their current facing.
+      this.ctx.submit({
+        kind: 'PlayCard',
+        entity: player,
+        cardId: def.id,
+        energyCost,
+        cardEntity,
+        ...(targets.length > 0 ? { targets } : {}),
+        ...(isAttackCard(def.id) ? { faceToward: finalHex } : {}),
+      });
     } else {
       this.ctx.submit(
         targets.length > 0
@@ -382,6 +390,7 @@ export class CardController {
     // matching the rule that an off-grid click cancels the armed action).
     if (spec.kind !== 'selfAoe' && (this.hovered === null || !this.ctx.grid.inBounds(this.hovered))) return;
     const hovered = this.hovered ?? origin; // selfAoe ignores it; origin is a harmless default
+    if (this.blocksOwnHex(hovered)) return; // attacks: no indicator on the caster's own hex
     const firstPick = this.armed.firstPick ?? undefined;
     const { primary, secondary } = resolveTargeting(spec, origin, hovered, firstPick);
     // Clip each highlighted hex to the board so a multi-hex target (e.g. an areaOfEffect disk near
@@ -392,6 +401,20 @@ export class CardController {
 
   private originHex(): Hex | null {
     return this.ctx.world().store(HexPosition).get(this.ctx.player())?.hex ?? null;
+  }
+
+  /**
+   * An attack can never target the caster's own hex. True when an ATTACK card with a single-target
+   * or ranged spec (singleHex / lineOfSight) is armed and `hex` is the player's own hex. selfAoe,
+   * area spells and self cards are unaffected (they ignore the hovered hex or legitimately cover it).
+   */
+  private blocksOwnHex(hex: Hex): boolean {
+    if (this.armed === null) return false;
+    if (this.armed.kind !== 'card' || !isAttackCard(this.armed.def.id)) return false;
+    const spec = this.armed.def.target;
+    if (spec.kind !== 'singleHex' && spec.kind !== 'lineOfSight') return false;
+    const origin = this.originHex();
+    return origin !== null && hexEquals(hex, origin);
   }
 
   /** The 6 pointy-top hexagon vertices (px) for a hex: top, upper-right, lower-right, bottom, lower-left, upper-left. */
@@ -412,10 +435,13 @@ export class CardController {
 
   /**
    * Draw the yellow max-range boundary for the armed card (if its target has a maxRange):
-   * the outer edges of the in-bounds hexes within range, clipped at the board. An edge is
-   * stroked only when its neighbour is in-bounds but out of range — edges toward in-range
-   * hexes (internal) or out-of-bounds hexes (off-board) are skipped, so the line traces the
-   * range boundary and stops cleanly at the board edge. Range is purely hex distance.
+   * the outer edges of the in-bounds hexes within range. An edge is stroked wherever its
+   * neighbour is OUT of range — whether that neighbour is on or off the board — so the outline
+   * closes along the board edge when the range boundary lands exactly on it (e.g. range 1 a single
+   * tile from the edge). In-range neighbours are skipped: an in-bounds one is an internal edge, and
+   * an off-board one means the range extends past the board, where we still draw nothing so it
+   * bleeds cleanly to the rim. Every stroked edge belongs to an in-bounds hex, so the line never
+   * leaves the board. Range is purely hex distance.
    */
   private drawRangeOutline(): void {
     this.rangeOutline.clear();
@@ -429,8 +455,10 @@ export class CardController {
       if (!this.ctx.grid.inBounds(hex)) continue;
       const verts = this.hexVertices(hex);
       for (const n of neighbors(hex)) {
-        if (!this.ctx.grid.inBounds(n)) continue; // off-board neighbour: no line (clip at board)
-        if (hexDistance(origin, n) <= maxRange) continue; // in-range neighbour: internal edge
+        // Skip in-range neighbours (an in-bounds one is an internal edge; an off-board one means the
+        // range bleeds past the rim — draw nothing). Stroke the boundary edge toward any out-of-range
+        // neighbour, on or off the board: it is this in-bounds hex's own edge, so it stays on-board.
+        if (hexDistance(origin, n) <= maxRange) continue;
         this.strokeNearestEdge(verts, hexToPixel(this.ctx.layout, n));
       }
     }

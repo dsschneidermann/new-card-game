@@ -51,7 +51,7 @@ export { HexGrid } from './hex/grid';
 export { findPath } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
 export type { HexPositionData, MovePathData, FacingData } from './hex/movement';
-export { HexPosition, MovePath, FacingState, makeMovementSystem } from './hex/movement';
+export { HexPosition, MovePath, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
 // Character sprite animation helpers (feature 14)
 export type { Facing } from './sprite';

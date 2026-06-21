@@ -24,6 +24,7 @@ import {
   drawUpTo,
   STARTER_COLLECTION,
   isAttackCard,
+  facingToward,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
@@ -201,6 +202,17 @@ export class WorldScene extends Phaser.Scene {
     if (cmd.kind === 'PlayCard' || cmd.kind === 'PlaySpell') {
       const anim = this.world.store(AnimState).get(this.player);
       if (anim !== undefined) anim.base = 'ready';
+    }
+    // An attack turns the player to face the hex it was aimed at (the target hex, or the clicked hex
+    // for a self-AOE), mirroring how a move faces its destination — so the attack animation plays the
+    // right way round. Non-attack cards omit faceToward and keep the current facing.
+    if (cmd.kind === 'PlayCard' && cmd.faceToward !== undefined) {
+      const pos = this.world.store(HexPosition).get(this.player);
+      if (pos !== undefined) {
+        const facings = this.world.store(FacingState);
+        const prev = facings.get(this.player)?.facing ?? 'right';
+        facings.add(this.player, { facing: facingToward(this.layout, prev, pos.hex, cmd.faceToward) });
+      }
     }
   }
 

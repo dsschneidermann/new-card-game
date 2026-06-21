@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { facingFromIntent, manifest, validateManifest, frameConfig, USED_ASSET_KEYS } from '@core/index';
+import { facingFromIntent, facingToward, manifest, validateManifest, frameConfig, USED_ASSET_KEYS } from '@core/index';
+import type { HexLayout } from '@core/index';
 
 describe('facingFromIntent', () => {
   it('faces the sign of the horizontal move intent', () => {
@@ -10,6 +11,22 @@ describe('facingFromIntent', () => {
   it('keeps the previous facing when there is no horizontal intent (directly above/below)', () => {
     expect(facingFromIntent('left', 0)).toBe('left');
     expect(facingFromIntent('right', 0)).toBe('right');
+  });
+});
+
+describe('facingToward (move / attack aim)', () => {
+  // pointy-top odd-r layout (same shape as the scene's); pixel x grows with column.
+  const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, originY: 28 };
+  const at = (q: number, r: number): { q: number; r: number } => ({ q, r });
+
+  it('faces the horizontal direction of the aimed hex', () => {
+    expect(facingToward(LAYOUT, 'right', at(0, 0), at(-2, 0))).toBe('left'); // aim to the left
+    expect(facingToward(LAYOUT, 'left', at(0, 0), at(3, 0))).toBe('right'); // aim to the right
+  });
+
+  it('keeps the previous facing when the aim has no horizontal delta', () => {
+    expect(facingToward(LAYOUT, 'left', at(0, 0), at(-1, 2))).toBe('left'); // directly below (same column)
+    expect(facingToward(LAYOUT, 'right', at(0, 0), at(0, 0))).toBe('right'); // the caster's own hex
   });
 });
 

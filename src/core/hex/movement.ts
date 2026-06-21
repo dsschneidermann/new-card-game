@@ -31,6 +31,16 @@ export const MovePath: ComponentType<MovePathData> = defineComponent<MovePathDat
 export const FacingState: ComponentType<FacingData> = defineComponent<FacingData>('Facing');
 
 /**
+ * The facing for an action aimed at hex `to` from hex `from`: the sign of the horizontal pixel
+ * delta between their centres (a same-column target keeps `prev`). Shared by the movement system
+ * (a move's intent) and attack plays (the target or clicked hex). Presentation-only.
+ */
+export function facingToward(layout: HexLayout, prev: Facing, from: Hex, to: Hex): Facing {
+  const dx = hexToPixel(layout, to).x - hexToPixel(layout, from).x;
+  return facingFromIntent(prev, dx);
+}
+
+/**
  * Movement system (ADR-006 select-destination). A MoveTo command plans a path
  * from the entity's HexPosition to the target hex and attaches a MovePath; each
  * advance() then steps the entity one hex along its route, emits EntityStepped,
@@ -53,9 +63,8 @@ export function makeMovementSystem(grid: HexGrid, layout: HexLayout): System {
       const target: Hex = { q: cmd.q, r: cmd.r };
       const route = findPath(grid, pos.hex, target);
       if (route.length < 2) continue;
-      const dx = hexToPixel(layout, target).x - hexToPixel(layout, pos.hex).x;
       const prev = facings.get(cmd.entity)?.facing ?? 'right';
-      facings.add(cmd.entity, { facing: facingFromIntent(prev, dx) });
+      facings.add(cmd.entity, { facing: facingToward(layout, prev, pos.hex, target) });
       paths.add(cmd.entity, { path: route, index: 1 });
     }
 
