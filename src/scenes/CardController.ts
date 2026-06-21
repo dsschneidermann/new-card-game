@@ -30,6 +30,7 @@ import {
   type SpellDef,
   type Command,
 } from '@core/index';
+import { PileOverlay, OVERLAY_FACE_SCALE, type OverlayItem } from './PileOverlay';
 
 /** What WorldScene provides to the card UI (kept thin; no Phaser types leak into core). */
 export interface CardUiContext {
@@ -61,16 +62,6 @@ const HL_DEPTH = -1_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
-
-// Deck/Discard overlay layout (base px, scaled by s()). The card grid scrolls within a viewport
-// from OVERLAY_TOP (below the title) down to OVERLAY_BOTTOM_MARGIN above the screen bottom.
-const OVERLAY_TOP = 90;
-const OVERLAY_BOTTOM_MARGIN = 24;
-const OVERLAY_PAD = 70; // top pad inside the scroll content so the first row clears the viewport edge
-const OVERLAY_COLS = 5;
-const OVERLAY_COL_W = 110;
-const OVERLAY_ROW_H = 130;
-const OVERLAY_FACE_SCALE = 0.8;
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 const OUTLINE_EXTEND_PX = 0.5; // range-outline segments overshoot each end by this many px so convex corners close fully
 
@@ -100,17 +91,9 @@ export class CardController {
   private highlight!: Phaser.GameObjects.Graphics;
   private rangeOutline!: Phaser.GameObjects.Graphics; // yellow max-range boundary while a range card is armed
   private tooltip!: Phaser.GameObjects.Container;
-  // Shared Deck/Discard overlay: a dim backdrop + a fixed title + a geometry-masked, scrollable card grid.
-  private overlay!: Phaser.GameObjects.Container;
-  private overlayTitle!: Phaser.GameObjects.Text;
-  private overlayContent!: Phaser.GameObjects.Container; // the scrollable card grid (clipped by the mask)
-  private overlayFaces: Phaser.GameObjects.Container[] = []; // overlay card faces, rebuilt each open
-  private overlayPile: 'deck' | 'discard' | null = null; // which pile is shown (null = closed)
-  private overlayScrollMin = 0; // most-negative content.y offset from the top (0 if it all fits)
-  private overlayDrag: { startY: number; startContentY: number; moved: boolean } | null = null;
-  // When set, the overlay is a card PICKER: a tap resolves with the tapped frame's instance, or null
-  // (a tap that missed every frame = cancel). The callback commits or cancels the deferred play.
-  private overlayOnResolve: ((picked: EntityId | null) => void) | null = null;
+  // The Deck/Discard/card-picker overlay (its own widget); CardController only opens/closes it.
+  private overlay!: PileOverlay;
+  private overlayPile: 'deck' | 'discard' | null = null; // which pile the browse overlay shows (null = closed)
   private deckCount!: Phaser.GameObjects.Text; // draw-pile count over the deck icon (lower-left)
   private discardCount!: Phaser.GameObjects.Text; // discard-pile count over the discard icon (lower-right)
 
@@ -126,7 +109,7 @@ export class CardController {
     this.buildSpellSidebar();
     this.buildDeckIcon();
     this.buildDiscardIcon();
-    this.buildOverlay();
+    this.overlay = new PileOverlay(this.scene);
     this.refreshHand();
   }
 
@@ -171,7 +154,8 @@ export class CardController {
    */
   cancel(): void {
     this.disarm();
-    this.closeOverlay();
+    this.overlay.close();
+    this.overlayPile = null;
   }
 
   /**
@@ -425,7 +409,7 @@ export class CardController {
     const player = this.ctx.player();
     const cardEntity = obj.getData('cardEntity') as EntityId;
     const energyCost = this.cardCost(obj);
-    this.openCardPicker('Select a card to return to hand', candidates, (picked) => {
+    this.overlay.openPicker('Select a card to return to hand', this.buildOverlayItems(candidates), (picked) => {
       if (picked !== null) {
         this.ctx.submit({ kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity, cardTargets: [picked] });
       }
@@ -717,148 +701,31 @@ export class CardController {
     this.discardCount.setText(String(deck?.discardPile.length ?? 0));
   }
 
-  private buildOverlay(): void {
-    const { width, height } = this.scene.scale;
-    this.overlay = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 100).setVisible(false);
-    const dim = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
-    // A press on the backdrop starts a potential scroll-drag; a release WITHOUT a drag (a tap) closes.
-    dim.on('pointerdown', (p: Phaser.Input.Pointer) => this.beginOverlayDrag(p));
-    this.overlayTitle = this.scene.add
-      .text(width / 2, s(40), 'Deck', { fontFamily: 'monospace', fontSize: `${s(24)}px`, color: '#e5e7eb' })
-      .setOrigin(0.5);
-    this.overlayContent = this.scene.add.container(0, s(OVERLAY_TOP)); // scrolled by moving its y
-    // Clip the card grid to the viewport (below the title, above the bottom margin) so a long list
-    // scrolls inside a window instead of running off the bottom of the screen.
-    const viewportH = height - s(OVERLAY_BOTTOM_MARGIN) - s(OVERLAY_TOP);
-    const maskShape = this.scene.make.graphics({}, false);
-    maskShape.fillStyle(0xffffff).fillRect(0, s(OVERLAY_TOP), width, viewportH);
-    this.overlayContent.setMask(maskShape.createGeometryMask());
-    this.overlay.add([dim, this.overlayTitle, this.overlayContent]);
-    // Scroll input — mouse WHEEL + DRAG (touch-friendly) — guarded to act only while an overlay is open.
-    this.scene.input.on('wheel', (_p: Phaser.Input.Pointer, _o: Phaser.GameObjects.GameObject[], _dx: number, dy: number) => {
-      if (this.overlay.visible) this.scrollOverlay(this.overlayContent.y - dy);
-    });
-    this.scene.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onOverlayDragMove(p));
-    this.scene.input.on('pointerup', (p: Phaser.Input.Pointer) => this.endOverlayDrag(p));
-  }
-
-  /** Open the shared overlay on a pile (or close it if that pile is already showing), rebuilding its sorted grid. */
+  /** Open the Deck or Discard browse overlay on a pile, or close it if that pile is already showing. */
   private toggleOverlay(pile: 'deck' | 'discard'): void {
-    if (this.overlay.visible && this.overlayPile === pile) {
-      this.closeOverlay();
+    if (this.overlay.isOpen() && this.overlayPile === pile) {
+      this.overlay.close();
+      this.overlayPile = null;
       return;
     }
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
     const ids = pile === 'deck' ? deck?.drawPile ?? [] : deck?.discardPile ?? [];
-    this.overlayTitle.setText(pile === 'deck' ? 'Deck' : 'Discard');
-    this.populateOverlay(ids);
-    this.overlayContent.y = s(OVERLAY_TOP); // reset scroll to the top on each open
-    this.overlayDrag = null;
+    this.overlay.openBrowse(pile === 'deck' ? 'Deck' : 'Discard', this.buildOverlayItems(ids));
     this.overlayPile = pile;
-    this.overlay.setVisible(true);
-  }
-
-  /** Open the shared overlay as a card PICKER: selectable frames + a prompt title; onResolve(picked|null) runs on the next tap. */
-  private openCardPicker(title: string, ids: readonly EntityId[], onResolve: (picked: EntityId | null) => void): void {
-    this.overlayTitle.setText(title);
-    this.populateOverlay(ids);
-    this.overlayContent.y = s(OVERLAY_TOP); // reset scroll to the top
-    this.overlayDrag = null;
-    this.overlayPile = null; // a picker, not a deck/discard browse
-    this.overlayOnResolve = onResolve;
-    this.overlay.setVisible(true);
-  }
-
-  private closeOverlay(): void {
-    this.overlay.setVisible(false);
-    this.overlayPile = null;
-    this.overlayDrag = null;
-    this.overlayOnResolve = null;
   }
 
   /**
-   * Rebuild the overlay's card faces from `ids`, SORTED for display (attacks first, then effective cost
-   * ascending — see sortPileForDisplay). Faces live in the scrollable content container; the scroll
-   * clamp is recomputed from the resulting content height. Costs are effective (base + permanent).
+   * Build the overlay's items from pile instance ids: sorted for display (sortPileForDisplay), each
+   * paired with a card face (effective cost + colour). PileOverlay lays them out and hit-tests them.
    */
-  private populateOverlay(ids: readonly EntityId[]): void {
-    const { width, height } = this.scene.scale;
-    for (const f of this.overlayFaces) f.destroy();
-    this.overlayFaces = [];
+  private buildOverlayItems(ids: readonly EntityId[]): OverlayItem[] {
     const world = this.ctx.world();
-    const sorted = sortPileForDisplay(world, ids);
-    sorted.forEach((instance, i) => {
-      const defId = world.store(Card).get(instance)?.defId;
-      const def = defId !== undefined ? cardDef(defId) : undefined;
-      if (def === undefined) return;
-      const face = this.makeCardFace(def, OVERLAY_FACE_SCALE, cardEffectiveCost(world, instance), isTempFree(world, instance));
-      const col = i % OVERLAY_COLS;
-      const row = Math.floor(i / OVERLAY_COLS);
-      face.setPosition(width / 2 + (col - (OVERLAY_COLS - 1) / 2) * s(OVERLAY_COL_W), s(OVERLAY_PAD) + row * s(OVERLAY_ROW_H));
-      face.setData('instance', instance); // for the picker's hit-test (pickFaceAt)
-      this.overlayContent.add(face);
-      this.overlayFaces.push(face);
-    });
-    const rows = Math.ceil(sorted.length / OVERLAY_COLS);
-    const contentH = s(OVERLAY_PAD) + rows * s(OVERLAY_ROW_H);
-    const viewportH = height - s(OVERLAY_BOTTOM_MARGIN) - s(OVERLAY_TOP);
-    this.overlayScrollMin = Math.min(0, viewportH - contentH); // <= 0: how far up the grid can scroll
-  }
-
-  /** Clamp the content container's y to the scroll range [top + scrollMin, top]. */
-  private scrollOverlay(y: number): void {
-    const top = s(OVERLAY_TOP);
-    this.overlayContent.y = Phaser.Math.Clamp(y, top + this.overlayScrollMin, top);
-  }
-
-  private beginOverlayDrag(p: Phaser.Input.Pointer): void {
-    if (this.overlay.visible) this.overlayDrag = { startY: p.y, startContentY: this.overlayContent.y, moved: false };
-  }
-
-  private onOverlayDragMove(p: Phaser.Input.Pointer): void {
-    if (this.overlayDrag === null) return;
-    const dy = p.y - this.overlayDrag.startY;
-    if (Math.abs(dy) > s(DRAG_THRESHOLD)) this.overlayDrag.moved = true;
-    this.scrollOverlay(this.overlayDrag.startContentY + dy);
-  }
-
-  /**
-   * End a backdrop press. A drag just ends (it scrolled). A tap: in a PICKER it resolves with the
-   * tapped card's instance, or null when the tap missed every frame (cancel); in a browse overlay it
-   * just closes.
-   */
-  private endOverlayDrag(p: Phaser.Input.Pointer): void {
-    if (this.overlayDrag === null) return;
-    const wasTap = !this.overlayDrag.moved;
-    this.overlayDrag = null;
-    if (!wasTap) return;
-    if (this.overlayOnResolve !== null) {
-      const picked = this.pickFaceAt(p);
-      const resolve = this.overlayOnResolve;
-      this.closeOverlay(); // clears overlayOnResolve before the callback runs
-      resolve(picked);
-    } else {
-      this.closeOverlay();
+    const items: OverlayItem[] = [];
+    for (const id of sortPileForDisplay(world, ids)) {
+      const def = cardDef(world.store(Card).get(id)?.defId ?? '');
+      if (def === undefined) continue;
+      items.push({ id, face: this.makeCardFace(def, OVERLAY_FACE_SCALE, cardEffectiveCost(world, id), isTempFree(world, id)) });
     }
-  }
-
-  /**
-   * The card-instance under pointer `p` in the picker, or null if the tap missed every frame. Hit-test
-   * is CLIPPED to the viewport (a frame scrolled out of view is not selectable), since the geometry
-   * mask is render-only. Faces are centred containers at OVERLAY_FACE_SCALE; the grid scrolls via
-   * overlayContent.y, and content.x is 0 so a face's x is already its scene x.
-   */
-  private pickFaceAt(p: Phaser.Input.Pointer): EntityId | null {
-    const { height } = this.scene.scale;
-    if (p.y < s(OVERLAY_TOP) || p.y > height - s(OVERLAY_BOTTOM_MARGIN)) return null;
-    const halfW = (s(96) * OVERLAY_FACE_SCALE) / 2;
-    const halfH = (s(144) * OVERLAY_FACE_SCALE) / 2;
-    for (const face of this.overlayFaces) {
-      const sceneY = this.overlayContent.y + face.y;
-      if (Math.abs(p.x - face.x) <= halfW && Math.abs(p.y - sceneY) <= halfH) {
-        return (face.getData('instance') as EntityId | undefined) ?? null;
-      }
-    }
-    return null;
+    return items;
   }
 }
