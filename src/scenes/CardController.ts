@@ -374,8 +374,10 @@ export class CardController {
     if (origin === null) return;
     const firstPick = this.armed.firstPick ?? undefined;
     const { primary, secondary } = resolveTargeting(this.armed.def.target, origin, this.hovered, firstPick);
-    for (const h of secondary) this.fillHex(h, TINT_SECONDARY);
-    for (const h of primary) this.fillHex(h, TINT_PRIMARY);
+    // Clip each highlighted hex to the board so a multi-hex target (e.g. an areaOfEffect disk near
+    // an edge) never paints off-grid — the hovered centre being in-bounds is not enough.
+    for (const h of secondary) if (this.ctx.grid.inBounds(h)) this.fillHex(h, TINT_SECONDARY);
+    for (const h of primary) if (this.ctx.grid.inBounds(h)) this.fillHex(h, TINT_PRIMARY);
   }
 
   private originHex(): Hex | null {
