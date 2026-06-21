@@ -11,12 +11,9 @@ import {
   isAttackCard,
   resolveTargeting,
   targetMaxRange,
-  hexToPixel,
   pixelToHex,
   hexDistance,
   hexEquals,
-  neighbors,
-  hexesWithinRange,
   SPELL_DEFS,
   s,
   canPlayCard,
@@ -31,6 +28,7 @@ import {
   type Command,
 } from '@core/index';
 import { PileOverlay, OVERLAY_FACE_SCALE, type OverlayItem } from './PileOverlay';
+import { TargetingPainter } from './TargetingPainter';
 
 /** What WorldScene provides to the card UI (kept thin; no Phaser types leak into core). */
 export interface CardUiContext {
@@ -55,18 +53,8 @@ interface Armed {
 
 const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
-// Targeting paint (tint + range outline) sits on the GROUND: above the grid (drawn at
-// -1_000_000) but below every character sprite (SceneSync depth = screen-Y, always > 0), so
-// sprites draw over it and it reads as painted on the floor rather than covering the player.
-const HL_DEPTH = -1_000;
-const TINT_PRIMARY = 0xef4444; // red
-const TINT_SECONDARY = 0xeab308; // yellow
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
-const OUTLINE_EXTEND_PX = 0.5; // range-outline segments overshoot each end by this many px so convex corners close fully
-
-/** A pixel point — a hexagon vertex / edge endpoint. */
-type Pt = { x: number; y: number };
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -88,8 +76,7 @@ export class CardController {
 
   private handCards: Phaser.GameObjects.Container[] = [];
   private spellCircles: Phaser.GameObjects.Container[] = [];
-  private highlight!: Phaser.GameObjects.Graphics;
-  private rangeOutline!: Phaser.GameObjects.Graphics; // yellow max-range boundary while a range card is armed
+  private painter!: TargetingPainter; // the ground-layer targeting tint + range outline (its own widget)
   private tooltip!: Phaser.GameObjects.Container;
   // The Deck/Discard/card-picker overlay (its own widget); CardController only opens/closes it.
   private overlay!: PileOverlay;
@@ -103,8 +90,7 @@ export class CardController {
   }
 
   create(): void {
-    this.highlight = this.scene.add.graphics().setDepth(HL_DEPTH);
-    this.rangeOutline = this.scene.add.graphics().setDepth(HL_DEPTH);
+    this.painter = new TargetingPainter(this.scene, this.ctx.grid, this.ctx.layout);
     this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false);
     this.buildSpellSidebar();
     this.buildDeckIcon();
@@ -427,8 +413,7 @@ export class CardController {
     this.armed = null;
     this.pressDown = null;
     this.hovered = null;
-    this.highlight.clear();
-    this.rangeOutline.clear();
+    this.painter.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
     for (const c of this.handCards) {
       this.setCardSelected(c, false);
@@ -437,24 +422,18 @@ export class CardController {
     }
   }
 
+  /** Repaint the armed card's target tint (delegated to the painter; nothing to paint when not armed). */
   private redrawHighlight(): void {
-    this.highlight.clear();
     if (this.armed === null) return;
     const origin = this.originHex();
     if (origin === null) return;
-    const spec = this.armed.def.target;
-    // selfAoe is a fixed, self-centered burst: paint it regardless of the pointer (even off-grid /
-    // before the first move). Every other target needs a valid hovered hex (off-board = no overlay,
-    // matching the rule that an off-grid click cancels the armed action).
-    if (spec.kind !== 'selfAoe' && (this.hovered === null || !this.ctx.grid.inBounds(this.hovered))) return;
-    const hovered = this.hovered ?? origin; // selfAoe ignores it; origin is a harmless default
-    if (this.blocksOwnHex(hovered)) return; // attacks: no indicator on the caster's own hex
-    const firstPick = this.armed.firstPick ?? undefined;
-    const { primary, secondary } = resolveTargeting(spec, origin, hovered, firstPick);
-    // Clip each highlighted hex to the board so a multi-hex target (e.g. an areaOfEffect disk near
-    // an edge) never paints off-grid — the hovered centre being in-bounds is not enough.
-    for (const h of secondary) if (this.ctx.grid.inBounds(h)) this.fillHex(h, TINT_SECONDARY);
-    for (const h of primary) if (this.ctx.grid.inBounds(h)) this.fillHex(h, TINT_PRIMARY);
+    this.painter.redrawHighlight(
+      this.armed.def.target,
+      origin,
+      this.hovered,
+      this.armed.firstPick ?? undefined,
+      (h) => this.blocksOwnHex(h),
+    );
   }
 
   private originHex(): Hex | null {
@@ -475,95 +454,12 @@ export class CardController {
     return origin !== null && hexEquals(hex, origin);
   }
 
-  /** The 6 pointy-top hexagon vertices (px) for a hex: top, upper-right, lower-right, bottom, lower-left, upper-left. */
-  private hexVertices(hex: Hex): [Pt, Pt, Pt, Pt, Pt, Pt] {
-    const { x, y } = hexToPixel(this.ctx.layout, hex);
-    const hw = this.ctx.layout.width / 2;
-    const q1 = this.ctx.layout.height / 4;
-    const q2 = this.ctx.layout.height / 2;
-    return [
-      { x, y: y - q2 },
-      { x: x + hw, y: y - q1 },
-      { x: x + hw, y: y + q1 },
-      { x, y: y + q2 },
-      { x: x - hw, y: y + q1 },
-      { x: x - hw, y: y - q1 },
-    ];
-  }
-
-  /**
-   * Draw the yellow max-range boundary for the armed card (if its target has a maxRange):
-   * the outer edges of the in-bounds hexes within range. An edge is stroked wherever its
-   * neighbour is OUT of range — whether that neighbour is on or off the board — so the outline
-   * closes along the board edge when the range boundary lands exactly on it (e.g. range 1 a single
-   * tile from the edge). In-range neighbours are skipped: an in-bounds one is an internal edge, and
-   * an off-board one means the range extends past the board, where we still draw nothing so it
-   * bleeds cleanly to the rim. Every stroked edge belongs to an in-bounds hex, so the line never
-   * leaves the board. Range is purely hex distance.
-   */
+  /** Repaint the armed card's yellow max-range boundary (delegated; a no-op for unranged targets). */
   private drawRangeOutline(): void {
-    this.rangeOutline.clear();
     if (this.armed === null) return;
-    const maxRange = targetMaxRange(this.armed.def.target);
-    if (maxRange === undefined) return;
     const origin = this.originHex();
     if (origin === null) return;
-    this.rangeOutline.lineStyle(s(2), TINT_SECONDARY, 0.9);
-    for (const hex of hexesWithinRange(origin, maxRange)) {
-      if (!this.ctx.grid.inBounds(hex)) continue;
-      const verts = this.hexVertices(hex);
-      for (const n of neighbors(hex)) {
-        // Skip in-range neighbours (an in-bounds one is an internal edge; an off-board one means the
-        // range bleeds past the rim — draw nothing). Stroke the boundary edge toward any out-of-range
-        // neighbour, on or off the board: it is this in-bounds hex's own edge, so it stays on-board.
-        if (hexDistance(origin, n) <= maxRange) continue;
-        this.strokeNearestEdge(verts, hexToPixel(this.ctx.layout, n));
-      }
-    }
-  }
-
-  /** Stroke the hex edge (of the 6 in `v`) whose midpoint is nearest `target` — the edge shared with that neighbour. */
-  private strokeNearestEdge(v: [Pt, Pt, Pt, Pt, Pt, Pt], target: Pt): void {
-    const edges: [Pt, Pt][] = [
-      [v[0], v[1]], [v[1], v[2]], [v[2], v[3]], [v[3], v[4]], [v[4], v[5]], [v[5], v[0]],
-    ];
-    let best: [Pt, Pt] | null = null;
-    let bestDist = Infinity;
-    for (const [a, b] of edges) {
-      const dx = (a.x + b.x) / 2 - target.x;
-      const dy = (a.y + b.y) / 2 - target.y;
-      const d = dx * dx + dy * dy;
-      if (d < bestDist) {
-        bestDist = d;
-        best = [a, b];
-      }
-    }
-    if (best === null) return;
-    // Overshoot both ends along the edge direction so neighbouring segments overlap at the
-    // shared vertex and the convex corners close fully (no gaps between separate strokes).
-    const [a, b] = best;
-    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    const t = s(OUTLINE_EXTEND_PX) / len;
-    this.rangeOutline.lineBetween(
-      a.x - (b.x - a.x) * t,
-      a.y - (b.y - a.y) * t,
-      b.x + (b.x - a.x) * t,
-      b.y + (b.y - a.y) * t,
-    );
-  }
-
-  private fillHex(hex: Hex, color: number): void {
-    const v = this.hexVertices(hex);
-    this.highlight.fillStyle(color, 0.4);
-    this.highlight.beginPath();
-    this.highlight.moveTo(v[0].x, v[0].y);
-    this.highlight.lineTo(v[1].x, v[1].y);
-    this.highlight.lineTo(v[2].x, v[2].y);
-    this.highlight.lineTo(v[3].x, v[3].y);
-    this.highlight.lineTo(v[4].x, v[4].y);
-    this.highlight.lineTo(v[5].x, v[5].y);
-    this.highlight.closePath();
-    this.highlight.fillPath();
+    this.painter.drawRange(this.armed.def.target, origin);
   }
 
   /**
