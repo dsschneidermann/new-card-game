@@ -76,6 +76,7 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     this.createPlayerAnims();
+    this.createSlimeAnims();
     this.scene.start('MainMenuScene');
   }
 
@@ -97,6 +98,32 @@ export class PreloadScene extends Phaser.Scene {
       this.anims.create({
         key: d.key,
         frames: this.anims.generateFrameNumbers(d.sheet),
+        frameRate: d.fps,
+        repeat: d.repeat,
+      });
+    }
+  }
+
+  /**
+   * Define the slime's right-facing animations from the FIRST ROW of each 4-row 64px sheet (the
+   * rows are near-identical directions for a symmetric blob). idle/walk loop; attack is a one-shot.
+   * The first-row frame count comes from each sheet's descriptor (frameConfig).
+   */
+  private createSlimeAnims(): void {
+    const defs = [
+      { state: 'idle', sheet: AssetKeys.slimeIdle, fps: 6, repeat: -1 },
+      { state: 'walk', sheet: AssetKeys.slimeWalk, fps: 10, repeat: -1 },
+      { state: 'attack', sheet: AssetKeys.slimeAttack, fps: 12, repeat: 0 },
+    ];
+    for (const d of defs) {
+      const key = `slime.${d.state}.right`;
+      if (this.anims.exists(key)) continue;
+      const entry = manifest.resolve(d.sheet);
+      if (entry === undefined) continue;
+      const frameCount = frameConfig(entry.descriptor).frameCount;
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(d.sheet, { start: 0, end: frameCount - 1 }),
         frameRate: d.fps,
         repeat: d.repeat,
       });

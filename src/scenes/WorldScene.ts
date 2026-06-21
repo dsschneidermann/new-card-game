@@ -10,6 +10,7 @@ import {
   HexPosition,
   FacingState,
   Player,
+  Enemy,
   MovePath,
   TurnState,
   ResourcePool,
@@ -280,6 +281,11 @@ export class WorldScene extends Phaser.Scene {
     // Transient animation stance (card-play feel), rebuilt here so Resume/Restart Turn
     // start the player in a neutral idle. Driven each frame from input + this turn's events.
     this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
+    // Enemies render through the same pipeline: a transient Renderable with the slime anim base,
+    // re-attached here on Resume/Restart Turn like the player's. All enemies are slimes for now.
+    for (const enemy of this.world.entitiesWith(Enemy)) {
+      this.world.store(Renderable).add(enemy, { texture: AssetKeys.slimeIdle, animBase: 'slime' });
+    }
   }
 
   /** A brand-new run: a clock-seeded world with the player and its turn state. */
@@ -311,6 +317,13 @@ export class WorldScene extends Phaser.Scene {
     world.store(DeckState).add(this.player, deck);
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
+    // A visible enemy slime a few hexes to the player's right, facing the player (visual foundation).
+    const slime = world.createEntity();
+    world.store(Enemy).add(slime, { isEnemy: true });
+    world.store(HexPosition).add(slime, {
+      hex: offsetToAxial({ col: Math.floor(GRID_COLS / 2) + 4, row: Math.floor(GRID_ROWS / 2) }),
+    });
+    world.store(FacingState).add(slime, { facing: 'left' });
     return world;
   }
 

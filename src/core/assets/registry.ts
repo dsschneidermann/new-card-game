@@ -41,6 +41,9 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameCount: 2, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1', { frameCount: 3, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameCount: 7, downPx: -6 }),
+  asset(AssetKeys.slimeIdle, [64, 64, 1], 'green blob slime, idle bob', 'Enemy slime idle', { frameCount: 6 }),
+  asset(AssetKeys.slimeWalk, [64, 64, 1], 'green blob slime, walking', 'Enemy slime walk', { frameCount: 8 }),
+  asset(AssetKeys.slimeAttack, [64, 64, 1], 'green blob slime, attack lunge/burst', 'Enemy slime attack', { frameCount: 10 }),
 ];
 
 /**
@@ -59,6 +62,9 @@ export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.playerReady,
   AssetKeys.playerAttack1,
   AssetKeys.playerAttack2,
+  AssetKeys.slimeIdle, // 64px 4-row spritesheet; anims use the first row
+  AssetKeys.slimeWalk,
+  AssetKeys.slimeAttack,
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */

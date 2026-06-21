@@ -33,3 +33,23 @@ describe('player spritesheets in the manifest', () => {
     }
   });
 });
+
+describe('slime spritesheets in the manifest', () => {
+  it('slime.idle/walk/attack are real 64px sheets with the detected first-row frame counts', () => {
+    const expectSheet = (key: string, frameCount: number): void => {
+      const entry = manifest.resolve(key);
+      expect(entry?.kind).toBe('real');
+      expect(frameConfig(entry!.descriptor)).toEqual({ frameWidth: 64, frameHeight: 64, frameCount });
+    };
+    expectSheet('slime.idle', 6);
+    expectSheet('slime.walk', 8);
+    expectSheet('slime.attack', 10);
+  });
+
+  it('all slime keys are used + registered (not missing)', () => {
+    const report = validateManifest(USED_ASSET_KEYS);
+    for (const key of ['slime.idle', 'slime.walk', 'slime.attack']) {
+      expect(report.missing).not.toContain(key);
+    }
+  });
+});
