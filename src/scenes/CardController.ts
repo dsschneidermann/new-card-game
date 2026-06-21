@@ -170,7 +170,7 @@ export class CardController {
   }
 
   /**
-   * Incrementally refresh the fan mid-turn (driven by HandDrawn: an effect drew a card or changed a
+   * Incrementally refresh the fan mid-turn (driven by HandChanged: an effect drew a card or changed a
    * cost). Existing cards stay put; only a genuinely-new instance fades in. This diffs the on-screen
    * sprites against the hand by instance id — valid ONLY mid-turn, where a card leaves the hand by
    * being PLAYED (animateCardOut), never by being discarded-and-redrawn (that is dealNewHand's job).

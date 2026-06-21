@@ -34,7 +34,7 @@ export function makeCardSystem(handSize: number): System {
     if (owner === undefined) return;
     const deck = world.store(DeckState).get(owner);
     if (deck === undefined) return;
-    // Snapshot this step's events first: resolving effects emits more events (HandDrawn), and we
+    // Snapshot this step's events first: resolving effects emits more events (HandChanged), and we
     // must not react to our own emissions within the same pass.
     const events = [...world.events()];
     for (const ev of events) {
@@ -55,7 +55,7 @@ function startTurn(world: World, owner: EntityId, deck: DeckStateData, handSize:
   }
   deck.hand.length = 0;
   drawUpTo(deck, handSize, world.rng);
-  // A wholesale hand replacement (distinct from the incremental HandDrawn that effects emit) so the
+  // A wholesale hand replacement (distinct from the incremental HandChanged that effects emit) so the
   // UI discards the whole old hand and deals the new one in, even when a card is reshuffled + redrawn.
   world.emit({ kind: 'HandDealt', entity: owner });
 }
@@ -102,7 +102,7 @@ function resolveEffect(
       if (drawn === undefined) return; // the whole deck is already in hand
       deck.hand.push(drawn);
       world.store(TempCardMods).add(drawn, { freeThisHand: true });
-      world.emit({ kind: 'HandDrawn', entity: owner }); // the scene refreshes the fan to show the new card
+      world.emit({ kind: 'HandChanged', entity: owner }); // the scene refreshes the fan to show the new card
       break;
     }
     case 'ReduceRandomOtherCost': {
@@ -114,7 +114,7 @@ function resolveEffect(
       const mods = world.store(CardMods).get(target);
       if (mods !== undefined) mods.costDelta -= effect.amount;
       else world.store(CardMods).add(target, { costDelta: -effect.amount });
-      world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the reduced cost
+      world.emit({ kind: 'HandChanged', entity: owner }); // refresh the fan to show the reduced cost
       break;
     }
     case 'MoveToHand': {
@@ -126,7 +126,7 @@ function resolveEffect(
         if (i !== -1) pile.splice(i, 1);
       }
       if (!deck.hand.includes(target)) deck.hand.push(target);
-      world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the card now in hand
+      world.emit({ kind: 'HandChanged', entity: owner }); // refresh the fan to show the card now in hand
       break;
     }
   }

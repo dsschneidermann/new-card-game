@@ -17,11 +17,11 @@ export type GameEvent =
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
   // Card system (Card Entities, Deck Cycle & Stat Effects). HandDealt: the whole hand was replaced at
   // turn start (old hand discarded, fresh hand drawn) -> the scene discards every card and deals the
-  // new hand in. HandDrawn: an effect drew a card or changed a cost mid-turn -> the scene refreshes
+  // new hand in. HandChanged: an effect drew a card or changed a cost mid-turn -> the scene refreshes
   // the fan incrementally. CardDiscarded: a single card left the hand for the discard pile (a play)
   // -> the scene animates that instance out.
   | { kind: 'HandDealt'; entity: EntityId }
-  | { kind: 'HandDrawn'; entity: EntityId }
+  | { kind: 'HandChanged'; entity: EntityId }
   | { kind: 'CardDiscarded'; entity: EntityId; instance: EntityId; defId: string }
   // Turn engine (feature 07). Phase is the literal 'player' | 'enemy' (kept inline
   // so events.ts has no dependency on the turn module).
