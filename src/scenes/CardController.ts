@@ -56,6 +56,16 @@ const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draw
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 
+// Hand entry/exit animation (presentation-only; tunable, reviewed live).
+const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
+const DRAW_STAGGER_MS = 60; // gap between successive cards dealt (leftmost first)
+const DRAW_SLIDE_PX = 36; // cards enter from this far to the RIGHT of their slot, settling left
+const DISCARD_FADE_MS = 90; // per-card fade-out at end of turn (faster than the deal)
+const DISCARD_STAGGER_MS = 35; // gap between successive cards discarded (rightmost first)
+const DISCARD_SLIDE_PX = 36; // cards exit this far to the RIGHT as they fade
+/** Total time the end-of-turn discard sweep of `n` cards takes; the deal-in waits this long so the two sweeps don't overlap. */
+const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DISCARD_FADE_MS;
+
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
  * screen, and the shared targeting state machine. All targeting math comes from
@@ -150,12 +160,25 @@ export class CardController {
    * each card renders its def art, its EFFECTIVE cost, and the cost colour (green if free this hand).
    */
   refreshHand(): void {
-    for (const c of this.handCards) c.destroy();
-    this.handCards = [];
     const world = this.ctx.world();
     const deck = world.store(DeckState).get(this.ctx.player());
     const hand = deck?.hand ?? [];
+    const newSet = new Set(hand);
+    // Diff the on-screen sprites against the new hand by instance id. Cards no longer in the hand
+    // (the whole hand at turn start) animate OUT to the right; cards still in the hand are rebuilt
+    // fresh (so a changed cost re-renders); brand-new cards fade IN from the right.
+    const leaving = this.handCards.filter((c) => !newSet.has(c.getData('cardEntity') as EntityId));
+    const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
+    this.animateHandDiscard(leaving);
+    for (const c of staying) c.destroy(); // replaced below by a fresh face snapped to its slot
+    const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
+
+    // New cards wait out the discard sweep so the two don't overlap (rightmost-out meets leftmost-in
+    // travelling toward each other); a refresh with nothing leaving (an effect draw) deals at once.
+    const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) : 0;
+    this.handCards = [];
     const layout = this.fanLayout(hand.length);
+    let newOrdinal = 0; // stagger position among the cards newly appearing (leftmost first)
     hand.forEach((instance, i) => {
       const defId = world.store(Card).get(instance)?.defId;
       const def = defId !== undefined ? cardDef(defId) : undefined;
@@ -178,6 +201,21 @@ export class CardController {
       });
       card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
       this.handCards.push(card);
+      if (!wasPresent.has(instance)) {
+        // A newly-arrived card fades in from a rightward offset, sliding left into its slot —
+        // staggered leftmost-first, after any end-of-turn discard sweep has cleared.
+        const homeX = card.x;
+        card.setAlpha(0).setX(homeX + s(DRAW_SLIDE_PX));
+        this.scene.tweens.add({
+          targets: card,
+          x: homeX,
+          alpha: 1,
+          duration: DRAW_FADE_MS,
+          delay: dealBase + newOrdinal * DRAW_STAGGER_MS,
+          ease: 'Quad.easeOut',
+        });
+        newOrdinal += 1;
+      }
     });
     this.refreshPileCounts();
   }
@@ -248,6 +286,31 @@ export class CardController {
     const layout = this.fanLayout(this.handCards.length);
     this.handCards.forEach((c, i) => this.placeCard(c, i, this.handCards.length, layout, true));
     this.refreshPileCounts();
+  }
+
+  /**
+   * Animate the leftover hand leaving at end of turn: each card fades out while sliding to the RIGHT,
+   * staggered RIGHTMOST-first and faster than the deal-in, so it reads as a quick sequential sweep
+   * rather than a wait. The cards are already detached from this.handCards (by refreshHand's diff),
+   * so they just self-destroy when done.
+   */
+  private animateHandDiscard(leaving: Phaser.GameObjects.Container[]): void {
+    const ordered = [...leaving].sort(
+      (a, b) => (b.getData('handIndex') as number) - (a.getData('handIndex') as number),
+    );
+    ordered.forEach((card, k) => {
+      card.disableInteractive(); // a stray hover must not perturb a card on its way out
+      const homeX = card.x;
+      this.scene.tweens.add({
+        targets: card,
+        x: homeX + s(DISCARD_SLIDE_PX),
+        alpha: 0,
+        duration: DISCARD_FADE_MS,
+        delay: k * DISCARD_STAGGER_MS,
+        ease: 'Quad.easeIn',
+        onComplete: () => card.destroy(),
+      });
+    });
   }
 
   // ---- internals ---------------------------------------------------------
