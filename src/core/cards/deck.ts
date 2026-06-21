@@ -45,14 +45,6 @@ export const TempCardMods: ComponentType<TempCardModsData> =
   defineComponent<TempCardModsData>('TempCardMods');
 
 /**
- * Pure effective-cost rule: base + permanent delta, floored at 0; a temporary free override is 0.
- * (The world-aware version that reads an instance's components is cardEffectiveCost in system.ts.)
- */
-export function effectiveCost(base: number, permDelta: number, tempFree: boolean): number {
-  return tempFree ? 0 : Math.max(0, base + permDelta);
-}
-
-/**
  * Create one card-instance entity per def id (each tagged with a Card component) and return their
  * ids. The caller places them in a pile (e.g. the draw pile at deck-build).
  */

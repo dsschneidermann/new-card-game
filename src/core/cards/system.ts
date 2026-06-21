@@ -5,7 +5,6 @@ import {
   Card,
   CardMods,
   TempCardMods,
-  effectiveCost,
   drawOne,
   drawUpTo,
   type DeckStateData,
@@ -16,6 +15,15 @@ import type { CardEffect } from './types';
 /** The deck owner (the player holds the singleton DeckState). */
 function deckOwner(world: World): EntityId | undefined {
   return world.entitiesWith(DeckState)[0];
+}
+
+/**
+ * Pure effective-cost rule: base + permanent delta, floored at 0; a temporary free override is 0.
+ * Kept pure (no world) so the rule is unit-testable on its own; cardEffectiveCost is the
+ * world-aware reader that feeds it an instance's base + modifiers.
+ */
+export function effectiveCost(base: number, permDelta: number, tempFree: boolean): number {
+  return tempFree ? 0 : Math.max(0, base + permDelta);
 }
 
 /** Effective energy cost of a card instance, reading its def base + permanent + temporary modifiers. */
