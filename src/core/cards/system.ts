@@ -10,68 +10,12 @@ import {
   type DeckStateData,
 } from './deck';
 import { cardDef } from './content';
-import type { CardEffect, CardPick } from './types';
+import { cardEffectiveCost } from './queries';
+import type { CardEffect } from './types';
 
 /** The deck owner (the player holds the singleton DeckState). */
 function deckOwner(world: World): EntityId | undefined {
   return world.entitiesWith(DeckState)[0];
-}
-
-/**
- * Pure effective-cost rule: base + permanent delta, floored at 0; a temporary free override is 0.
- * Kept pure (no world) so the rule is unit-testable on its own; cardEffectiveCost is the
- * world-aware reader that feeds it an instance's base + modifiers.
- */
-export function effectiveCost(base: number, permDelta: number, tempFree: boolean): number {
-  return tempFree ? 0 : Math.max(0, base + permDelta);
-}
-
-/** Effective energy cost of a card instance, reading its def base + permanent + temporary modifiers. */
-export function cardEffectiveCost(world: World, instance: EntityId): number {
-  const defId = world.store(Card).get(instance)?.defId;
-  const base = defId !== undefined ? cardDef(defId)?.cost ?? 0 : 0;
-  const permDelta = world.store(CardMods).get(instance)?.costDelta ?? 0;
-  return effectiveCost(base, permDelta, isTempFree(world, instance));
-}
-
-/** Whether an instance currently has a temporary free override (drives the green cost colour). */
-export function isTempFree(world: World, instance: EntityId): boolean {
-  return world.store(TempCardMods).get(instance)?.freeThisHand === true;
-}
-
-/**
- * Order a pile's card instances for display in the Deck / Discard overlay: attack cards first, then
- * by effective energy cost ascending, then by card name alphabetically (a stable tiebreak). Pure
- * (reads Card.defId + cardDef + cardEffectiveCost) so it is unit-testable and reused by the UI. A
- * DISPLAY sort only: it deliberately does NOT reflect the draw pile's real (shuffled) next-draw order.
- */
-export function sortPileForDisplay(world: World, ids: readonly EntityId[]): EntityId[] {
-  const keyed = ids.map((id) => {
-    const defId = world.store(Card).get(id)?.defId;
-    const def = defId !== undefined ? cardDef(defId) : undefined;
-    return { id, attack: def?.attack === true, cost: cardEffectiveCost(world, id), name: def?.name ?? '' };
-  });
-  keyed.sort((a, b) => {
-    if (a.attack !== b.attack) return a.attack ? -1 : 1; // attacks before skills
-    if (a.cost !== b.cost) return a.cost - b.cost; // then cheaper first
-    return a.name.localeCompare(b.name); // then by name
-  });
-  return keyed.map((k) => k.id);
-}
-
-/**
- * The card instances a pickFrom card can choose from: its named pile, optionally narrowed by the
- * pick's filter (by card def id). Pure — the UI uses it to populate the picker and to check whether
- * there is anything to pick.
- */
-export function pickCandidates(world: World, deck: DeckStateData, pick: CardPick): EntityId[] {
-  const pile = pick.pile === 'draw' ? deck.drawPile : pick.pile === 'hand' ? deck.hand : deck.discardPile;
-  const { filter } = pick;
-  if (filter === undefined) return [...pile];
-  return pile.filter((inst) => {
-    const defId = world.store(Card).get(inst)?.defId;
-    return defId !== undefined && filter(defId);
-  });
 }
 
 /**
@@ -81,7 +25,8 @@ export function pickCandidates(world: World, deck: DeckStateData, pick: CardPick
  *  - CardPlayed{cardEntity}: move the played instance hand -> discard (clearing temporaries) and
  *    resolve its effect.
  * The turn engine keeps only cost + phase; all hand/deck lifecycle + effects live here. Draw and
- * shuffle use world.rng, so the sequence is deterministic and save/replay-safe.
+ * shuffle use world.rng, so the sequence is deterministic and save/replay-safe. Read-only deck/card
+ * queries (cost, display order, pick candidates) live in ./queries.
  */
 export function makeCardSystem(handSize: number): System {
   return (world) => {
