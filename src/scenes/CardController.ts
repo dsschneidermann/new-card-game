@@ -58,11 +58,12 @@ const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
-const DRAW_STAGGER_MS = 60; // gap between successive cards dealt (leftmost first)
+const DRAW_STAGGER_MS = 120; // gap between successive cards dealt (leftmost first)
 const DRAW_SLIDE_PX = 36; // cards enter from this far to the RIGHT of their slot, settling left
 const DISCARD_FADE_MS = 90; // per-card fade-out at end of turn (faster than the deal)
-const DISCARD_STAGGER_MS = 35; // gap between successive cards discarded (rightmost first)
-const DISCARD_SLIDE_PX = 36; // cards exit this far to the RIGHT as they fade
+const DISCARD_STAGGER_MS = 60; // gap between successive cards discarded (rightmost first)
+const DISCARD_SLIDE_PX = 12; // cards exit this far to the RIGHT as they fade
+const DRAW_AFTER_DISCARD_MS = 100; // beat between the discard sweep finishing and the deal-in starting
 /** Total time the end-of-turn discard sweep of `n` cards takes; the deal-in waits this long so the two sweeps don't overlap. */
 const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DISCARD_FADE_MS;
 
@@ -169,13 +170,16 @@ export class CardController {
     // fresh (so a changed cost re-renders); brand-new cards fade IN from the right.
     const leaving = this.handCards.filter((c) => !newSet.has(c.getData('cardEntity') as EntityId));
     const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
+    // Record which instances were already on screen BEFORE destroying their sprites: getData() on a
+    // destroyed object returns undefined, which would mark every card "new" and re-deal the whole hand
+    // (hidden at turn start, where nothing stays — but visible when e.g. Recall returns one card).
+    const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
     this.animateHandDiscard(leaving);
     for (const c of staying) c.destroy(); // replaced below by a fresh face snapped to its slot
-    const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
 
     // New cards wait out the discard sweep so the two don't overlap (rightmost-out meets leftmost-in
     // travelling toward each other); a refresh with nothing leaving (an effect draw) deals at once.
-    const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) : 0;
+    const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
     this.handCards = [];
     const layout = this.fanLayout(hand.length);
     let newOrdinal = 0; // stagger position among the cards newly appearing (leftmost first)
