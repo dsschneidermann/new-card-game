@@ -1,4 +1,4 @@
-import { type Hex, hexDistance } from '../hex/hex';
+import { type Hex, hexDistance, hexEquals } from '../hex/hex';
 import { hexLine, hexesWithinRange } from '../hex/range';
 import type { TargetSpec, Highlight } from './types';
 
@@ -41,6 +41,13 @@ export function resolveTargeting(
     }
     case 'areaOfEffect':
       return { primary: hexesWithinRange(hovered, spec.radius), secondary: [] };
+    case 'selfAoe':
+      // A fixed, self-centered burst: every hex within radius of the caster except the caster's own
+      // hex. The hovered hex is ignored — you cannot aim it.
+      return {
+        primary: hexesWithinRange(origin, spec.radius).filter((h) => !hexEquals(h, origin)),
+        secondary: [],
+      };
     case 'twoStep': {
       if (firstPick === undefined) return resolveTargeting(spec.first, origin, hovered);
       const second = resolveTargeting(spec.second, origin, hovered);

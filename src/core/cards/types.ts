@@ -11,6 +11,9 @@ export type TargetSpec =
   | { kind: 'singleHex'; maxRange?: number }
   | { kind: 'lineOfSight'; maxRange?: number }
   | { kind: 'areaOfEffect'; radius: number }
+  // selfAoe: a fixed, self-centered burst — every hex within radius of the caster (minus the
+  // caster's own hex), independent of the cursor. No maxRange, so no range outline is drawn.
+  | { kind: 'selfAoe'; radius: number }
   | { kind: 'twoStep'; first: TargetSpec; second: TargetSpec };
 
 /**

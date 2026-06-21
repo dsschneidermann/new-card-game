@@ -291,6 +291,7 @@ export class CardController {
     }
     this.tooltip.setVisible(false);
     this.drawRangeOutline(); // yellow max-range boundary, if this card has a range
+    this.redrawHighlight(); // selfAoe paints its fixed burst immediately; other targets wait for a hover
   }
 
   /** Apply one target selection; play if the spec is satisfied, else await the next. */
@@ -317,7 +318,7 @@ export class CardController {
     // Record the aimed hex(es) for when effects land: the selected hex, both picks for a
     // two-step, or none for a self-target (whose chosen hex is ignored).
     const targets: Hex[] =
-      spec.kind === 'self'
+      spec.kind === 'self' || spec.kind === 'selfAoe'
         ? []
         : spec.kind === 'twoStep' && firstPick !== null
           ? [firstPick, finalHex]
@@ -366,14 +367,17 @@ export class CardController {
 
   private redrawHighlight(): void {
     this.highlight.clear();
-    if (this.armed === null || this.hovered === null) return;
-    // No hex under the pointer (off the board) = no target = no visual effect, matching
-    // the rule that an off-grid click cancels the armed action.
-    if (!this.ctx.grid.inBounds(this.hovered)) return;
+    if (this.armed === null) return;
     const origin = this.originHex();
     if (origin === null) return;
+    const spec = this.armed.def.target;
+    // selfAoe is a fixed, self-centered burst: paint it regardless of the pointer (even off-grid /
+    // before the first move). Every other target needs a valid hovered hex (off-board = no overlay,
+    // matching the rule that an off-grid click cancels the armed action).
+    if (spec.kind !== 'selfAoe' && (this.hovered === null || !this.ctx.grid.inBounds(this.hovered))) return;
+    const hovered = this.hovered ?? origin; // selfAoe ignores it; origin is a harmless default
     const firstPick = this.armed.firstPick ?? undefined;
-    const { primary, secondary } = resolveTargeting(this.armed.def.target, origin, this.hovered, firstPick);
+    const { primary, secondary } = resolveTargeting(spec, origin, hovered, firstPick);
     // Clip each highlighted hex to the board so a multi-hex target (e.g. an areaOfEffect disk near
     // an edge) never paints off-grid — the hovered centre being in-bounds is not enough.
     for (const h of secondary) if (this.ctx.grid.inBounds(h)) this.fillHex(h, TINT_SECONDARY);

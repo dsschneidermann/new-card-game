@@ -72,6 +72,17 @@ export const CARD_DEFS: readonly CardDef[] = [
     target: { kind: 'self' },
     effect: { kind: 'ReduceRandomOtherCost', amount: 1 },
   },
+  {
+    // A self-centered AOE melee: hits every hex around the player up to distance 2. Fixed targeting
+    // (selfAoe) — no range outline and no specific hex to aim; the surrounding hexes are the target.
+    id: 'whirlwind',
+    name: 'Whirlwind',
+    cost: 2,
+    art: 'card.art.whirlwind',
+    effectText: 'Hit all enemies within 2 hexes.',
+    target: { kind: 'selfAoe', radius: 2 },
+    attack: true,
+  },
 ];
 
 export const SPELL_DEFS: readonly SpellDef[] = [
@@ -122,6 +133,8 @@ export const STARTER_COLLECTION: readonly string[] = [
   'quickdraw',
   'sharpen',
   'sharpen',
+  'whirlwind',
+  'whirlwind',
 ];
 
 const CARD_BY_ID = new Map<string, CardDef>(CARD_DEFS.map((c) => [c.id, c]));

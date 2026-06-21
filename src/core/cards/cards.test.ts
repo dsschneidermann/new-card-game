@@ -103,6 +103,25 @@ describe('resolveTargeting', () => {
       secondary: [hovered],
     });
   });
+
+  it('selfAoe: the disk around the caster (minus the caster), ignoring hovered', () => {
+    const r = resolveTargeting({ kind: 'selfAoe', radius: 2 }, origin, hovered);
+    expect(r.secondary).toEqual([]);
+    expect(r.primary).toHaveLength(18); // 19-hex disk (radius 2) minus the caster
+    expect(r.primary).not.toContainEqual(origin);
+    for (const h of r.primary) {
+      expect(hexDistance(origin, h)).toBeGreaterThan(0);
+      expect(hexDistance(origin, h)).toBeLessThanOrEqual(2);
+    }
+    // hovered is ignored: a different hovered yields the same set
+    expect(resolveTargeting({ kind: 'selfAoe', radius: 2 }, origin, origin).primary).toEqual(r.primary);
+  });
+
+  it('selfAoe radius 1: the 6 neighbours of the caster (excludes the caster)', () => {
+    const r = resolveTargeting({ kind: 'selfAoe', radius: 1 }, origin, hovered);
+    expect(r.primary).toHaveLength(6);
+    expect(r.primary).not.toContainEqual(origin);
+  });
 });
 
 describe('targetMaxRange', () => {
@@ -112,6 +131,7 @@ describe('targetMaxRange', () => {
     expect(targetMaxRange({ kind: 'singleHex' })).toBeUndefined();
     expect(targetMaxRange({ kind: 'self' })).toBeUndefined();
     expect(targetMaxRange({ kind: 'areaOfEffect', radius: 1 })).toBeUndefined();
+    expect(targetMaxRange({ kind: 'selfAoe', radius: 2 })).toBeUndefined();
     expect(
       targetMaxRange({ kind: 'twoStep', first: { kind: 'singleHex' }, second: { kind: 'singleHex' } }),
     ).toBeUndefined();
@@ -119,7 +139,7 @@ describe('targetMaxRange', () => {
 });
 
 describe('starter content', () => {
-  it('the starter collection is the expected 16-card multiset of defined cards', () => {
+  it('the starter collection is the expected 18-card multiset of defined cards', () => {
     expect(STARTER_COLLECTION).toEqual([
       'melee', 'melee', 'melee',
       'longstrike', 'longstrike',
@@ -128,8 +148,9 @@ describe('starter content', () => {
       'jump', 'jump',
       'quickdraw', 'quickdraw',
       'sharpen', 'sharpen',
+      'whirlwind', 'whirlwind',
     ]);
-    expect(STARTER_COLLECTION).toHaveLength(16);
+    expect(STARTER_COLLECTION).toHaveLength(18);
     for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
   });
 
@@ -141,6 +162,7 @@ describe('starter content', () => {
     expect(isAttackCard('jump')).toBe(false);
     expect(isAttackCard('quickdraw')).toBe(false); // a skill demonstrator
     expect(isAttackCard('sharpen')).toBe(false); // a skill demonstrator
+    expect(isAttackCard('whirlwind')).toBe(true); // a self-centered AOE melee (attack)
     expect(isAttackCard('blizzard')).toBe(false); // a spell id, not a card
     expect(isAttackCard('nope')).toBe(false);
   });
@@ -157,6 +179,7 @@ describe('starter content', () => {
     expect(cardDef('ranged')?.target).toEqual({ kind: 'lineOfSight', maxRange: 5 });
     expect(cardDef('defend')?.target).toEqual({ kind: 'self' });
     expect(cardDef('jump')?.cost).toBe(0);
+    expect(cardDef('whirlwind')).toMatchObject({ cost: 2, attack: true, target: { kind: 'selfAoe', radius: 2 } });
   });
 
   it('spells carry per-id art and the right target specs', () => {
