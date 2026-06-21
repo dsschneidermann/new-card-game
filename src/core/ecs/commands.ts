@@ -14,6 +14,8 @@ export type Command =
   // energyCost/manaCost are supplied by the caller until card/spell definitions resolve
   // them; the turn engine spends them. `targets` are the aimed hex(es) recorded for when
   // effects land (the selected hex, both picks for a two-step, none for a self-target).
-  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[] }
+  // `handIndex` is the hand slot of the played copy: the turn engine removes that slot from
+  // DeckState.hand when the play is accepted (omit it for a non-hand play, e.g. AI/effects).
+  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; handIndex?: number }
   | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId; targets?: readonly Hex[] }
   | { kind: 'EndTurn'; entity: EntityId };

@@ -6,7 +6,9 @@ import type { EntityId } from './entity';
  * this union with their own event kinds.
  */
 export type GameEvent =
-  | { kind: 'CardPlayed'; entity: EntityId; cardId: string }
+  // handIndex (when present) is the hand slot the played card left, echoed from the PlayCard
+  // command so the renderer can animate that exact card out of the hand.
+  | { kind: 'CardPlayed'; entity: EntityId; cardId: string; handIndex?: number }
   | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }

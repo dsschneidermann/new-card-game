@@ -214,19 +214,17 @@ export class CardController {
   }
 
   /**
-   * Remove the just-played card from the hand: drop its instance from DeckState.hand
-   * (by slot, so a duplicate removes the right copy), tween the card out, then reflow
-   * the survivors to their new fan positions. The hand only fully rebuilds at turn start.
+   * Animate the just-played card leaving the hand and reflow the survivors — presentation
+   * ONLY. The card was already removed from DeckState.hand by the turn system (the authority);
+   * this is driven by the CardPlayed event carrying the played slot. The sprite is found by its
+   * stored handIndex, which stays in lockstep with the recompacted hand because each reflow
+   * re-indexes the survivors (placeCard sets handIndex = new slot). The hand fully rebuilds at
+   * turn start.
    */
-  private removePlayedCard(card: Phaser.GameObjects.Container): void {
-    const arrayPos = this.handCards.indexOf(card);
-    if (arrayPos === -1) return;
-    const handIndex = card.getData('handIndex') as number;
-    const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
-    if (deck !== undefined && handIndex >= 0 && handIndex < deck.hand.length) {
-      deck.hand.splice(handIndex, 1);
-    }
-    this.handCards.splice(arrayPos, 1);
+  animateCardOut(handIndex: number): void {
+    const card = this.handCards.find((c) => (c.getData('handIndex') as number) === handIndex);
+    if (card === undefined) return;
+    this.handCards.splice(this.handCards.indexOf(card), 1);
     this.scene.tweens.add({
       targets: card,
       y: card.y - s(60),
@@ -310,10 +308,11 @@ export class CardController {
           : [finalHex];
     const player = this.ctx.player();
     if (kind === 'card') {
+      const handIndex = obj.getData('handIndex') as number; // the played hand slot
       this.ctx.submit(
         targets.length > 0
-          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, targets }
-          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost },
+          ? { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, handIndex, targets }
+          : { kind: 'PlayCard', entity: player, cardId: def.id, energyCost: def.cost, handIndex },
       );
     } else {
       this.ctx.submit(
@@ -323,8 +322,9 @@ export class CardController {
       );
     }
     this.disarm();
-    // A played card leaves the hand for the rest of the turn (spells stay in the sidebar).
-    if (kind === 'card') this.removePlayedCard(obj);
+    // The played card leaves the hand for the rest of the turn, but the SIMULATION owns that:
+    // the turn system removes it from DeckState.hand and echoes the slot on CardPlayed, which
+    // the scene turns into animateCardOut(). Spells stay in the sidebar. (No DeckState write here.)
   }
 
   private disarm(): void {

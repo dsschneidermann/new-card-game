@@ -174,7 +174,13 @@ export class WorldScene extends Phaser.Scene {
     this.syncPlayerAnim(events);
     this.sync.sync(buildCharacterViews(this.world, this.layout));
     this.refreshHud();
-    for (const e of events) if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
+    for (const e of events) {
+      if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
+      // The played card leaves the hand once the simulation has removed it: animate that exact
+      // card out (and reflow the survivors) from the authoritative event.
+      else if (e.kind === 'CardPlayed' && e.entity === this.player && e.handIndex !== undefined)
+        this.cards.animateCardOut(e.handIndex);
+    }
   }
 
   /**
