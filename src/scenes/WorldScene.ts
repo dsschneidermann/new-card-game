@@ -18,7 +18,6 @@ import {
   makeTurnSystem,
   makeCardSystem,
   DeckState,
-  Card,
   buildCardInstances,
   reshuffle,
   drawUpTo,
@@ -316,36 +315,12 @@ export class WorldScene extends Phaser.Scene {
       const player = world.entitiesWith(Player)[0];
       if (player !== undefined) {
         this.player = player;
-        this.migrateDeckIfNeeded(world, player);
         console.info('[world] resumed from save');
         return world;
       }
     }
     console.info('[world] no usable save; starting a new run');
     return this.freshWorld();
-  }
-
-  /**
-   * Tolerant load of pre-entity saves: older runs stored DeckState as { collection, hand } string
-   * ids. Detect that shape and rebuild it into card-instance entities (the saved hand mapped to
-   * instances, the rest seeded into the draw pile) so existing runs keep working after this feature.
-   */
-  private migrateDeckIfNeeded(world: World, player: EntityId): void {
-    const deck = world.store(DeckState).get(player);
-    if (deck === undefined) return;
-    const legacy = deck as unknown as { drawPile?: unknown; collection?: unknown; hand?: unknown };
-    if (Array.isArray(legacy.drawPile)) return; // already the entity-based shape
-    const collection: string[] = Array.isArray(legacy.collection)
-      ? (legacy.collection as string[])
-      : [...STARTER_COLLECTION];
-    const handIds: string[] = Array.isArray(legacy.hand) ? (legacy.hand as string[]) : [];
-    const remaining = buildCardInstances(world, collection);
-    const hand: EntityId[] = [];
-    for (const id of handIds) {
-      const idx = remaining.findIndex((e) => world.store(Card).get(e)?.defId === id);
-      if (idx !== -1) hand.push(...remaining.splice(idx, 1));
-    }
-    world.store(DeckState).add(player, { drawPile: remaining, hand, discardPile: [] });
   }
 
   /**
@@ -360,7 +335,6 @@ export class WorldScene extends Phaser.Scene {
     const restored = applySave(loaded.state);
     const player = restored.entitiesWith(Player)[0];
     if (player === undefined) return;
-    this.migrateDeckIfNeeded(restored, player);
     restored.rng.setState(liveRng);
     this.world = restored;
     this.player = player;
