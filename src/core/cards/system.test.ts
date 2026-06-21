@@ -27,6 +27,8 @@ import {
   cardEffectiveCost,
   isTempFree,
   sortPileForDisplay,
+  pickCandidates,
+  isAttackCard,
   type World,
   type EntityId,
   type HexLayout,
@@ -265,7 +267,7 @@ describe('sortPileForDisplay (overlay display order)', () => {
   });
 });
 
-describe('card-pick effect (Recall / ReturnToHandFromDiscard)', () => {
+describe('card-pick effect (Recall / MoveToHand)', () => {
   it('returns the selected discard card to hand and discards recall itself', () => {
     const { world, player } = setup(['recall', 'melee']);
     const deck = deckOf(world, player);
@@ -307,6 +309,40 @@ describe('card-pick effect (Recall / ReturnToHandFromDiscard)', () => {
     advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'recall', energyCost: 1, cardEntity: recall }]); // no cardTargets
     expect(deck.discardPile).toContain(melee); // unchanged
     expect(deck.hand).not.toContain(melee);
+  });
+
+  it('MoveToHand also pulls the selected card from the draw pile', () => {
+    const { world, player } = setup(['recall', 'melee']);
+    const deck = deckOf(world, player);
+    const recall = deck.drawPile.find((e) => defOf(world, e) === 'recall') as EntityId;
+    const melee = deck.drawPile.find((e) => defOf(world, e) === 'melee') as EntityId;
+    deck.drawPile.length = 0;
+    deck.hand.push(recall);
+    deck.drawPile.push(melee); // melee sitting in the DRAW pile
+    advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'recall', energyCost: 1, cardEntity: recall, cardTargets: [melee] },
+    ]);
+    expect(deck.hand).toContain(melee); // pulled from draw to hand
+    expect(deck.drawPile).not.toContain(melee);
+  });
+});
+
+describe('pickCandidates (card-picker source)', () => {
+  it('returns the named pile, narrowed by the optional filter (by def id)', () => {
+    const { world, player } = setup(['melee', 'ranged', 'defend', 'jump']);
+    const deck = deckOf(world, player);
+    const byDef = (id: string): EntityId => deck.drawPile.find((e) => defOf(world, e) === id) as EntityId;
+    const melee = byDef('melee');
+    const ranged = byDef('ranged');
+    const defend = byDef('defend');
+    const jump = byDef('jump');
+    deck.drawPile.length = 0;
+    deck.drawPile.push(melee, ranged); // draw = [melee, ranged]
+    deck.discardPile.push(defend, jump); // discard = [defend, jump]
+    expect(pickCandidates(world, deck, { pile: 'draw' })).toEqual([melee, ranged]);
+    expect(pickCandidates(world, deck, { pile: 'discard' })).toEqual([defend, jump]);
+    expect(pickCandidates(world, deck, { pile: 'draw', filter: (id) => isAttackCard(id) })).toEqual([melee, ranged]);
+    expect(pickCandidates(world, deck, { pile: 'discard', filter: (id) => isAttackCard(id) })).toEqual([]);
   });
 });
 

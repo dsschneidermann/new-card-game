@@ -190,8 +190,8 @@ describe('starter content', () => {
     expect(cardDef('recall')).toMatchObject({
       cost: 1,
       target: { kind: 'self' },
-      pickFrom: 'discard',
-      effect: { kind: 'ReturnToHandFromDiscard' },
+      pickFrom: { pile: 'discard' },
+      effect: { kind: 'MoveToHand' },
     });
     expect(cardDef('melee')?.effect).toBeUndefined();
   });

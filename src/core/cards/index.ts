@@ -1,5 +1,5 @@
 /** Cards, deck & spell definitions, targeting, and the card-entity deck cycle + stat effects. */
-export type { CardDef, SpellDef, TargetSpec, Highlight, CardEffect } from './types';
+export type { CardDef, SpellDef, TargetSpec, Highlight, CardEffect, CardPick } from './types';
 export type { DeckStateData, CardData, CardModsData, TempCardModsData } from './deck';
 export {
   DeckState,
@@ -13,4 +13,4 @@ export {
 } from './deck';
 export { CARD_DEFS, SPELL_DEFS, STARTER_COLLECTION, cardDef, spellDef, isAttackCard, isHeavyAttack } from './content';
 export { resolveTargeting, targetMaxRange } from './targeting';
-export { makeCardSystem, cardEffectiveCost, isTempFree, effectiveCost, sortPileForDisplay } from './system';
+export { makeCardSystem, cardEffectiveCost, isTempFree, effectiveCost, sortPileForDisplay, pickCandidates } from './system';

@@ -95,8 +95,8 @@ export const CARD_DEFS: readonly CardDef[] = [
     art: 'card.art.recall',
     effectText: 'Return a chosen card from your discard pile to your hand.',
     target: { kind: 'self' },
-    pickFrom: 'discard',
-    effect: { kind: 'ReturnToHandFromDiscard' },
+    pickFrom: { pile: 'discard' },
+    effect: { kind: 'MoveToHand' },
   },
 ];
 

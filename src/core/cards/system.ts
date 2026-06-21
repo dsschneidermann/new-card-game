@@ -10,7 +10,7 @@ import {
   type DeckStateData,
 } from './deck';
 import { cardDef } from './content';
-import type { CardEffect } from './types';
+import type { CardEffect, CardPick } from './types';
 
 /** The deck owner (the player holds the singleton DeckState). */
 function deckOwner(world: World): EntityId | undefined {
@@ -57,6 +57,21 @@ export function sortPileForDisplay(world: World, ids: readonly EntityId[]): Enti
     return a.name.localeCompare(b.name); // then by name
   });
   return keyed.map((k) => k.id);
+}
+
+/**
+ * The card instances a pickFrom card can choose from: its named pile, optionally narrowed by the
+ * pick's filter (by card def id). Pure — the UI uses it to populate the picker and to check whether
+ * there is anything to pick.
+ */
+export function pickCandidates(world: World, deck: DeckStateData, pick: CardPick): EntityId[] {
+  const pile = pick.pile === 'draw' ? deck.drawPile : pick.pile === 'hand' ? deck.hand : deck.discardPile;
+  const { filter } = pick;
+  if (filter === undefined) return [...pile];
+  return pile.filter((inst) => {
+    const defId = world.store(Card).get(inst)?.defId;
+    return defId !== undefined && filter(defId);
+  });
 }
 
 /**
@@ -155,14 +170,16 @@ function resolveEffect(
       world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the reduced cost
       break;
     }
-    case 'ReturnToHandFromDiscard': {
+    case 'MoveToHand': {
       const target = cardTargets[0];
       if (target === undefined) return; // no card was selected (defensive)
-      const i = deck.discardPile.indexOf(target);
-      if (i === -1) return; // the selected card is not in the discard pile (defensive)
-      deck.discardPile.splice(i, 1);
-      deck.hand.push(target);
-      world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the returned card
+      // Remove it from whichever pile holds it (draw / discard); a hand pick is already there.
+      for (const pile of [deck.drawPile, deck.discardPile]) {
+        const i = pile.indexOf(target);
+        if (i !== -1) pile.splice(i, 1);
+      }
+      if (!deck.hand.includes(target)) deck.hand.push(target);
+      world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the card now in hand
       break;
     }
   }

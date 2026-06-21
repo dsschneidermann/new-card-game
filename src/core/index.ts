@@ -95,6 +95,7 @@ export type {
   TargetSpec,
   Highlight,
   CardEffect,
+  CardPick,
   DeckStateData,
   CardData,
   CardModsData,
@@ -123,6 +124,7 @@ export {
   cardEffectiveCost,
   isTempFree,
   sortPileForDisplay,
+  pickCandidates,
 } from './cards';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)

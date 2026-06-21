@@ -25,7 +25,15 @@ export type TargetSpec =
 export type CardEffect =
   | { kind: 'DrawAndFree' }
   | { kind: 'ReduceRandomOtherCost'; amount: number }
-  | { kind: 'ReturnToHandFromDiscard' }; // returns the picked card (cardTargets[0]) from discard to hand
+  | { kind: 'MoveToHand' }; // moves the picked card (cardTargets[0]) to hand from whichever pile holds it
+
+/**
+ * A card's optional card-pick: playing it opens a picker over `pile`, optionally narrowed by `filter`
+ * (by card def id, e.g. (id) => isAttackCard(id)). The picked card instance becomes the play's
+ * cardTargets, resolved by the card's effect (e.g. MoveToHand). (A list of generated cards to pick
+ * from is deferred until a card needs it.)
+ */
+export type CardPick = { pile: 'draw' | 'hand' | 'discard'; filter?: (defId: string) => boolean };
 
 /**
  * A card definition. Each CardDef IS a card type, identified by id; the deck holds card-instance
@@ -45,8 +53,8 @@ export interface CardDef {
   readonly heavyAttack?: boolean;
   /** Mechanical effect resolved by the card system on play (skills like Quick Draw / Sharpen). */
   readonly effect?: CardEffect;
-  /** If set, playing this card opens a card-picker on that pile; the chosen card becomes the play's cardTargets. */
-  readonly pickFrom?: 'discard';
+  /** If set, playing this card opens a card-picker on the chosen pile; the picked card becomes the play's cardTargets. */
+  readonly pickFrom?: CardPick;
 }
 
 /** A spell definition. Each SpellDef IS a spell type, identified by id (spell.icon.<id>). */

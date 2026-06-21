@@ -7,6 +7,7 @@ import {
   cardEffectiveCost,
   isTempFree,
   sortPileForDisplay,
+  pickCandidates,
   isAttackCard,
   resolveTargeting,
   targetMaxRange,
@@ -305,12 +306,16 @@ export class CardController {
       this.ctx.notify(v.reason);
       return;
     }
-    // A card-picker card (e.g. Recall) needs cards in its source pile; reject at selection if empty.
-    if (kind === 'card' && cardDef(def.id)?.pickFrom === 'discard') {
-      const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
-      if ((deck?.discardPile.length ?? 0) === 0) {
-        this.ctx.notify('No discarded cards to return');
-        return;
+    // A card-picker card (e.g. Recall) needs at least one candidate in its source pile; reject at
+    // selection (with a toast) if the pile is empty or the pick's filter matches nothing.
+    if (kind === 'card') {
+      const pick = cardDef(def.id)?.pickFrom;
+      if (pick !== undefined) {
+        const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
+        if (deck === undefined || pickCandidates(this.ctx.world(), deck, pick).length === 0) {
+          this.ctx.notify('No cards to pick');
+          return;
+        }
       }
     }
     this.disarm();
@@ -407,15 +412,20 @@ export class CardController {
   private openCardPick(obj: Phaser.GameObjects.Container, def: CardDef | SpellDef): void {
     const world = this.ctx.world();
     const deck = world.store(DeckState).get(this.ctx.player());
-    const pile = deck?.discardPile ?? [];
-    if (pile.length === 0) {
+    const pick = cardDef(def.id)?.pickFrom;
+    if (deck === undefined || pick === undefined) {
       this.disarm();
+      return;
+    }
+    const candidates = pickCandidates(world, deck, pick);
+    if (candidates.length === 0) {
+      this.disarm(); // defensive: arm() already rejects a card with no candidates
       return;
     }
     const player = this.ctx.player();
     const cardEntity = obj.getData('cardEntity') as EntityId;
     const energyCost = this.cardCost(obj);
-    this.openCardPicker('Select a card to return to hand', pile, (picked) => {
+    this.openCardPicker('Select a card to return to hand', candidates, (picked) => {
       if (picked !== null) {
         this.ctx.submit({ kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity, cardTargets: [picked] });
       }
