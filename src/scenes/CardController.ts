@@ -278,6 +278,7 @@ export class CardController {
     const card = this.handCards.find((c) => (c.getData('cardEntity') as EntityId) === instance);
     if (card === undefined) return;
     this.handCards.splice(this.handCards.indexOf(card), 1);
+    this.scene.tweens.killTweensOf(card); // drop any in-flight deal-in/reflow tween so it can't fight this fade or destroy the card early
     this.scene.tweens.add({
       targets: card,
       y: card.y - s(60),
@@ -304,6 +305,7 @@ export class CardController {
     );
     ordered.forEach((card, k) => {
       card.disableInteractive(); // a stray hover must not perturb a card on its way out
+      this.scene.tweens.killTweensOf(card); // drop a still-running deal-in tween so it can't fight this fade or destroy the card early
       const homeX = card.x;
       this.scene.tweens.add({
         targets: card,
