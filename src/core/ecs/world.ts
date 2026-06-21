@@ -10,15 +10,8 @@ import { CommandQueue, EventBus } from './queue';
 import type { Command } from './commands';
 import type { GameEvent } from './events';
 
-/** Read-only context handed to each system invocation within a step. */
-export interface StepContext {
-  /** Monotonic count of advance() calls (1-based). */
-  readonly step: number;
-  readonly rng: SeededRNG;
-}
-
-/** A system advances the simulation by reading/writing the World. */
-export type System = (world: World, ctx: StepContext) => void;
+/** A system advances the simulation by reading/writing the World (its rng, stores, commands, events). */
+export type System = (world: World) => void;
 
 /**
  * The authoritative game state: an entity registry, per-type component stores,
@@ -61,7 +54,6 @@ class WorldImpl implements InternalWorld {
   private readonly systems: System[] = [];
   private readonly cmds = new CommandQueue();
   private readonly bus = new EventBus();
-  private stepCount = 0;
 
   constructor(seed: number) {
     this.rng = makeRng(seed);
@@ -121,9 +113,7 @@ class WorldImpl implements InternalWorld {
 
   runStep(commands: readonly Command[]): GameEvent[] {
     for (const cmd of commands) this.cmds.submit(cmd);
-    this.stepCount += 1;
-    const ctx: StepContext = { step: this.stepCount, rng: this.rng };
-    for (const system of this.systems) system(this, ctx);
+    for (const system of this.systems) system(this);
     const events = this.bus.drain();
     this.cmds.drain();
     return events;
@@ -162,8 +152,8 @@ export function advance(world: World, commands: readonly Command[] = []): GameEv
 }
 
 /**
- * A plain, JSON-serializable snapshot of the persistent World state (feature
- * 06): the live RNG state, the entity allocator, and every PERSISTENT component
+ * A plain, JSON-serializable snapshot of the persistent World state: the live
+ * RNG state, the entity allocator, and every PERSISTENT component
  * store. Render/transient components are excluded. This is the core run-state a
  * save is built from; each feature's data rides along automatically because
  * components are data-only (ADR-002).

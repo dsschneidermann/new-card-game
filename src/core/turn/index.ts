@@ -1,4 +1,4 @@
-/** Turn Engine: phases, resource economy and the enemy-turn runner (feature 07). */
+/** Turn Engine: phases, resource economy and the enemy-turn runner. */
 export type { Phase, TurnStateData, ResourcePoolData, MovementBudgetData } from './components';
 export { TurnState, ResourcePool, MovementBudget } from './components';
 export {
@@ -9,5 +9,5 @@ export {
   canAffordEnergy,
   canAffordMana,
 } from './resources';
-export type { TurnHooks, Validation } from './system';
+export type { Validation } from './system';
 export { makeTurnSystem, turnActor, canMove, canPlayCard, canPlaySpell } from './system';

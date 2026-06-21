@@ -8,19 +8,6 @@ import { Enemy } from '../actors';
 import { TurnState, ResourcePool, MovementBudget, type TurnStateData } from './components';
 import { refillEnergy, regenMana, spendEnergy, spendMana } from './resources';
 
-/**
- * Extension seams filled by later features. Defaulting to no-ops lets the Turn
- * Engine ship and be tested before status effects (08) and enemy AI (12) exist.
- */
-export interface TurnHooks {
-  /** Run at the start of each player turn (feature 08: poison/DoT ticks). */
-  onPlayerTurnStart?(world: World): void;
-  /** Run at the end of each player turn (feature 08: status duration decrement). */
-  onPlayerTurnEnd?(world: World): void;
-  /** Produce and apply one enemy's action (feature 12 AI); default: pass. */
-  enemyIntent?(world: World, enemy: EntityId): void;
-}
-
 /** Result of validating a player action without mutating anything. */
 export type Validation = { ok: true } | { ok: false; reason: string };
 const OK: Validation = { ok: true };
@@ -72,10 +59,10 @@ export function canPlaySpell(world: World, entity: EntityId, manaCost: number): 
  * The Turn Engine system (ADR-005). Validates and applies player actions during
  * the player phase, and on EndTurn runs the enemy phase and opens the next round.
  * Movement is delegated: a valid RequestMove deducts the budget and submits the
- * low-level MoveTo that the feature-05 movement system executes the same step.
- * Card/spell EFFECTS are a feature-10 seam — here only their resource cost is paid.
+ * low-level MoveTo that the movement system executes the same step.
+ * Card/spell EFFECTS are a later seam — here only their resource cost is paid.
  */
-export function makeTurnSystem(grid: HexGrid, hooks: TurnHooks = {}): System {
+export function makeTurnSystem(grid: HexGrid): System {
   return (world) => {
     const te = turnActor(world);
     if (te === undefined) return;
@@ -139,7 +126,7 @@ export function makeTurnSystem(grid: HexGrid, hooks: TurnHooks = {}): System {
             world.emit({ kind: 'ActionRejected', reason: 'not the player turn' });
             break;
           }
-          endPlayerTurn(world, te, turn, hooks);
+          endPlayerTurn(world, te, turn);
           break;
         }
       }
@@ -148,20 +135,19 @@ export function makeTurnSystem(grid: HexGrid, hooks: TurnHooks = {}): System {
 }
 
 /** Close the player turn, run the enemy phase, then open the next player turn. */
-function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData, hooks: TurnHooks): void {
-  hooks.onPlayerTurnEnd?.(world); // ADR-008: end-of-turn duration decrement (feature 08)
+function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData): void {
   turn.phase = 'enemy';
   world.emit({ kind: 'TurnEnded', phase: 'player' });
   world.emit({ kind: 'TurnStarted', phase: 'enemy' });
 
-  runEnemyTurn(world, hooks);
+  runEnemyTurn(world);
 
   world.emit({ kind: 'TurnEnded', phase: 'enemy' });
   turn.phase = 'player';
   turn.round += 1;
 
-  // Refill/regen/reset FIRST, so a start-of-turn checkpoint (the autosave wired into
-  // onPlayerTurnStart) captures the fresh turn-start resources, not last turn's leftovers.
+  // Refill/regen/reset FIRST, so the start-of-turn checkpoint (the autosave the scene wires on the
+  // TurnStarted{player} event below) captures the fresh turn-start resources, not last turn's leftovers.
   const pool = world.store(ResourcePool).get(te);
   if (pool !== undefined) {
     refillEnergy(pool);
@@ -171,21 +157,19 @@ function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData, hooks: T
   const budget = world.store(MovementBudget).get(te);
   if (budget !== undefined) budget.remaining = budget.max;
 
-  hooks.onPlayerTurnStart?.(world); // ADR-008 start-of-turn DoT (status effects) + scene autosave
-
   world.emit({ kind: 'RoundStarted', round: turn.round });
   world.emit({ kind: 'TurnStarted', phase: 'player', actor: te });
 }
 
 /**
  * Resolve enemies SEQUENTIALLY in deterministic ascending-id order (the brief's
- * decision: no simultaneous strike). Each enemy's action comes from the injected
- * AI (feature 12); the default passes. isAlive is re-checked so an enemy removed
- * earlier in the turn is skipped.
+ * decision: no simultaneous strike). isAlive is re-checked so an enemy removed
+ * earlier in the turn is skipped. The per-enemy action is filled in by the Enemy
+ * AI feature — this loop is the seam it plugs into.
  */
-function runEnemyTurn(world: World, hooks: TurnHooks): void {
+function runEnemyTurn(world: World): void {
   for (const enemy of world.entitiesWith(Enemy)) {
     if (!world.isAlive(enemy)) continue;
-    hooks.enemyIntent?.(world, enemy);
+    // The Enemy AI feature resolves this enemy's action here.
   }
 }

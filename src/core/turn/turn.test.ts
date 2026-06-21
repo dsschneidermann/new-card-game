@@ -11,7 +11,6 @@ import {
   offsetToAxial,
   hexDistance,
   Player,
-  Enemy,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -20,19 +19,18 @@ import {
   type GameEvent,
   type HexLayout,
   type EntityId,
-  type TurnHooks,
 } from '@core/index';
 
 const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, originY: 28 };
 
-function setup(opts?: { hooks?: TurnHooks; seed?: number }): {
+function setup(opts?: { seed?: number }): {
   world: World;
   grid: HexGrid;
   player: EntityId;
 } {
   const grid = new HexGrid(12, 12);
   const world = createWorld(opts?.seed ?? 1);
-  world.addSystem(makeTurnSystem(grid, opts?.hooks)); // before movement: RequestMove -> MoveTo same step
+  world.addSystem(makeTurnSystem(grid)); // before movement: RequestMove -> MoveTo same step
   world.addSystem(makeMovementSystem(grid, LAYOUT));
   const player = world.createEntity();
   world.store(Player).add(player, { isPlayer: true });
@@ -131,19 +129,12 @@ describe('action validation', () => {
 // src/core/cards/system.test.ts. The turn engine here only validates phase + spends energy.
 
 describe('turn cycle & enemy phase', () => {
-  it('EndTurn cycles player->enemy->player, bumps the round, and fires end then start hooks', () => {
-    const calls: string[] = [];
-    const { world, player } = setup({
-      hooks: {
-        onPlayerTurnEnd: () => calls.push('end'),
-        onPlayerTurnStart: () => calls.push('start'),
-      },
-    });
+  it('EndTurn cycles player->enemy->player, bumps the round, and emits the phase-transition events', () => {
+    const { world, player } = setup();
     const ts = world.store(TurnState).get(player) as { phase: string; round: number };
     const evs = advance(world, [{ kind: 'EndTurn', entity: player }]);
     expect(ts.phase).toBe('player');
     expect(ts.round).toBe(2);
-    expect(calls).toEqual(['end', 'start']);
     expect(kinds(evs)).toEqual([
       'TurnEnded',
       'TurnStarted',
@@ -152,53 +143,6 @@ describe('turn cycle & enemy phase', () => {
       'RoundStarted',
       'TurnStarted',
     ]);
-  });
-
-  it('applies refill / regen / budget-reset BEFORE the start-of-turn hook (so a turn-start checkpoint sees fresh resources)', () => {
-    let atHook: { energy: number; mana: number; budget: number } | null = null;
-    const { world, player } = setup({
-      hooks: {
-        onPlayerTurnStart: (w) => {
-          const p = w.store(ResourcePool).get(player) as { energy: number; mana: number };
-          const b = w.store(MovementBudget).get(player) as { remaining: number };
-          atHook = { energy: p.energy, mana: p.mana, budget: b.remaining };
-        },
-      },
-    });
-    // Deplete this turn's resources, then end the turn.
-    const pool = world.store(ResourcePool).get(player) as { energy: number; mana: number };
-    const budget = world.store(MovementBudget).get(player) as { remaining: number };
-    pool.energy = 0;
-    pool.mana = 0;
-    budget.remaining = 0;
-
-    advance(world, [{ kind: 'EndTurn', entity: player }]);
-
-    // The hook is where WorldScene autosaves; it must observe the refilled turn-start
-    // state (energy->max, mana regen, budget->max), not the depleted leftovers.
-    expect(atHook).toEqual({ energy: 3, mana: 1, budget: 4 });
-  });
-
-  it('resolves enemies sequentially in ascending-id order, skipping any removed mid-turn', () => {
-    const acted: EntityId[] = [];
-    const { world, player } = setup({
-      hooks: {
-        enemyIntent: (w, enemy) => {
-          acted.push(enemy);
-          if (acted.length === 1) {
-            const enemies = w.entitiesWith(Enemy);
-            const last = enemies[enemies.length - 1];
-            if (last !== undefined && last !== enemy) w.destroyEntity(last);
-          }
-        },
-      },
-    });
-    const e1 = world.createEntity();
-    const e2 = world.createEntity();
-    const e3 = world.createEntity();
-    for (const e of [e1, e2, e3]) world.store(Enemy).add(e, { isEnemy: true });
-    advance(world, [{ kind: 'EndTurn', entity: player }]);
-    expect(acted).toEqual([e1, e2]); // e1 acts (removes e3), e2 acts, e3 skipped (no simultaneous strike)
   });
 });
 

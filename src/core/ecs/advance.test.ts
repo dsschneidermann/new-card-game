@@ -79,10 +79,10 @@ describe('advance() — systems, events, and commands', () => {
 
   it('is deterministic for the same seed and command list', () => {
     const cmds = (e: EntityId): Command[] => [{ kind: 'PlayCard', entity: e, cardId: 'x' }];
-    const dmgSystem: System = (world, ctx) => {
+    const dmgSystem: System = (world) => {
       for (const cmd of world.commands()) {
         if (cmd.kind === 'PlayCard') {
-          const dmg = ctx.rng.int(6) + 1;
+          const dmg = world.rng.int(6) + 1;
           const hp = world.store(Health).get(cmd.entity);
           if (hp !== undefined) hp.value -= dmg;
           world.emit({ kind: 'DamageDealt', target: cmd.entity, amount: dmg });

@@ -6,7 +6,7 @@
  * the screen-flow state machine, and the asset manifest/validation.
  */
 
-// Entity Component System & Game Loop (feature 02)
+// Entity Component System & Game Loop
 export type { EntityId } from './ecs/entity';
 export type { Component, ComponentType, ComponentStore, ComponentOptions } from './ecs/component';
 export { defineComponent, componentByName } from './ecs/component';
@@ -15,10 +15,10 @@ export { makeRng } from './ecs/rng';
 export type { Command } from './ecs/commands';
 export type { GameEvent } from './ecs/events';
 export { CommandQueue, EventBus } from './ecs/queue';
-export type { World, System, StepContext, WorldSnapshot } from './ecs/world';
+export type { World, System, WorldSnapshot } from './ecs/world';
 export { createWorld, advance, serializeWorld, restoreWorld } from './ecs/world';
 
-// Persistence & save foundation (feature 06)
+// Persistence & save foundation
 export type { StorageAdapter, SaveStateV1, LoadResult } from './save';
 export {
   InMemoryStorageAdapter,
@@ -32,17 +32,17 @@ export {
   hasSave,
 } from './save';
 
-// Screen-flow state machine (feature 04)
+// Screen-flow state machine
 export type { ScreenState, ScreenEvent, FlowContext, FlowResult, SavePresence } from './flow/screenFlow';
 export { transition, INITIAL_SCREEN } from './flow/screenFlow';
 
-// Asset manifest & validation (feature 03)
+// Asset manifest & validation
 export type { AssetDescriptor, ManifestEntry, ValidationReport } from './assets/manifest';
 export { AssetManifest, frameConfig, assetScale, spriteOffset } from './assets/manifest';
 export type { AssetKey } from './assets/registry';
 export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validateManifest } from './assets/registry';
 
-// Hex grid, pathfinding & movement (feature 05)
+// Hex grid, pathfinding & movement
 export type { Hex } from './hex/hex';
 export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } from './hex/hex';
 export type { HexLayout, Offset } from './hex/layout';
@@ -53,21 +53,20 @@ export { hexLine, hexesWithinRange } from './hex/range';
 export type { HexPositionData, MovePathData, FacingData } from './hex/movement';
 export { HexPosition, MovePath, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
-// Character sprite animation helpers (feature 14)
+// Character sprite animation helpers
 export type { Facing } from './sprite';
 export { facingFromIntent } from './sprite';
 
-// Actor tags (feature 06 player marker; feature 07 enemy marker)
+// Actor tags (player + enemy markers)
 export type { PlayerData, EnemyData } from './actors';
 export { Player, Enemy } from './actors';
 
-// Turn Engine: phases, resource economy, enemy-turn runner (feature 07)
+// Turn Engine: phases, resource economy, enemy-turn runner
 export type {
   Phase,
   TurnStateData,
   ResourcePoolData,
   MovementBudgetData,
-  TurnHooks,
   Validation,
 } from './turn';
 export {
@@ -87,7 +86,7 @@ export {
   canPlaySpell,
 } from './turn';
 
-// Cards: definitions, targeting, the card-entity deck cycle, and stat effects (feature 09 + Card
+// Cards: definitions, targeting, the card-entity deck cycle, and stat effects (Card
 // Entities, Deck Cycle & Stat Effects)
 export type {
   CardDef,
