@@ -261,6 +261,7 @@ export class CardController {
     obj: Phaser.GameObjects.Container,
     p: Phaser.Input.Pointer,
   ): void {
+    if (p.rightButtonDown()) return; // right-click cancels (handled by the scene), never arms
     if (this.armed !== null && this.armed.obj === obj) {
       this.disarm();
       return;

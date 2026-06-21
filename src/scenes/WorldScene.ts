@@ -125,6 +125,7 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(-500_000)
       .setInteractive()
       .on('pointerdown', (p: Phaser.Input.Pointer) => {
+        if (p.rightButtonDown()) return; // right-click is handled globally (cancel), never a move/target
         const hex = pixelToHex(this.layout, p.worldX, p.worldY);
         if (this.cards.isArmed()) {
           this.cards.onWorldDown(hex); // click-mode first target / two-step second
@@ -133,6 +134,12 @@ export class WorldScene extends Phaser.Scene {
           this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
         }
       });
+
+    // Right-click cancels an armed card/spell and never opens the browser context menu.
+    this.input.mouse?.disableContextMenu();
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonDown() && this.cards.isArmed()) this.cards.cancel();
+    });
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.cards.onPointerMove(p));
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.cards.onPointerUp(p));
