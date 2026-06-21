@@ -116,6 +116,7 @@ export {
   cardDef,
   spellDef,
   isAttackCard,
+  isHeavyAttack,
   resolveTargeting,
   targetMaxRange,
   makeCardSystem,

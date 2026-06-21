@@ -24,6 +24,7 @@ import {
   drawUpTo,
   STARTER_COLLECTION,
   isAttackCard,
+  isHeavyAttack,
   facingToward,
   hexToPixel,
   pixelToHex,
@@ -220,9 +221,8 @@ export class WorldScene extends Phaser.Scene {
    * Drive the player's transient AnimState (card-play feel). 'armed' mirrors the
    * CardController each frame; 'base' becomes 'ready' after playing any card or spell
    * and 'idle' at turn start or after a move. An attack card additionally plays a
-   * random one-shot overlay that a scene timer clears back to the resting stance.
-   * The variant pick uses Math.random (scene-side), never world.rng, so this purely
-   * visual choice cannot perturb the gameplay stream (drawHand / determinism).
+   * one-shot overlay (attack1 by default, attack2 for a heavyAttack card) that a scene
+   * timer clears back to the resting stance — deterministic and presentation-only.
    */
   private syncPlayerAnim(events: GameEvent[]): void {
     const anim = this.world.store(AnimState).get(this.player);
@@ -233,7 +233,7 @@ export class WorldScene extends Phaser.Scene {
         case 'CardPlayed':
           if (e.entity !== this.player) break;
           anim.base = 'ready';
-          if (isAttackCard(e.cardId)) this.playAttack(anim);
+          if (isAttackCard(e.cardId)) this.playAttack(anim, isHeavyAttack(e.cardId) ? 'attack2' : 'attack1');
           break;
         case 'SpellCast':
           if (e.entity === this.player) anim.base = 'ready';
@@ -253,9 +253,8 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Start a random attack overlay and schedule its clear after it plays once. */
-  private playAttack(anim: AnimStateData): void {
-    const variant: 'attack1' | 'attack2' = Math.random() < 0.5 ? 'attack1' : 'attack2';
+  /** Start the given attack overlay (attack1 default / attack2 for heavy attacks) and clear it after it plays once. */
+  private playAttack(anim: AnimStateData, variant: 'attack1' | 'attack2'): void {
     anim.oneShot = variant;
     this.attackClearTimer?.remove(); // a rapid second attack restarts the clear timer
     const spec = PLAYER_ATTACK_ANIMS[variant]; // per-variant timing: attack1 is dragged out

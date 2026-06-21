@@ -23,6 +23,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     effectText: 'Deal damage to an enemy up to 2 hexes away.',
     target: { kind: 'singleHex', maxRange: 2 },
     attack: true,
+    heavyAttack: true,
   },
   {
     id: 'ranged',
@@ -82,6 +83,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     effectText: 'Hit all enemies within 2 hexes.',
     target: { kind: 'selfAoe', radius: 2 },
     attack: true,
+    heavyAttack: true,
   },
 ];
 
@@ -147,6 +149,11 @@ export function cardDef(id: string): CardDef | undefined {
 /** True for attack cards (melee/ranged) — they trigger the player's attack animation. */
 export function isAttackCard(id: string): boolean {
   return CARD_BY_ID.get(id)?.attack === true;
+}
+
+/** True for heavy attacks — they play the attack2 (heavier) animation instead of the default attack1. */
+export function isHeavyAttack(id: string): boolean {
+  return CARD_BY_ID.get(id)?.heavyAttack === true;
 }
 export function spellDef(id: string): SpellDef | undefined {
   return SPELL_BY_ID.get(id);

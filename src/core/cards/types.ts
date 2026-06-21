@@ -40,6 +40,8 @@ export interface CardDef {
   readonly target: TargetSpec;
   /** Attack cards (melee/ranged) trigger the player's attack animation when played. */
   readonly attack?: boolean;
+  /** A heavier attack: plays the attack2 animation instead of the default attack1 (presentation-only). */
+  readonly heavyAttack?: boolean;
   /** Mechanical effect resolved by the card system on play (skills like Quick Draw / Sharpen). */
   readonly effect?: CardEffect;
 }

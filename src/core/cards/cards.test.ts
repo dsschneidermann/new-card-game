@@ -8,6 +8,7 @@ import {
   cardDef,
   spellDef,
   isAttackCard,
+  isHeavyAttack,
   STARTER_COLLECTION,
   type Hex,
 } from '@core/index';
@@ -165,6 +166,21 @@ describe('starter content', () => {
     expect(isAttackCard('whirlwind')).toBe(true); // a self-centered AOE melee (attack)
     expect(isAttackCard('blizzard')).toBe(false); // a spell id, not a card
     expect(isAttackCard('nope')).toBe(false);
+  });
+
+  it('isHeavyAttack is true only for heavy attacks (whirlwind, longstrike) -> attack2 animation', () => {
+    expect(isHeavyAttack('whirlwind')).toBe(true);
+    expect(isHeavyAttack('longstrike')).toBe(true);
+    expect(isHeavyAttack('melee')).toBe(false); // a normal attack -> attack1
+    expect(isHeavyAttack('ranged')).toBe(false);
+    expect(isHeavyAttack('defend')).toBe(false);
+    expect(isHeavyAttack('quickdraw')).toBe(false);
+    expect(isHeavyAttack('blizzard')).toBe(false); // a spell id, not a card
+    expect(isHeavyAttack('nope')).toBe(false);
+    // the flag lives on the defs of the heavy attacks only
+    expect(cardDef('whirlwind')?.heavyAttack).toBe(true);
+    expect(cardDef('longstrike')?.heavyAttack).toBe(true);
+    expect(cardDef('melee')?.heavyAttack).toBeUndefined();
   });
 
   it('the demonstrator skills carry their effects', () => {
