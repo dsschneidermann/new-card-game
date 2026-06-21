@@ -85,6 +85,19 @@ export const CARD_DEFS: readonly CardDef[] = [
     attack: true,
     heavyAttack: true,
   },
+  {
+    // Demonstrator: a card-PICK skill — opens the discard pile as a picker and returns the chosen card
+    // to hand. target 'self' (same visual); pickFrom 'discard' drives the picker; the effect resolves
+    // the picked card (cardTargets) by moving it from the discard pile back to the hand.
+    id: 'recall',
+    name: 'Recall',
+    cost: 1,
+    art: 'card.art.recall',
+    effectText: 'Return a chosen card from your discard pile to your hand.',
+    target: { kind: 'self' },
+    pickFrom: 'discard',
+    effect: { kind: 'ReturnToHandFromDiscard' },
+  },
 ];
 
 export const SPELL_DEFS: readonly SpellDef[] = [
@@ -137,6 +150,8 @@ export const STARTER_COLLECTION: readonly string[] = [
   'sharpen',
   'whirlwind',
   'whirlwind',
+  'recall',
+  'recall',
 ];
 
 const CARD_BY_ID = new Map<string, CardDef>(CARD_DEFS.map((c) => [c.id, c]));

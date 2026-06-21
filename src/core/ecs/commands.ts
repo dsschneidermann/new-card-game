@@ -17,7 +17,8 @@ export type Command =
   // self-target). `faceToward` (attack cards) is the hex the attack was aimed at — the target hex,
   // or the clicked hex for a self-AOE — used to turn the player to face the attack. `cardEntity` is
   // the played card-instance entity: on an accepted play the card system moves it to the discard
-  // pile and resolves its effect (omit it for a non-hand play, e.g. AI/effects).
-  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; cardEntity?: EntityId; faceToward?: Hex }
+  // pile and resolves its effect (omit it for a non-hand play, e.g. AI/effects). `cardTargets` are
+  // picked CARD instances (e.g. the discard card chosen for Recall) that the card's effect resolves.
+  | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; cardEntity?: EntityId; faceToward?: Hex; cardTargets?: readonly EntityId[] }
   | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId; targets?: readonly Hex[] }
   | { kind: 'EndTurn'; entity: EntityId };

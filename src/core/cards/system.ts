@@ -81,7 +81,7 @@ export function makeCardSystem(handSize: number): System {
       if (ev.kind === 'TurnStarted' && ev.phase === 'player') {
         startTurn(world, owner, deck, handSize);
       } else if (ev.kind === 'CardPlayed' && ev.entity === owner && ev.cardEntity !== undefined) {
-        playCard(world, owner, deck, ev.cardEntity);
+        playCard(world, owner, deck, ev.cardEntity, ev.cardTargets ?? []);
       }
     }
   };
@@ -99,7 +99,13 @@ function startTurn(world: World, owner: EntityId, deck: DeckStateData, handSize:
 }
 
 /** A played card leaves the hand -> discard (clearing temporaries), then its effect resolves. */
-function playCard(world: World, owner: EntityId, deck: DeckStateData, instance: EntityId): void {
+function playCard(
+  world: World,
+  owner: EntityId,
+  deck: DeckStateData,
+  instance: EntityId,
+  cardTargets: readonly EntityId[],
+): void {
   const i = deck.hand.indexOf(instance);
   if (i === -1) return; // not in hand (defensive — e.g. a non-hand play)
   deck.hand.splice(i, 1);
@@ -108,7 +114,7 @@ function playCard(world: World, owner: EntityId, deck: DeckStateData, instance: 
   const defId = world.store(Card).get(instance)?.defId;
   world.emit({ kind: 'CardDiscarded', entity: owner, instance, defId: defId ?? '' });
   const effect = defId !== undefined ? cardDef(defId)?.effect : undefined;
-  if (effect !== undefined) resolveEffect(world, owner, deck, effect);
+  if (effect !== undefined) resolveEffect(world, owner, deck, effect, cardTargets);
 }
 
 /** Clear any temporary in-hand modifiers from an instance (whenever it leaves the hand). */
@@ -121,7 +127,13 @@ function clearTemp(world: World, instance: EntityId): void {
  * world.rng so they stay deterministic. The played card has already left the hand, so the hand now
  * holds only OTHER cards (relevant to ReduceRandomOtherCost).
  */
-function resolveEffect(world: World, owner: EntityId, deck: DeckStateData, effect: CardEffect): void {
+function resolveEffect(
+  world: World,
+  owner: EntityId,
+  deck: DeckStateData,
+  effect: CardEffect,
+  cardTargets: readonly EntityId[],
+): void {
   switch (effect.kind) {
     case 'DrawAndFree': {
       const drawn = drawOne(deck, world.rng); // cycles (reshuffles) as needed
@@ -141,6 +153,16 @@ function resolveEffect(world: World, owner: EntityId, deck: DeckStateData, effec
       if (mods !== undefined) mods.costDelta -= effect.amount;
       else world.store(CardMods).add(target, { costDelta: -effect.amount });
       world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the reduced cost
+      break;
+    }
+    case 'ReturnToHandFromDiscard': {
+      const target = cardTargets[0];
+      if (target === undefined) return; // no card was selected (defensive)
+      const i = deck.discardPile.indexOf(target);
+      if (i === -1) return; // the selected card is not in the discard pile (defensive)
+      deck.discardPile.splice(i, 1);
+      deck.hand.push(target);
+      world.emit({ kind: 'HandDrawn', entity: owner }); // refresh the fan to show the returned card
       break;
     }
   }

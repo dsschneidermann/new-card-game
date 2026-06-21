@@ -24,7 +24,8 @@ export type TargetSpec =
  */
 export type CardEffect =
   | { kind: 'DrawAndFree' }
-  | { kind: 'ReduceRandomOtherCost'; amount: number };
+  | { kind: 'ReduceRandomOtherCost'; amount: number }
+  | { kind: 'ReturnToHandFromDiscard' }; // returns the picked card (cardTargets[0]) from discard to hand
 
 /**
  * A card definition. Each CardDef IS a card type, identified by id; the deck holds card-instance
@@ -44,6 +45,8 @@ export interface CardDef {
   readonly heavyAttack?: boolean;
   /** Mechanical effect resolved by the card system on play (skills like Quick Draw / Sharpen). */
   readonly effect?: CardEffect;
+  /** If set, playing this card opens a card-picker on that pile; the chosen card becomes the play's cardTargets. */
+  readonly pickFrom?: 'discard';
 }
 
 /** A spell definition. Each SpellDef IS a spell type, identified by id (spell.icon.<id>). */

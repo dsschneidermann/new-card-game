@@ -107,6 +107,9 @@ export class CardController {
   private overlayPile: 'deck' | 'discard' | null = null; // which pile is shown (null = closed)
   private overlayScrollMin = 0; // most-negative content.y offset from the top (0 if it all fits)
   private overlayDrag: { startY: number; startContentY: number; moved: boolean } | null = null;
+  // When set, the overlay is a card PICKER: a tap resolves with the tapped frame's instance, or null
+  // (a tap that missed every frame = cancel). The callback commits or cancels the deferred play.
+  private overlayOnResolve: ((picked: EntityId | null) => void) | null = null;
   private deckCount!: Phaser.GameObjects.Text; // draw-pile count over the deck icon (lower-left)
   private discardCount!: Phaser.GameObjects.Text; // discard-pile count over the discard icon (lower-right)
 
@@ -302,6 +305,14 @@ export class CardController {
       this.ctx.notify(v.reason);
       return;
     }
+    // A card-picker card (e.g. Recall) needs cards in its source pile; reject at selection if empty.
+    if (kind === 'card' && cardDef(def.id)?.pickFrom === 'discard') {
+      const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
+      if ((deck?.discardPile.length ?? 0) === 0) {
+        this.ctx.notify('No discarded cards to return');
+        return;
+      }
+    }
     this.disarm();
     this.armed = { kind, def, obj, firstPick: null };
     this.pressDown = { x: p.x, y: p.y };
@@ -340,6 +351,12 @@ export class CardController {
     if (this.armed === null) return;
     const { kind, def, firstPick, obj } = this.armed;
     const spec = def.target;
+    // A card that picks a target card from a pile (e.g. Recall from the discard) DEFERS its play: open
+    // the card picker; a selected card commits the play (cardTargets), tapping outside cancels.
+    if (kind === 'card' && cardDef(def.id)?.pickFrom !== undefined) {
+      this.openCardPick(obj, def);
+      return;
+    }
     // Record the aimed hex(es) for when effects land: the selected hex, both picks for a two-step,
     // the in-bounds burst hexes for a self-AOE (so it mirrors how targeted attacks record their
     // hits), or none for a plain self-target (whose chosen hex is ignored).
@@ -380,6 +397,30 @@ export class CardController {
     // The played card leaves the hand for the turn, but the SIMULATION owns that: the card system
     // moves the instance to the discard pile (and resolves its effect) and emits CardDiscarded,
     // which the scene turns into animateCardOut(). Spells stay in the sidebar. (No deck write here.)
+  }
+
+  /**
+   * A pickFrom card defers its play: open the card picker on its source pile (discard). A selected card
+   * commits the play with cardTargets=[picked]; tapping outside cancels (the card stays in hand). The
+   * pile is non-empty here (arm() rejects an empty one); the guard is defensive.
+   */
+  private openCardPick(obj: Phaser.GameObjects.Container, def: CardDef | SpellDef): void {
+    const world = this.ctx.world();
+    const deck = world.store(DeckState).get(this.ctx.player());
+    const pile = deck?.discardPile ?? [];
+    if (pile.length === 0) {
+      this.disarm();
+      return;
+    }
+    const player = this.ctx.player();
+    const cardEntity = obj.getData('cardEntity') as EntityId;
+    const energyCost = this.cardCost(obj);
+    this.openCardPicker('Select a card to return to hand', pile, (picked) => {
+      if (picked !== null) {
+        this.ctx.submit({ kind: 'PlayCard', entity: player, cardId: def.id, energyCost, cardEntity, cardTargets: [picked] });
+      }
+      this.disarm();
+    });
   }
 
   /** Effective energy cost of a hand card object (reads its instance's base + permanent + temp modifiers). */
@@ -632,7 +673,7 @@ export class CardController {
     const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
     // Cards still in the draw pile, shown over the stack (kept current by refreshPileCounts).
     this.deckCount = this.scene.add
-      .text(0, -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .text(-s(2), -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     const label = this.scene.add
       .text(0, s(26), 'Deck', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
@@ -649,7 +690,7 @@ export class CardController {
     const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
     const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
     this.discardCount = this.scene.add
-      .text(0, -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .text(-s(2), -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     const label = this.scene.add
       .text(0, s(26), 'Discard', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
@@ -688,7 +729,7 @@ export class CardController {
       if (this.overlay.visible) this.scrollOverlay(this.overlayContent.y - dy);
     });
     this.scene.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onOverlayDragMove(p));
-    this.scene.input.on('pointerup', () => this.endOverlayDrag());
+    this.scene.input.on('pointerup', (p: Phaser.Input.Pointer) => this.endOverlayDrag(p));
   }
 
   /** Open the shared overlay on a pile (or close it if that pile is already showing), rebuilding its sorted grid. */
@@ -707,10 +748,22 @@ export class CardController {
     this.overlay.setVisible(true);
   }
 
+  /** Open the shared overlay as a card PICKER: selectable frames + a prompt title; onResolve(picked|null) runs on the next tap. */
+  private openCardPicker(title: string, ids: readonly EntityId[], onResolve: (picked: EntityId | null) => void): void {
+    this.overlayTitle.setText(title);
+    this.populateOverlay(ids);
+    this.overlayContent.y = s(OVERLAY_TOP); // reset scroll to the top
+    this.overlayDrag = null;
+    this.overlayPile = null; // a picker, not a deck/discard browse
+    this.overlayOnResolve = onResolve;
+    this.overlay.setVisible(true);
+  }
+
   private closeOverlay(): void {
     this.overlay.setVisible(false);
     this.overlayPile = null;
     this.overlayDrag = null;
+    this.overlayOnResolve = null;
   }
 
   /**
@@ -732,6 +785,7 @@ export class CardController {
       const col = i % OVERLAY_COLS;
       const row = Math.floor(i / OVERLAY_COLS);
       face.setPosition(width / 2 + (col - (OVERLAY_COLS - 1) / 2) * s(OVERLAY_COL_W), s(OVERLAY_PAD) + row * s(OVERLAY_ROW_H));
+      face.setData('instance', instance); // for the picker's hit-test (pickFaceAt)
       this.overlayContent.add(face);
       this.overlayFaces.push(face);
     });
@@ -758,11 +812,43 @@ export class CardController {
     this.scrollOverlay(this.overlayDrag.startContentY + dy);
   }
 
-  /** End a backdrop press: a tap (no drag) closes the overlay; a drag just ends. */
-  private endOverlayDrag(): void {
+  /**
+   * End a backdrop press. A drag just ends (it scrolled). A tap: in a PICKER it resolves with the
+   * tapped card's instance, or null when the tap missed every frame (cancel); in a browse overlay it
+   * just closes.
+   */
+  private endOverlayDrag(p: Phaser.Input.Pointer): void {
     if (this.overlayDrag === null) return;
     const wasTap = !this.overlayDrag.moved;
     this.overlayDrag = null;
-    if (wasTap) this.closeOverlay();
+    if (!wasTap) return;
+    if (this.overlayOnResolve !== null) {
+      const picked = this.pickFaceAt(p);
+      const resolve = this.overlayOnResolve;
+      this.closeOverlay(); // clears overlayOnResolve before the callback runs
+      resolve(picked);
+    } else {
+      this.closeOverlay();
+    }
+  }
+
+  /**
+   * The card-instance under pointer `p` in the picker, or null if the tap missed every frame. Hit-test
+   * is CLIPPED to the viewport (a frame scrolled out of view is not selectable), since the geometry
+   * mask is render-only. Faces are centred containers at OVERLAY_FACE_SCALE; the grid scrolls via
+   * overlayContent.y, and content.x is 0 so a face's x is already its scene x.
+   */
+  private pickFaceAt(p: Phaser.Input.Pointer): EntityId | null {
+    const { height } = this.scene.scale;
+    if (p.y < s(OVERLAY_TOP) || p.y > height - s(OVERLAY_BOTTOM_MARGIN)) return null;
+    const halfW = (s(96) * OVERLAY_FACE_SCALE) / 2;
+    const halfH = (s(144) * OVERLAY_FACE_SCALE) / 2;
+    for (const face of this.overlayFaces) {
+      const sceneY = this.overlayContent.y + face.y;
+      if (Math.abs(p.x - face.x) <= halfW && Math.abs(p.y - sceneY) <= halfH) {
+        return (face.getData('instance') as EntityId | undefined) ?? null;
+      }
+    }
+    return null;
   }
 }

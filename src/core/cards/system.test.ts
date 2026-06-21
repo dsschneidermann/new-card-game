@@ -265,6 +265,51 @@ describe('sortPileForDisplay (overlay display order)', () => {
   });
 });
 
+describe('card-pick effect (Recall / ReturnToHandFromDiscard)', () => {
+  it('returns the selected discard card to hand and discards recall itself', () => {
+    const { world, player } = setup(['recall', 'melee']);
+    const deck = deckOf(world, player);
+    const recall = deck.drawPile.find((e) => defOf(world, e) === 'recall') as EntityId;
+    const melee = deck.drawPile.find((e) => defOf(world, e) === 'melee') as EntityId;
+    deck.drawPile.length = 0;
+    deck.hand.push(recall); // recall in hand
+    deck.discardPile.push(melee); // melee sitting in the discard
+    advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'recall', energyCost: 1, cardEntity: recall, cardTargets: [melee] },
+    ]);
+    expect(deck.hand).toContain(melee); // the picked card returned to hand
+    expect(deck.discardPile).not.toContain(melee);
+    expect(deck.discardPile).toContain(recall); // recall itself was played -> discard
+  });
+
+  it('is a no-op when the selected card is not in the discard pile', () => {
+    const { world, player } = setup(['recall', 'melee']);
+    const deck = deckOf(world, player);
+    const recall = deck.drawPile.find((e) => defOf(world, e) === 'recall') as EntityId;
+    const melee = deck.drawPile.find((e) => defOf(world, e) === 'melee') as EntityId;
+    deck.drawPile.length = 0;
+    deck.hand.push(recall, melee); // melee is in HAND, not the discard
+    advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'recall', energyCost: 1, cardEntity: recall, cardTargets: [melee] },
+    ]);
+    expect(deck.hand).toContain(melee); // unchanged (still in hand)
+    expect(deck.discardPile).toEqual([recall]); // only recall moved to discard
+  });
+
+  it('plays cleanly with no cardTargets (no card was picked)', () => {
+    const { world, player } = setup(['recall', 'melee']);
+    const deck = deckOf(world, player);
+    const recall = deck.drawPile.find((e) => defOf(world, e) === 'recall') as EntityId;
+    const melee = deck.drawPile.find((e) => defOf(world, e) === 'melee') as EntityId;
+    deck.drawPile.length = 0;
+    deck.hand.push(recall);
+    deck.discardPile.push(melee);
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'recall', energyCost: 1, cardEntity: recall }]); // no cardTargets
+    expect(deck.discardPile).toContain(melee); // unchanged
+    expect(deck.hand).not.toContain(melee);
+  });
+});
+
 describe('DeckState v3 persistence (feature 06 obligation)', () => {
   it('round-trips the three piles + per-instance Card / CardMods / TempCardMods', () => {
     const { world, player } = setup(['melee', 'ranged', 'defend', 'jump']);

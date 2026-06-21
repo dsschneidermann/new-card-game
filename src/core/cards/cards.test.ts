@@ -140,7 +140,7 @@ describe('targetMaxRange', () => {
 });
 
 describe('starter content', () => {
-  it('the starter collection is the expected 18-card multiset of defined cards', () => {
+  it('the starter collection is the expected 20-card multiset of defined cards', () => {
     expect(STARTER_COLLECTION).toEqual([
       'melee', 'melee', 'melee',
       'longstrike', 'longstrike',
@@ -150,8 +150,9 @@ describe('starter content', () => {
       'quickdraw', 'quickdraw',
       'sharpen', 'sharpen',
       'whirlwind', 'whirlwind',
+      'recall', 'recall',
     ]);
-    expect(STARTER_COLLECTION).toHaveLength(18);
+    expect(STARTER_COLLECTION).toHaveLength(20);
     for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
   });
 
@@ -186,6 +187,12 @@ describe('starter content', () => {
   it('the demonstrator skills carry their effects', () => {
     expect(cardDef('quickdraw')).toMatchObject({ cost: 1, effect: { kind: 'DrawAndFree' } });
     expect(cardDef('sharpen')).toMatchObject({ cost: 1, effect: { kind: 'ReduceRandomOtherCost', amount: 1 } });
+    expect(cardDef('recall')).toMatchObject({
+      cost: 1,
+      target: { kind: 'self' },
+      pickFrom: 'discard',
+      effect: { kind: 'ReturnToHandFromDiscard' },
+    });
     expect(cardDef('melee')?.effect).toBeUndefined();
   });
 
