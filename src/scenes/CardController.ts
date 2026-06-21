@@ -315,14 +315,20 @@ export class CardController {
     if (this.armed === null) return;
     const { kind, def, firstPick, obj } = this.armed;
     const spec = def.target;
-    // Record the aimed hex(es) for when effects land: the selected hex, both picks for a
-    // two-step, or none for a self-target (whose chosen hex is ignored).
+    // Record the aimed hex(es) for when effects land: the selected hex, both picks for a two-step,
+    // the in-bounds burst hexes for a self-AOE (so it mirrors how targeted attacks record their
+    // hits), or none for a plain self-target (whose chosen hex is ignored).
+    const origin = this.originHex();
     const targets: Hex[] =
-      spec.kind === 'self' || spec.kind === 'selfAoe'
+      spec.kind === 'self'
         ? []
-        : spec.kind === 'twoStep' && firstPick !== null
-          ? [firstPick, finalHex]
-          : [finalHex];
+        : spec.kind === 'selfAoe'
+          ? origin === null
+            ? []
+            : resolveTargeting(spec, origin, finalHex).primary.filter((h) => this.ctx.grid.inBounds(h))
+          : spec.kind === 'twoStep' && firstPick !== null
+            ? [firstPick, finalHex]
+            : [finalHex];
     const player = this.ctx.player();
     if (kind === 'card') {
       const cardEntity = obj.getData('cardEntity') as EntityId; // the played card-instance
