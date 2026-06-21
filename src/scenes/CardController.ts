@@ -179,13 +179,16 @@ export class CardController {
     const newSet = new Set(this.ctx.world().store(DeckState).get(this.ctx.player())?.hand ?? []);
     const leaving = this.handCards.filter((c) => !newSet.has(c.getData('cardEntity') as EntityId));
     const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
-    // Snapshot which instances are already on screen BEFORE destroying their sprites: getData() on a
-    // destroyed object returns undefined, which would mark every card "new" and re-deal the whole hand.
+    // Snapshot, BEFORE destroying the sprites (getData/x/y are gone after destroy): which instances are
+    // already on screen (so they don't re-deal) and WHERE they are (so they slide to their new slot).
     const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
+    const fromPos = new Map<EntityId, { x: number; y: number; angle: number }>();
+    for (const c of staying) fromPos.set(c.getData('cardEntity') as EntityId, { x: c.x, y: c.y, angle: c.angle });
     this.animateHandDiscard(leaving);
     for (const c of staying) c.destroy(); // replaced by a fresh face (so a changed cost re-renders)
     const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
-    this.buildHand(dealBase, (instance) => !wasPresent.has(instance)); // only genuinely-new cards fade in
+    // Genuinely-new cards fade in; kept cards slide from their old position to the (shifted) new slot.
+    this.buildHand(dealBase, (instance) => !wasPresent.has(instance), fromPos);
   }
 
   /**
@@ -194,7 +197,11 @@ export class CardController {
    * and snaps to its fan slot. A card for which shouldFadeIn(instance) is true instead starts offset to
    * the right + transparent and fades into its slot, staggered leftmost-first after `dealBase`.
    */
-  private buildHand(dealBase: number, shouldFadeIn: (instance: EntityId) => boolean): void {
+  private buildHand(
+    dealBase: number,
+    shouldFadeIn: (instance: EntityId) => boolean,
+    fromPos?: Map<EntityId, { x: number; y: number; angle: number }>,
+  ): void {
     const world = this.ctx.world();
     const hand = world.store(DeckState).get(this.ctx.player())?.hand ?? [];
     const layout = this.fanLayout(hand.length);
@@ -209,6 +216,15 @@ export class CardController {
       if (shouldFadeIn(instance)) {
         this.fadeCardIn(card, dealBase + newOrdinal * DRAW_STAGGER_MS);
         newOrdinal += 1;
+        return;
+      }
+      // A card that was already on screen: start it at its previous position and SLIDE to its new
+      // (possibly shifted) slot rather than snapping — e.g. when an effect adds a card and the fan
+      // widens. buildHandCard already snapped it to the new slot, so that slot is the tween target.
+      const prev = fromPos?.get(instance);
+      if (prev !== undefined) {
+        card.setPosition(prev.x, prev.y).setAngle(prev.angle);
+        this.placeCard(card, i, hand.length, layout, true);
       }
     });
     this.refreshPileCounts();
