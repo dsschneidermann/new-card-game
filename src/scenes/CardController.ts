@@ -89,6 +89,8 @@ export class CardController {
   private tooltip!: Phaser.GameObjects.Container;
   private deckOverlay!: Phaser.GameObjects.Container;
   private deckFaces: Phaser.GameObjects.Container[] = []; // overlay card faces, rebuilt each open
+  private deckCount!: Phaser.GameObjects.Text; // draw-pile count over the deck icon (lower-left)
+  private discardCount!: Phaser.GameObjects.Text; // discard-pile count over the discard icon (lower-right)
 
   constructor(ctx: CardUiContext) {
     this.ctx = ctx;
@@ -101,6 +103,7 @@ export class CardController {
     this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false);
     this.buildSpellSidebar();
     this.buildDeckIcon();
+    this.buildDiscardIcon();
     this.buildDeckOverlay();
     this.refreshHand();
   }
@@ -178,6 +181,7 @@ export class CardController {
       card.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('card', def, card, p));
       this.handCards.push(card);
     });
+    this.refreshPileCounts();
   }
 
   /**
@@ -245,6 +249,7 @@ export class CardController {
     });
     const layout = this.fanLayout(this.handCards.length);
     this.handCards.forEach((c, i) => this.placeCard(c, i, this.handCards.length, layout, true));
+    this.refreshPileCounts();
   }
 
   // ---- internals ---------------------------------------------------------
@@ -561,12 +566,38 @@ export class CardController {
     const icon = this.scene.add.container(s(44), height - s(40)).setDepth(HUD_DEPTH);
     const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
     const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
+    // Cards still in the draw pile, shown over the stack (kept current by refreshPileCounts).
+    this.deckCount = this.scene.add
+      .text(0, -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .setOrigin(0.5);
     const label = this.scene.add
       .text(0, s(26), 'Deck', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
       .setOrigin(0.5, 0);
-    icon.add([r1, r2, label]);
+    icon.add([r1, r2, this.deckCount, label]);
     icon.setInteractive(new Phaser.Geom.Rectangle(-s(22), -s(28), s(44), s(64)), Phaser.Geom.Rectangle.Contains);
     icon.on('pointerdown', () => this.toggleDeck());
+  }
+
+  /** A discard-pile icon mirroring the deck icon at the lower-right, showing the discard count. */
+  private buildDiscardIcon(): void {
+    const { width, height } = this.scene.scale;
+    const icon = this.scene.add.container(width - s(44), height - s(40)).setDepth(HUD_DEPTH);
+    const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
+    const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
+    this.discardCount = this.scene.add
+      .text(0, -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .setOrigin(0.5);
+    const label = this.scene.add
+      .text(0, s(26), 'Discard', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
+      .setOrigin(0.5, 0);
+    icon.add([r1, r2, this.discardCount, label]);
+  }
+
+  /** Refresh the draw-pile (Deck) and discard-pile counters from the live DeckState. */
+  private refreshPileCounts(): void {
+    const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
+    this.deckCount.setText(String(deck?.drawPile.length ?? 0));
+    this.discardCount.setText(String(deck?.discardPile.length ?? 0));
   }
 
   private buildDeckOverlay(): void {

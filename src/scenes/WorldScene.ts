@@ -387,12 +387,17 @@ export class WorldScene extends Phaser.Scene {
 
   private drawGrid(): void {
     const g = this.add.graphics().setDepth(-1_000_000);
-    g.lineStyle(s(1), 0x2a2f3a, 0.8);
+    // Placeholder: hexes filled light grass green (ships with this feature) until real grass tiles
+    // land. Was the outline-only grid (no fill; stroke 0x2a2f3a @0.8).
+    const grassFill = 0x9ccc65; // light grass green
+    const grassLine = 0x7cb342; // slightly darker green outline
     const hw = this.layout.width / 2;
     const q1 = this.layout.height / 4;
     const q2 = this.layout.height / 2;
     for (const hex of this.grid.cells()) {
       const { x, y } = hexToPixel(this.layout, hex);
+      g.fillStyle(grassFill, 1);
+      g.lineStyle(s(1), grassLine, 0.8);
       g.beginPath();
       g.moveTo(x, y - q2);
       g.lineTo(x + hw, y - q1);
@@ -401,6 +406,7 @@ export class WorldScene extends Phaser.Scene {
       g.lineTo(x - hw, y + q1);
       g.lineTo(x - hw, y - q1);
       g.closePath();
+      g.fillPath();
       g.strokePath();
     }
   }
