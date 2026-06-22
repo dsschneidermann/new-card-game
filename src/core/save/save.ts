@@ -13,8 +13,8 @@ import type { StorageAdapter } from './storage';
 export const SAVE_KEY = 'ncg.save.v1';
 // Bump this whenever the persisted shape changes — a mismatched save is discarded (the run resets)
 // rather than migrated (ADR-010; dev game, easy to reset). v2: the card-entity deck model changed
-// DeckState's shape (instance-id piles + per-instance components).
-export const SAVE_VERSION = 2 as const;
+// DeckState's shape (instance-id piles + per-instance components). v3: EnemyData gained `art`.
+export const SAVE_VERSION = 3 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

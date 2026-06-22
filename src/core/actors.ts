@@ -19,6 +19,9 @@ export const Player: ComponentType<PlayerData> = defineComponent<PlayerData>('Pl
  */
 export interface EnemyData {
   readonly isEnemy: true;
+  /** Roster art key base, e.g. 'orc_warrior_brown' (see assets/enemyRoster). The scene renders
+   *  `${art}.idle` and animates `${art}.<state>.right`. Persisted so resume restores each enemy's art. */
+  readonly art: string;
 }
 
 export const Enemy: ComponentType<EnemyData> = defineComponent<EnemyData>('Enemy');

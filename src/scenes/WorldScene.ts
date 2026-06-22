@@ -11,6 +11,8 @@ import {
   FacingState,
   Player,
   Enemy,
+  ENEMY_ROSTER,
+  hexEquals,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -314,11 +316,12 @@ export class WorldScene extends Phaser.Scene {
     // Transient animation stance (card-play feel), rebuilt here so Resume/Restart Turn
     // start the player in a neutral idle. Driven each frame from input + this turn's events.
     this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
-    // Enemies render through the same pipeline: a transient Renderable with an enemy anim base,
-    // re-attached here on Resume/Restart Turn like the player's. All enemies use slime1 for now
-    // (a roster enemy; see ./enemyRoster). 'slime1.idle' is its idle texture/anim-base key.
+    // Enemies render through the same pipeline: a transient Renderable per enemy carrying its own
+    // roster art base (Enemy.art), re-attached here on Resume/Restart Turn like the player's.
+    const enemies = this.world.store(Enemy);
     for (const enemy of this.world.entitiesWith(Enemy)) {
-      this.world.store(Renderable).add(enemy, { texture: 'slime1.idle', animBase: 'slime1' });
+      const art = enemies.get(enemy)?.art ?? 'slime1';
+      this.world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
     }
   }
 
@@ -351,13 +354,23 @@ export class WorldScene extends Phaser.Scene {
     world.store(DeckState).add(this.player, deck);
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
-    // A visible enemy slime a few hexes to the player's right, facing the player (visual foundation).
-    const slime = world.createEntity();
-    world.store(Enemy).add(slime, { isEnemy: true });
-    world.store(HexPosition).add(slime, {
-      hex: offsetToAxial({ col: Math.floor(GRID_COLS / 2) + 4, row: Math.floor(GRID_ROWS / 2) }),
+    // Showcase: one enemy per roster entry, laid out on a spaced lattice (every 2 cols / 4 rows) so
+    // all the imported art is visible at once without sprites overlapping; the player's hex is skipped.
+    // Each enemy carries its roster art key (Enemy.art); installSystems renders it. (Real encounters
+    // will later spawn a curated subset rather than the whole roster.)
+    const slots: { col: number; row: number }[] = [];
+    for (let row = 0; row < GRID_ROWS && slots.length < ENEMY_ROSTER.length; row += 4) {
+      for (let col = 0; col < GRID_COLS && slots.length < ENEMY_ROSTER.length; col += 2) {
+        if (!hexEquals(offsetToAxial({ col, row }), start)) slots.push({ col, row });
+      }
+    }
+    ENEMY_ROSTER.forEach((entry, i) => {
+      const slot = slots[i];
+      if (slot === undefined) return; // more enemies than lattice slots (won't happen: 78 >= 72)
+      const enemy = world.createEntity();
+      world.store(Enemy).add(enemy, { isEnemy: true, art: entry.name });
+      world.store(HexPosition).add(enemy, { hex: offsetToAxial(slot) });
     });
-    world.store(FacingState).add(slime, { facing: 'left' });
     return world;
   }
 
