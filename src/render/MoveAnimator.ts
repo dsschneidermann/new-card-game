@@ -1,7 +1,7 @@
 import type { EntityId, GameEvent, Hex } from '@core/index';
 
 /** A single-hex move holds its one hop this much longer than a normal step so the walk anim can read. */
-const SINGLE_HOP_EXTRA_MS = 50;
+const SINGLE_HOP_EXTRA_MS = 100;
 
 /**
  * Replays movement hop-logs over real time so the sprite VISUALLY LAGS the sim (which commits a
@@ -32,7 +32,7 @@ export class MoveAnimator {
       if (lastIndex < 1) continue; // nothing to walk
       // Hold the final hex for a normal step, plus an extra beat for a single-hop move so its one hop
       // lasts long enough for the walk animation to visibly play rather than snapping idle->idle.
-      const finalDwellMs = this.stepMs + (lastIndex === 1 ? SINGLE_HOP_EXTRA_MS : 0);
+      const finalDwellMs = this.stepMs + (lastIndex <= 2 ? SINGLE_HOP_EXTRA_MS : 0);
       // Head to the first step immediately (the sprite is still at path[0] from the previous frame).
       this.active.set(e.entity, { path: e.path, index: 1, lastIndex, elapsedMs: 0, finalDwellMs });
     }

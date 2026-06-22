@@ -20,13 +20,13 @@ describe('MoveAnimator', () => {
     expect(a.isMoving(e)).toBe(false);
   });
 
-  it('holds a single-hex move ~50ms longer than a normal step so the walk animation can show', () => {
+  it('holds a short move (<=2 hops) longer than a normal step so the walk animation can show', () => {
     const a = new MoveAnimator(STEP);
-    a.ingest(started([{ q: 0, r: 0 }, { q: 1, r: 0 }])); // 1 hop
+    a.ingest(started([{ q: 0, r: 0 }, { q: 1, r: 0 }])); // a 1-hop (short) move
     expect(a.isMoving(e)).toBe(true);
     a.update(STEP);
-    expect(a.isMoving(e)).toBe(true); // a normal step has elapsed but the +50ms dwell has not
-    a.update(50);
-    expect(a.isMoving(e)).toBe(false); // settled after the extended dwell
+    expect(a.isMoving(e)).toBe(true); // a normal step has elapsed but the extended dwell has not
+    a.update(STEP * 2);
+    expect(a.isMoving(e)).toBe(false); // settled within a couple more steps
   });
 });
