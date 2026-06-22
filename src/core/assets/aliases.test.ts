@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ASSET_PATH_ALIASES, aliasedPath, AssetKeys } from '@core/index';
+import { ASSET_PATH_ALIASES, aliasedPath } from '@core/index';
 
 /**
  * Asset-path aliases point logical keys at arbitrary files within the assets root (so dropped-in
@@ -26,9 +26,9 @@ describe('asset path aliases', () => {
   });
 
   it('aliasedPath overrides the default only for aliased keys', () => {
-    // An aliased key resolves to its arbitrary file...
-    expect(aliasedPath(AssetKeys.slime1Idle)).toBe('assets/pending.local/Tiled_files/Slime1_Idle_body.png');
+    // A roster-aliased key resolves to its arbitrary file...
+    expect(aliasedPath('slime1.idle')).toBe('assets/pending.local/Tiled_files/Slime1_Idle_without_shadow.png');
     // ...while a non-aliased key keeps the flat assets/<key>.png convention.
-    expect(aliasedPath(AssetKeys.slimeIdle)).toBe('assets/slime.idle.png');
+    expect(aliasedPath('player.idle')).toBe('assets/player.idle.png');
   });
 });

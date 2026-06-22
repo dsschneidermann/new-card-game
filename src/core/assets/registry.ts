@@ -68,13 +68,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameCount: 2, fps: 6, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1', { frameCount: 3, fps: 8, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameCount: 7, fps: 12, downPx: -6 }),
-  asset(AssetKeys.slimeIdle, [64, 64, 0.5], 'green blob slime, idle bob', 'Enemy slime idle', { frameCount: 6, fps: 6, downPx: 8 }),
-  asset(AssetKeys.slimeWalk, [64, 64, 0.5], 'green blob slime, walking', 'Enemy slime walk', { frameCount: 8, fps: 10, downPx: 8 }),
-  asset(AssetKeys.slimeAttack, [64, 64, 0.5], 'green blob slime, attack lunge/burst', 'Enemy slime attack', { frameCount: 10, fps: 12, downPx: 8 }),
-  // slime1: a multi-row Tiled sheet (64px frames; the body animation rows start 128px down).
-  // Path is aliased to assets/pending.local (see ./aliases); idle/attack only (no walk yet).
-  asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 Tiled sheet, idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 128 }),
-  asset(AssetKeys.slime1Attack, [64, 64, 0.5], 'slime1 Tiled sheet, attack', 'Enemy slime1 attack', { frameCount: 10, fps: 12, frameOffsetY: 128 }),
+  // Enemy art (slime1, slime2, slime3, and every other enemy) is expanded from ./enemyRoster.
   ...ROSTER_ASSETS,
 ];
 
@@ -94,11 +88,6 @@ export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.playerReady,
   AssetKeys.playerAttack1,
   AssetKeys.playerAttack2,
-  AssetKeys.slimeIdle,
-  AssetKeys.slimeWalk,
-  AssetKeys.slimeAttack,
-  AssetKeys.slime1Idle,
-  AssetKeys.slime1Attack,
   ...ROSTER_ASSETS.map((descriptor) => descriptor.key),
 ]);
 

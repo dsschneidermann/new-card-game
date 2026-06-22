@@ -314,10 +314,11 @@ export class WorldScene extends Phaser.Scene {
     // Transient animation stance (card-play feel), rebuilt here so Resume/Restart Turn
     // start the player in a neutral idle. Driven each frame from input + this turn's events.
     this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
-    // Enemies render through the same pipeline: a transient Renderable with the slime anim base,
-    // re-attached here on Resume/Restart Turn like the player's. All enemies are slimes for now.
+    // Enemies render through the same pipeline: a transient Renderable with an enemy anim base,
+    // re-attached here on Resume/Restart Turn like the player's. All enemies use slime1 for now
+    // (a roster enemy; see ./enemyRoster). 'slime1.idle' is its idle texture/anim-base key.
     for (const enemy of this.world.entitiesWith(Enemy)) {
-      this.world.store(Renderable).add(enemy, { texture: AssetKeys.slimeIdle, animBase: 'slime' });
+      this.world.store(Renderable).add(enemy, { texture: 'slime1.idle', animBase: 'slime1' });
     }
   }
 
