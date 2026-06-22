@@ -60,7 +60,7 @@ interface WorldSceneData {
 // create time (s() must not run at module load).
 const GRID_COLS = 26;
 const GRID_ROWS = 21;
-const STEP_MS = 110;
+const HOP_MS = 110; // per-hex hop duration: the SceneSync slide tween + the MoveAnimator replay cadence (must match)
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -100,7 +100,7 @@ export class WorldScene extends Phaser.Scene {
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
-    this.sync = new SceneSync(this, STEP_MS);
+    this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(28) };
 
@@ -124,7 +124,7 @@ export class WorldScene extends Phaser.Scene {
 
     // Movement: the render-side replay of move hop-logs (sprite lags the sim) + the press-hold
     // reachable-range gesture (a press previews, a release on a reachable hex moves).
-    this.moveAnimator = new MoveAnimator(STEP_MS);
+    this.moveAnimator = new MoveAnimator(HOP_MS);
     this.move = new MovePlanner({
       scene: this,
       grid: this.grid,
@@ -215,7 +215,7 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Submit a player command. For a card/spell play, optimistically enter the 'ready'
    * stance the same frame: the engine only processes the queued command on the next
-   * stepped advance() (up to STEP_MS later), so without this the player briefly falls
+   * frame's advance() (one frame later), so without this the player briefly falls
    * back to 'idle' between disarming and the CardPlayed/SpellCast event — the
    * split-second idle flash after playing a skill card. That later event re-asserts
    * 'ready' (and adds the attack overlay for attack cards), so this is purely a head start.
