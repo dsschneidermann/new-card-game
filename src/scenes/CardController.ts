@@ -67,6 +67,13 @@ const DRAW_AFTER_DISCARD_MS = 100; // beat between the discard sweep finishing a
 /** Total time the end-of-turn discard sweep of `n` cards takes; the deal-in waits this long so the two sweeps don't overlap. */
 const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DISCARD_FADE_MS;
 
+// Card mod flash: when a hand card's cost/effect changes mid-turn, a white frame quickly highlights it
+// then fades away (presentation-only feedback). Tunable.
+const FLASH_IN_MS = 80; // the white frame ramps to full fast
+const FLASH_OUT_MS = 400; // then fades away
+const FLASH_COLOR = 0xffffff;
+const FLASH_THICKNESS = 3;
+
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
  * screen, and the shared targeting state machine. All targeting math comes from
@@ -180,15 +187,53 @@ export class CardController {
     const leaving = this.handCards.filter((c) => !newSet.has(c.getData('cardEntity') as EntityId));
     const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
     // Snapshot, BEFORE destroying the sprites (getData/x/y are gone after destroy): which instances are
-    // already on screen (so they don't re-deal) and WHERE they are (so they slide to their new slot).
+    // already on screen (so they don't re-deal), WHERE they are (so they slide to their new slot), and
+    // their rendered cost/free (so a card whose modifier changed this refresh can be flashed afterwards).
     const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
     const fromPos = new Map<EntityId, { x: number; y: number; angle: number }>();
-    for (const c of staying) fromPos.set(c.getData('cardEntity') as EntityId, { x: c.x, y: c.y, angle: c.angle });
+    const oldVals = new Map<EntityId, { cost: number; tempFree: boolean }>();
+    for (const c of staying) {
+      const id = c.getData('cardEntity') as EntityId;
+      fromPos.set(id, { x: c.x, y: c.y, angle: c.angle });
+      oldVals.set(id, { cost: c.getData('cost') as number, tempFree: c.getData('tempFree') as boolean });
+    }
     this.animateHandDiscard(leaving);
     for (const c of staying) c.destroy(); // replaced by a fresh face (so a changed cost re-renders)
     const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
     // Genuinely-new cards fade in; kept cards slide from their old position to the (shifted) new slot.
     this.buildHand(dealBase, (instance) => !wasPresent.has(instance), fromPos);
+    // A card that stayed in hand but whose effective cost / temp-free changed had a modifier land on it
+    // this refresh (e.g. Sharpen's cost reduction) — flash a white frame to draw the eye to the change.
+    const world = this.ctx.world();
+    for (const [instance, prev] of oldVals) {
+      const card = this.handCards.find((c) => (c.getData('cardEntity') as EntityId) === instance);
+      if (card === undefined) continue;
+      if (cardEffectiveCost(world, instance) !== prev.cost || isTempFree(world, instance) !== prev.tempFree) {
+        this.flashCard(card);
+      }
+    }
+  }
+
+  /**
+   * Flash a white frame over a hand card whose cost/effect just changed (presentation only): a stroked
+   * frame that ramps up fast then fades out and self-destroys. Added as a CHILD of the card container,
+   * so it tracks the card if the fan reflows and is destroyed with the card if it leaves mid-flash; it
+   * is independent of the card's selection border (yellow) and frame colour (attack red / skill blue).
+   */
+  private flashCard(card: Phaser.GameObjects.Container): void {
+    const frame = this.scene.add
+      .rectangle(0, 0, s(96), s(144), FLASH_COLOR, 0) // white, fill-transparent: only the stroke shows
+      .setStrokeStyle(s(FLASH_THICKNESS), FLASH_COLOR)
+      .setAlpha(0);
+    card.add(frame);
+    this.scene.tweens.chain({
+      targets: frame,
+      onComplete: () => frame.destroy(),
+      tweens: [
+        { alpha: 1, duration: FLASH_IN_MS, ease: 'Quad.easeOut' },
+        { alpha: 0, duration: FLASH_OUT_MS, ease: 'Quad.easeIn' },
+      ],
+    });
   }
 
   /**
@@ -239,8 +284,13 @@ export class CardController {
     layout: { spacing: number; baseX: number; baseY: number },
   ): Phaser.GameObjects.Container {
     const world = this.ctx.world();
-    const card = this.makeCardFace(def, 1, cardEffectiveCost(world, instance), isTempFree(world, instance));
+    const cost = cardEffectiveCost(world, instance);
+    const tempFree = isTempFree(world, instance);
+    const card = this.makeCardFace(def, 1, cost, tempFree);
     card.setData('cardEntity', instance);
+    // Record the rendered cost/free so refreshHand can detect a mid-turn change to this card and flash it.
+    card.setData('cost', cost);
+    card.setData('tempFree', tempFree);
     this.placeCard(card, i, count, layout, false);
     card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
     card.on('pointerover', () => {
