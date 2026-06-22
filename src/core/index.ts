@@ -48,10 +48,10 @@ export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } fro
 export type { HexLayout, Offset } from './hex/layout';
 export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial } from './hex/layout';
 export { HexGrid } from './hex/grid';
-export { findPath } from './hex/path';
+export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
-export type { HexPositionData, MovePathData, FacingData } from './hex/movement';
-export { HexPosition, MovePath, FacingState, makeMovementSystem, facingToward } from './hex/movement';
+export type { HexPositionData, FacingData } from './hex/movement';
+export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
 // Character sprite animation helpers
 export type { Facing } from './sprite';

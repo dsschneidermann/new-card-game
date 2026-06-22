@@ -11,7 +11,6 @@ import {
   FacingState,
   Player,
   Enemy,
-  MovePath,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -48,6 +47,8 @@ import {
 } from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
+import { MovePlanner } from '@scenes/MovePlanner';
+import { MoveAnimator } from '@render/MoveAnimator';
 
 /** Scene-start payload: Resume rebuilds from the save, otherwise a fresh run. */
 interface WorldSceneData {
@@ -84,8 +85,9 @@ export class WorldScene extends Phaser.Scene {
   private storage!: StorageAdapter;
   private hud!: Phaser.GameObjects.Text;
   private toast!: Phaser.GameObjects.Text;
-  private stepAccum = 0;
   private cards!: CardController;
+  private moveAnimator!: MoveAnimator;
+  private move!: MovePlanner;
   private layout!: HexLayout;
   // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
   private attackClearTimer: Phaser.Time.TimerEvent | undefined;
@@ -120,6 +122,19 @@ export class WorldScene extends Phaser.Scene {
     });
     this.cards.create();
 
+    // Movement: the render-side replay of move hop-logs (sprite lags the sim) + the press-hold
+    // reachable-range gesture (a press previews, a release on a reachable hex moves).
+    this.moveAnimator = new MoveAnimator(STEP_MS);
+    this.move = new MovePlanner({
+      scene: this,
+      grid: this.grid,
+      layout: this.layout,
+      world: () => this.world,
+      player: () => this.player,
+      submit: (cmd) => this.submitPlayerCommand(cmd),
+      canStart: () => !this.inputLocked && this.isPlayerPhase() && !this.cards.isArmed(),
+    });
+
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
     // cards/spells/deck-icon at higher depth consume their own clicks.
     this.add
@@ -132,20 +147,28 @@ export class WorldScene extends Phaser.Scene {
         const hex = pixelToHex(this.layout, p.worldX, p.worldY);
         if (this.cards.isArmed()) {
           this.cards.onWorldDown(hex); // click-mode first target / two-step second
-        } else if (!this.inputLocked && this.grid.isWalkable(hex)) {
-          // RequestMove (not raw MoveTo): the turn engine validates budget/phase.
-          this.world.submit({ kind: 'RequestMove', entity: this.player, q: hex.q, r: hex.r });
+        } else {
+          this.move.onPress(hex, p); // begin the press-hold reachable-range move preview
         }
       });
 
     // Right-click cancels an armed card/spell and never opens the browser context menu.
     this.input.mouse?.disableContextMenu();
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (p.rightButtonDown() && this.cards.isArmed()) this.cards.cancel();
+      if (p.rightButtonDown()) {
+        if (this.cards.isArmed()) this.cards.cancel();
+        this.move.cancel(); // right-click also aborts an in-progress move preview
+      }
     });
 
-    this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.cards.onPointerMove(p));
-    this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.cards.onPointerUp(p));
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      this.cards.onPointerMove(p);
+      this.move.onMove(p);
+    });
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
+      this.cards.onPointerUp(p);
+      this.move.onRelease(p);
+    });
 
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (this.inputLocked) return;
@@ -165,16 +188,13 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    // Advance one hex-step per STEP_MS so the player visibly hops hex-to-hex;
-    // between steps we still sync so tweens/animations play out.
-    this.stepAccum += delta;
-    const events: GameEvent[] = [];
-    while (this.stepAccum >= STEP_MS) {
-      events.push(...advance(this.world));
-      this.stepAccum -= STEP_MS;
-    }
+    // Process queued commands once per frame; a whole move resolves in ONE advance (Movement
+    // Resolution) and the MoveAnimator replays its hop-log over real time, so the sprite lags the sim.
+    const events = advance(this.world);
     this.syncPlayerAnim(events);
-    this.sync.sync(buildCharacterViews(this.world, this.layout));
+    this.moveAnimator.ingest(events);
+    this.moveAnimator.update(delta);
+    this.sync.sync(buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes()));
     this.refreshHud();
     for (const e of events) {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
@@ -269,14 +289,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Input is locked while a move is animating (the player still has a MovePath)
-   * or a command is queued but not yet resolved — so the full move intent
-   * completes before any new move / End Turn / Restart Turn is accepted. This is
-   * an interim guard; the scheduled movement rework will replace it with explicit
-   * movementStart/movementEnd events (and let traps/status interrupt a step).
+   * Input is locked for the whole move bracket: while the MoveAnimator is replaying the player's
+   * move (movementStart..settle) or a command is queued but not yet resolved — so the full move
+   * intent completes before any new move / End Turn / Restart Turn is accepted. Esc/Pause stays live.
    */
   private get inputLocked(): boolean {
-    return this.world.store(MovePath).has(this.player) || this.world.commands().length > 0;
+    return this.moveAnimator.isMoving(this.player) || this.world.commands().length > 0;
   }
 
   /** Register the turn, movement & card systems and re-attach the transient Renderable. */

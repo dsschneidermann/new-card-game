@@ -7,7 +7,6 @@ import {
   defineComponent,
   HexPosition,
   FacingState,
-  MovePath,
   makeMovementSystem,
   HexGrid,
   offsetToAxial,
@@ -48,17 +47,14 @@ describe('serializeWorld / restoreWorld', () => {
     const world = createWorld(1);
     const e = world.createEntity();
     world.store(HexPosition).add(e, { hex: { q: 0, r: 0 } });
-    world.store(MovePath).add(e, { path: [{ q: 0, r: 0 }], index: 0 });
     world.store(Transient).add(e, { n: 42 });
 
     const snap = serializeWorld(world);
     expect(snap.components).toHaveProperty('HexPosition');
-    expect(snap.components).not.toHaveProperty('MovePath');
     expect(snap.components).not.toHaveProperty('test.transient');
 
     const restored = restoreWorld(snap);
     expect(restored.store(HexPosition).get(e)).toEqual({ hex: { q: 0, r: 0 } });
-    expect(restored.store(MovePath).get(e)).toBeUndefined();
     expect(restored.store(Transient).get(e)).toBeUndefined();
   });
 

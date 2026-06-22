@@ -1,4 +1,5 @@
 import type { EntityId } from './entity';
+import type { Hex } from '../hex/hex';
 
 /**
  * Domain events emitted by systems during a step and drained at the end for
@@ -15,6 +16,12 @@ export type GameEvent =
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
+  // Movement Resolution: a whole move resolves in ONE advance as a bracketed hop-log. MovementStarted
+  // carries the planned path (start..end); a render MoveAnimator replays it over real time so the sprite
+  // lags the committed position. interruptIndex (set by a future Trap/Status system that truncates the
+  // path) marks where the move halts. MovementEnded fires on the last/halted hop -> once-per-intent settle.
+  | { kind: 'MovementStarted'; entity: EntityId; path: readonly Hex[]; interruptIndex?: number }
+  | { kind: 'MovementEnded'; entity: EntityId; at: Hex; interrupted: boolean }
   // Card system (Card Entities, Deck Cycle & Stat Effects). HandDealt: the whole hand was replaced at
   // turn start (old hand discarded, fresh hand drawn) -> the scene discards every card and deals the
   // new hand in. HandChanged: an effect drew a card or changed a cost mid-turn -> the scene refreshes

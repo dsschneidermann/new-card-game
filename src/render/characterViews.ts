@@ -1,12 +1,12 @@
 import {
   defineComponent,
   HexPosition,
-  MovePath,
   FacingState,
   hexToPixel,
   type ComponentType,
   type HexLayout,
   type EntityId,
+  type Hex,
   type World,
 } from '@core/index';
 
@@ -69,12 +69,12 @@ export const PLAYER_ATTACK_ANIMS = {
 
 /**
  * Pick the animation state for an animated entity from its movement and AnimState.
- * Priority: walking (MovePath) wins; then a one-shot attack overlay; then the
- * 'ready' stance (resting base, or while a card/spell is armed); else idle.
+ * Priority: walking (the MoveAnimator is replaying a move for it) wins; then a one-shot attack
+ * overlay; then the 'ready' stance (resting base, or while a card/spell is armed); else idle.
  * Entities without an AnimState fall back to the original walk/idle behaviour.
  */
-function animState(hasMovePath: boolean, anim: AnimStateData | undefined): string {
-  if (hasMovePath) return 'walk';
+function animState(moving: boolean, anim: AnimStateData | undefined): string {
+  if (moving) return 'walk';
   if (anim?.oneShot != null) return anim.oneShot;
   if (anim !== undefined && (anim.base === 'ready' || anim.armed)) return 'ready';
   return 'idle';
@@ -88,18 +88,24 @@ function animState(hasMovePath: boolean, anim: AnimStateData | undefined): strin
  * right-facing sheet serves both directions. Pure and Phaser-free (unit-testable);
  * SceneSync consumes the result and reconciles it to sprites.
  */
-export function* buildCharacterViews(world: World, layout: HexLayout): Generator<RenderableView> {
+export function* buildCharacterViews(
+  world: World,
+  layout: HexLayout,
+  movingHex: ReadonlyMap<EntityId, Hex> = new Map(),
+): Generator<RenderableView> {
   const positions = world.store(HexPosition);
-  const paths = world.store(MovePath);
   const facings = world.store(FacingState);
   const anims = world.store(AnimState);
   for (const [id, r] of world.store(Renderable).entries()) {
     const pos = positions.get(id);
     if (pos === undefined) continue;
-    const { x, y } = hexToPixel(layout, pos.hex);
+    // While the MoveAnimator is replaying a move, the sprite follows the animator's visual hex (which
+    // lags the already-committed HexPosition); otherwise it rests on HexPosition.
+    const moving = movingHex.get(id);
+    const { x, y } = hexToPixel(layout, moving ?? pos.hex);
     if (r.animBase !== undefined) {
       const facing = facings.get(id)?.facing ?? 'right';
-      const state = animState(paths.has(id), anims.get(id));
+      const state = animState(moving !== undefined, anims.get(id));
       yield {
         id,
         x,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createWorld, HexPosition, MovePath, FacingState, type HexLayout } from '@core/index';
+import { createWorld, HexPosition, FacingState, type HexLayout, type EntityId, type Hex } from '@core/index';
 import { Renderable, AnimState, buildCharacterViews, type AnimStateData } from '@render/characterViews';
 
 const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, originY: 28 };
@@ -12,15 +12,14 @@ describe('buildCharacterViews', () => {
     world.store(FacingState).add(e, { facing: 'left' });
     world.store(Renderable).add(e, { texture: 'player.idle', animBase: 'player' });
 
-    // idle when no MovePath; facing left -> mirrored
+    // idle when not moving; facing left -> mirrored
     let views = [...buildCharacterViews(world, LAYOUT)];
     expect(views).toHaveLength(1);
     expect(views[0]).toMatchObject({ anim: 'player.idle.right', flipX: true });
 
-    // walk when a MovePath is present; facing right -> not mirrored
+    // walk when the MoveAnimator is replaying a move for it; facing right -> not mirrored
     world.store(FacingState).add(e, { facing: 'right' });
-    world.store(MovePath).add(e, { path: [{ q: 0, r: 0 }, { q: 1, r: 0 }], index: 1 });
-    views = [...buildCharacterViews(world, LAYOUT)];
+    views = [...buildCharacterViews(world, LAYOUT, new Map<EntityId, Hex>([[e, { q: 1, r: 0 }]]))];
     expect(views[0]).toMatchObject({ anim: 'player.walk.right', flipX: false });
   });
 
@@ -33,7 +32,8 @@ describe('buildCharacterViews', () => {
     const stance: AnimStateData = { base: 'idle', armed: false, oneShot: null };
     world.store(AnimState).add(e, stance); // stored by reference; mutate to drive the state
 
-    const anim = (): string | undefined => [...buildCharacterViews(world, LAYOUT)][0]?.anim;
+    const anim = (moving?: ReadonlyMap<EntityId, Hex>): string | undefined =>
+      [...buildCharacterViews(world, LAYOUT, moving)][0]?.anim;
 
     expect(anim()).toBe('player.idle.right'); // base idle, not armed
 
@@ -49,8 +49,7 @@ describe('buildCharacterViews', () => {
     stance.oneShot = 'attack2';
     expect(anim()).toBe('player.attack2.right');
 
-    // a MovePath (walking) wins over everything, even an active attack overlay
-    world.store(MovePath).add(e, { path: [{ q: 0, r: 0 }, { q: 1, r: 0 }], index: 1 });
-    expect(anim()).toBe('player.walk.right');
+    // moving (walking) wins over everything, even an active attack overlay
+    expect(anim(new Map<EntityId, Hex>([[e, { q: 1, r: 0 }]]))).toBe('player.walk.right');
   });
 });

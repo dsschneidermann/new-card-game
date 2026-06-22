@@ -9,7 +9,7 @@ export interface ComponentType<T> {
   /**
    * Whether this component is part of the saved game state (feature 06). The
    * generic serializer writes only persistent components; render/transient
-   * components (e.g. Renderable, the in-progress MovePath) set this false and
+   * components (e.g. Renderable, AnimState) set this false and
    * are rebuilt on load rather than persisted.
    */
   readonly persistent: boolean;

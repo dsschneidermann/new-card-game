@@ -78,3 +78,30 @@ export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
   }
   return path.reverse();
 }
+
+/**
+ * Every walkable hex reachable from `from` within `maxSteps` steps, keyed by hexKey (for membership)
+ * to the Hex itself (so the overlay can paint it). Breadth-first over walkable neighbours; the origin
+ * is excluded and walls / out-of-bounds hexes never appear. Drives the movement reachable-range
+ * overlay and validates a release target (reachable iff its hexKey is present in the result).
+ */
+export function hexesReachable(grid: HexGrid, from: Hex, maxSteps: number): Map<string, Hex> {
+  const reached = new Map<string, Hex>();
+  if (maxSteps <= 0 || !grid.isWalkable(from)) return reached;
+  const seen = new Set<string>([hexKey(from)]);
+  let frontier: Hex[] = [from];
+  for (let step = 1; step <= maxSteps && frontier.length > 0; step += 1) {
+    const next: Hex[] = [];
+    for (const h of frontier) {
+      for (const nb of grid.walkableNeighbors(h)) {
+        const k = hexKey(nb);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        reached.set(k, nb);
+        next.push(nb);
+      }
+    }
+    frontier = next;
+  }
+  return reached;
+}

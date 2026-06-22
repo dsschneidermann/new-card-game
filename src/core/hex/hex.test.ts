@@ -7,6 +7,8 @@ import {
   FacingState,
   makeMovementSystem,
   findPath,
+  hexesReachable,
+  hexKey,
   neighbors,
   hexDistance,
   hexToPixel,
@@ -141,11 +143,33 @@ describe('findPath (BFS)', () => {
   });
 });
 
+describe('hexesReachable', () => {
+  it('returns walkable hexes within N steps, excluding the origin, keyed for membership', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 3, row: 3 });
+    const reach = hexesReachable(grid, from, 2);
+    expect(reach.has(hexKey(from))).toBe(false); // origin excluded
+    const nbrs = grid.walkableNeighbors(from);
+    for (const n of nbrs) expect(reach.has(hexKey(n))).toBe(true); // each neighbour reachable
+    expect(reach.size).toBeGreaterThan(nbrs.length); // includes some 2-step hexes
+    for (const [k, hex] of reach) expect(hexKey(hex)).toBe(k); // value is the keyed Hex (for painting)
+  });
+
+  it('excludes walls/out-of-bounds; a blocked neighbour is unreachable; maxSteps 0 yields nothing', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 3, row: 3 });
+    const wall = grid.walkableNeighbors(from)[0] as Hex;
+    grid.setWalkable(wall, false);
+    expect(hexesReachable(grid, from, 2).has(hexKey(wall))).toBe(false);
+    expect(hexesReachable(grid, from, 0).size).toBe(0);
+  });
+});
+
 describe('movement system', () => {
   const stepped = (evs: readonly GameEvent[]): GameEvent[] =>
     evs.filter((e) => e.kind === 'EntityStepped');
 
-  it('plans a MovePath and steps one hex per advance, emitting EntityStepped, clearing on arrival', () => {
+  it('resolves a whole move in ONE advance: MovementStarted -> EntityStepped per hop -> MovementEnded, ending at the target', () => {
     const grid = new HexGrid(8, 8);
     const world = createWorld(1);
     world.addSystem(makeMovementSystem(grid, LAYOUT));
@@ -153,15 +177,31 @@ describe('movement system', () => {
     const from = offsetToAxial({ col: 0, row: 0 });
     const to = offsetToAxial({ col: 3, row: 0 });
     world.store(HexPosition).add(e, { hex: from });
-
     const d = hexDistance(from, to);
-    const events: GameEvent[] = [];
-    events.push(...advance(world, [{ kind: 'MoveTo', entity: e, q: to.q, r: to.r }]));
-    for (let i = 1; i < d; i += 1) events.push(...advance(world));
 
-    expect((world.store(HexPosition).get(e) as { hex: Hex }).hex).toEqual(to);
-    expect(stepped(events).length).toBe(d);
-    expect(stepped(advance(world)).length).toBe(0); // arrived: nothing more
+    const events = advance(world, [{ kind: 'MoveTo', entity: e, q: to.q, r: to.r }]);
+    const kinds = events.map((ev) => ev.kind);
+    expect(kinds[0]).toBe('MovementStarted');
+    expect(kinds[kinds.length - 1]).toBe('MovementEnded');
+    expect(stepped(events).length).toBe(d); // one EntityStepped per hop, all in this single advance
+    expect((world.store(HexPosition).get(e) as { hex: Hex }).hex).toEqual(to); // committed to the target now
+    expect(stepped(advance(world)).length).toBe(0); // nothing carries to later advances
+  });
+
+  it('a single-hex move also resolves in one advance (the walk-anim case)', () => {
+    const grid = new HexGrid(8, 8);
+    const world = createWorld(1);
+    world.addSystem(makeMovementSystem(grid, LAYOUT));
+    const e = world.createEntity();
+    const from = offsetToAxial({ col: 2, row: 2 });
+    world.store(HexPosition).add(e, { hex: from });
+    const adj = grid.walkableNeighbors(from)[0] as Hex;
+
+    const events = advance(world, [{ kind: 'MoveTo', entity: e, q: adj.q, r: adj.r }]);
+    expect(events.filter((ev) => ev.kind === 'MovementStarted')).toHaveLength(1);
+    expect(stepped(events)).toHaveLength(1);
+    expect(events.filter((ev) => ev.kind === 'MovementEnded')).toHaveLength(1);
+    expect((world.store(HexPosition).get(e) as { hex: Hex }).hex).toEqual(adj);
   });
 
   it('a MoveTo to a blocked or OOB hex causes no movement and no event', () => {
