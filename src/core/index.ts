@@ -38,9 +38,10 @@ export { transition, INITIAL_SCREEN } from './flow/screenFlow';
 
 // Asset manifest & validation
 export type { AssetDescriptor, ManifestEntry, ValidationReport } from './assets/manifest';
-export { AssetManifest, frameConfig, assetScale, spriteOffset } from './assets/manifest';
+export { AssetManifest, frameConfig, assetScale, spriteOffset, frameRowOffsetY } from './assets/manifest';
 export type { AssetKey } from './assets/registry';
 export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validateManifest } from './assets/registry';
+export { ASSET_PATH_ALIASES, aliasedPath } from './assets/aliases';
 
 // Hex grid, pathfinding & movement
 export type { Hex } from './hex/hex';

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, AssetKeys, s } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, frameRowOffsetY, AssetKeys, s, type AssetDescriptor } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
 import { PLAYER_ATTACK_ANIMS } from '@render/characterViews';
 
@@ -76,7 +76,7 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     this.createPlayerAnims();
-    this.createSlimeAnims();
+    this.createEnemyAnims();
     this.scene.start('MainMenuScene');
   }
 
@@ -105,29 +105,43 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * Define the slime's right-facing animations from each single-row 64px strip (idle 6 / walk 8 /
-   * attack 10). idle/walk loop; attack is a one-shot. The frame count comes from each sheet's
-   * descriptor (frameConfig); the {start,end} bounds also clamp to the first row should a sheet ever
-   * ship with extra rows.
+   * Define the right-facing animations for the slime variants from their spritesheets. slime is a
+   * single-row 64px strip (idle 6 / walk 8 / attack 10); slime1 is a multi-row Tiled sheet whose
+   * body animation rows start 128px down (frameOffsetY) — spriteRowFrames() turns that Y offset into
+   * the matching {start,end} frame indices. idle/walk loop (repeat -1); attack is a one-shot.
    */
-  private createSlimeAnims(): void {
+  private createEnemyAnims(): void {
     const defs = [
-      { state: 'idle', sheet: AssetKeys.slimeIdle, fps: 6, repeat: -1 },
-      { state: 'walk', sheet: AssetKeys.slimeWalk, fps: 10, repeat: -1 },
-      { state: 'attack', sheet: AssetKeys.slimeAttack, fps: 12, repeat: 0 },
+      { anim: 'slime.idle.right', sheet: AssetKeys.slimeIdle, fps: 6, repeat: -1 },
+      { anim: 'slime.walk.right', sheet: AssetKeys.slimeWalk, fps: 10, repeat: -1 },
+      { anim: 'slime.attack.right', sheet: AssetKeys.slimeAttack, fps: 12, repeat: 0 },
+      { anim: 'slime1.idle.right', sheet: AssetKeys.slime1Idle, fps: 6, repeat: -1 },
+      { anim: 'slime1.attack.right', sheet: AssetKeys.slime1Attack, fps: 12, repeat: 0 },
     ];
     for (const d of defs) {
-      const key = `slime.${d.state}.right`;
-      if (this.anims.exists(key)) continue;
+      if (this.anims.exists(d.anim)) continue;
       const entry = manifest.resolve(d.sheet);
       if (entry === undefined) continue;
-      const frameCount = frameConfig(entry.descriptor).frameCount;
+      const { start, end } = this.spriteRowFrames(d.sheet, entry.descriptor);
       this.anims.create({
-        key,
-        frames: this.anims.generateFrameNumbers(d.sheet, { start: 0, end: frameCount - 1 }),
+        key: d.anim,
+        frames: this.anims.generateFrameNumbers(d.sheet, { start, end }),
         frameRate: d.fps,
         repeat: d.repeat,
       });
     }
+  }
+
+  /**
+   * The {start,end} spritesheet frame indices for an animation, honouring the descriptor's
+   * frameOffsetY (which picks a row in a multi-row sheet). Phaser numbers sheet frames row-major,
+   * so the row at frameOffsetY begins at rowIndex * columns, with columns read from the loaded
+   * sheet width. The real-art frame layout is trusted (the aliases fs test guards the file exists).
+   */
+  private spriteRowFrames(sheetKey: string, descriptor: AssetDescriptor): { start: number; end: number } {
+    const { frameWidth, frameHeight, frameCount } = frameConfig(descriptor);
+    const columns = Math.floor(this.textures.get(sheetKey).getSourceImage().width / frameWidth);
+    const start = Math.floor(frameRowOffsetY(descriptor) / frameHeight) * columns;
+    return { start, end: start + frameCount - 1 };
   }
 }

@@ -1,11 +1,13 @@
 import { AssetManifest, type AssetDescriptor, type ManifestEntry, type ValidationReport } from './manifest';
 import { AssetKeys } from './keys';
 import type { AssetKey } from './keys';
+import { aliasedPath } from './aliases';
 
 type SpriteOptions = {
   frameCount: number;
   forwardPx?: number; // draw-origin nudge: px in the facing direction (off-centre art)
   downPx?: number; // draw-origin nudge: px downward
+  frameOffsetY?: number; // Y (source px) of the first animation row in a multi-row sheet; 0 = top
 };
 
 const asset = (
@@ -16,7 +18,9 @@ const asset = (
   sprite?: SpriteOptions,
 ): AssetDescriptor => ({
   key,
-  path: `assets/${key}.png`, // flat dotted filenames (feature 03 decision)
+  // Default convention is the flat dotted filename assets/<key>.png (feature 03 decision); a key
+  // listed in ./aliases instead points at an arbitrary file (local experimentation, removable).
+  path: aliasedPath(key),
   size,
   ...(sprite ? { sprite } : {}),
   style,
@@ -44,6 +48,10 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.slimeIdle, [64, 64, 0.5], 'green blob slime, idle bob', 'Enemy slime idle', { frameCount: 6, downPx: 8 }),
   asset(AssetKeys.slimeWalk, [64, 64, 0.5], 'green blob slime, walking', 'Enemy slime walk', { frameCount: 8, downPx: 8 }),
   asset(AssetKeys.slimeAttack, [64, 64, 0.5], 'green blob slime, attack lunge/burst', 'Enemy slime attack', { frameCount: 10, downPx: 8 }),
+  // slime1: a multi-row Tiled sheet (64px frames; the body animation rows start 128px down).
+  // Path is aliased to assets/pending.local (see ./aliases); idle/attack only (no walk yet).
+  asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 Tiled sheet, idle', 'Enemy slime1 idle', { frameCount: 6, frameOffsetY: 128 }),
+  asset(AssetKeys.slime1Attack, [64, 64, 0.5], 'slime1 Tiled sheet, attack', 'Enemy slime1 attack', { frameCount: 10, frameOffsetY: 128 }),
 ];
 
 /**
@@ -65,6 +73,8 @@ export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.slimeIdle,
   AssetKeys.slimeWalk,
   AssetKeys.slimeAttack,
+  AssetKeys.slime1Idle,
+  AssetKeys.slime1Attack,
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */

@@ -24,6 +24,13 @@ export interface AssetDescriptor {
     frameCount: number;
     forwardPx?: number;
     downPx?: number;
+    /**
+     * Y of the first animation row within the source sheet, in source px (0 = top row,
+     * the default). For a sheet that stacks several animation rows, this selects WHICH
+     * row the frames come from. PreloadScene translates it into a starting frame index at
+     * anim-creation time, since Phaser's spritesheet config can't offset only the Y axis.
+     */
+    frameOffsetY?: number;
   };
   style: string;
   description: string;
@@ -56,6 +63,14 @@ export function assetScale(d: AssetDescriptor): number {
  */
 export function spriteOffset(d: AssetDescriptor): { forwardPx: number; downPx: number } {
   return { forwardPx: d.sprite?.forwardPx ?? 0, downPx: d.sprite?.downPx ?? 0 };
+}
+
+/**
+ * Y (in source px) of the first animation row to use from a multi-row sheet; 0 (the default)
+ * means the top row. Read by PreloadScene when building the sprite's animations.
+ */
+export function frameRowOffsetY(d: AssetDescriptor): number {
+  return d.sprite?.frameOffsetY ?? 0;
 }
 
 /**

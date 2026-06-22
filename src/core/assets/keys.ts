@@ -23,6 +23,8 @@ export const AssetKeys = {
   slimeIdle: 'slime.idle',
   slimeWalk: 'slime.walk',
   slimeAttack: 'slime.attack',
+  slime1Idle: 'slime1.idle',
+  slime1Attack: 'slime1.attack',
 } as const;
 
 /** Union of the canonical logical asset keys. */
