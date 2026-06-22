@@ -2,6 +2,7 @@ import { AssetManifest, type AssetDescriptor, type ManifestEntry, type Validatio
 import { AssetKeys } from './keys';
 import type { AssetKey } from './keys';
 import { aliasedPath } from './aliases';
+import { ENEMY_ROSTER } from './enemyRoster';
 
 type SpriteOptions = {
   frameCount: number;
@@ -28,6 +29,27 @@ const asset = (
   description,
 });
 
+/** Default frame rates for imported roster animations (the source art doesn't specify fps; tunable). */
+const ROSTER_FPS = { idle: 6, walk: 10, attack: 12 } as const;
+
+/**
+ * Expand the temporary enemy roster (./enemyRoster, imported from assets/pending.local) into
+ * idle/walk/attack descriptors: scale 0.5, frame count + row offset from the roster entry, fps from
+ * ROSTER_FPS. Each key is aliased to its file in ./aliases and flagged real (below). Seeded ahead of
+ * code use — plain keys (not in AssetKeys); they animate but no entity is placed on them yet.
+ */
+const ROSTER_ASSETS: readonly AssetDescriptor[] = ENEMY_ROSTER.flatMap((enemy) =>
+  (['idle', 'walk', 'attack'] as const).map((action) =>
+    asset(
+      `${enemy.name}.${action}`,
+      [enemy.frameSize, enemy.frameSize, 0.5],
+      `imported ${enemy.name} ${action}`,
+      `Roster enemy ${enemy.name} ${action} (assets/pending.local)`,
+      { frameCount: enemy[action].frames, fps: ROSTER_FPS[action], frameOffsetY: enemy.frameOffsetY },
+    ),
+  ),
+);
+
 /**
  * The asset descriptors known to the build, mirroring the Asset Placeholders
  * plan (ADR-004). Real art drops in per key as it is produced (flag it in
@@ -53,6 +75,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // Path is aliased to assets/pending.local (see ./aliases); idle/attack only (no walk yet).
   asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 Tiled sheet, idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 128 }),
   asset(AssetKeys.slime1Attack, [64, 64, 0.5], 'slime1 Tiled sheet, attack', 'Enemy slime1 attack', { frameCount: 10, fps: 12, frameOffsetY: 128 }),
+  ...ROSTER_ASSETS,
 ];
 
 /**
@@ -76,6 +99,7 @@ export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.slimeAttack,
   AssetKeys.slime1Idle,
   AssetKeys.slime1Attack,
+  ...ROSTER_ASSETS.map((descriptor) => descriptor.key),
 ]);
 
 /** The default game manifest: descriptors + which keys currently have real art. */

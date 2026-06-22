@@ -52,7 +52,9 @@ export class PreloadScene extends Phaser.Scene {
       if (!entry || entry.kind !== 'real') continue;
       const { path } = entry.descriptor;
       const { frameWidth, frameHeight, frameCount } = frameConfig(entry.descriptor);
-      if (frameCount > 1) {
+      // Load as a spritesheet for any multi-frame texture (e.g. ui.button states) OR any animated
+      // descriptor (sprite.fps) — so even a single-frame animation exposes frame 0 for createAnims.
+      if (frameCount > 1 || entry.descriptor.sprite?.fps !== undefined) {
         this.load.spritesheet(key, path, { frameWidth, frameHeight });
       } else {
         this.load.image(key, path);
