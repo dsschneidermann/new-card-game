@@ -42,7 +42,7 @@ import {
   Renderable,
   AnimState,
   buildCharacterViews,
-  PLAYER_ATTACK_ANIMS,
+  attackDurationMs,
   type AnimStateData,
 } from '@render/characterViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
@@ -282,8 +282,7 @@ export class WorldScene extends Phaser.Scene {
   private playAttack(anim: AnimStateData, variant: 'attack1' | 'attack2'): void {
     anim.oneShot = variant;
     this.attackClearTimer?.remove(); // a rapid second attack restarts the clear timer
-    const spec = PLAYER_ATTACK_ANIMS[variant]; // per-variant timing: attack1 is dragged out
-    const durationMs = (spec.frames / spec.fps) * 1000;
+    const durationMs = attackDurationMs(variant); // per-variant timing from the registry (frames / fps)
     this.attackClearTimer = this.time.delayedCall(durationMs, () => {
       const a = this.world.store(AnimState).get(this.player);
       if (a !== undefined && a.oneShot === variant) a.oneShot = null;

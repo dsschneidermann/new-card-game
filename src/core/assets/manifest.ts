@@ -22,6 +22,12 @@ export interface AssetDescriptor {
    */
   sprite?: {
     frameCount: number;
+    /**
+     * Animation frame rate (fps). Its PRESENCE marks the descriptor as an animation that
+     * PreloadScene builds as `<key>.right`; a multi-frame descriptor WITHOUT fps (e.g. ui.button)
+     * is frame-indexed states, not an animation.
+     */
+    fps?: number;
     forwardPx?: number;
     downPx?: number;
     /**

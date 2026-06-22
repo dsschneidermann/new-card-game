@@ -3,6 +3,9 @@ import {
   HexPosition,
   FacingState,
   hexToPixel,
+  manifest,
+  frameConfig,
+  AssetKeys,
   type ComponentType,
   type HexLayout,
   type EntityId,
@@ -56,16 +59,18 @@ export const AnimState: ComponentType<AnimStateData> = defineComponent<AnimState
 });
 
 /**
- * Player attack one-shot timing (presentation tuning), the single source shared by
- * PreloadScene (which sets each anim's frameRate) and WorldScene (which times when the
- * overlay clears back to the resting stance) so the two can't drift apart. attack1 is a
- * short 3-frame sheet, so it runs at a lower fps to drag it out to a readable length;
- * attack2 is a longer 7-frame sheet. `frames` must match the registered sheet frame count.
+ * ms for one play of an attack one-shot overlay, derived from its registered frame count + fps —
+ * the asset registry is the single source, shared with PreloadScene's anim frameRate so the
+ * overlay-clear timer and the animation can't drift. attack1 is a short sheet run slower so it
+ * reads; attack2 is longer. WorldScene uses this to time when the overlay clears to the resting stance.
  */
-export const PLAYER_ATTACK_ANIMS = {
-  attack1: { frames: 3, fps: 8 },
-  attack2: { frames: 7, fps: 12 },
-} as const;
+const ATTACK_SHEET = { attack1: AssetKeys.playerAttack1, attack2: AssetKeys.playerAttack2 } as const;
+export function attackDurationMs(variant: 'attack1' | 'attack2'): number {
+  const descriptor = manifest.resolve(ATTACK_SHEET[variant])?.descriptor;
+  const fps = descriptor?.sprite?.fps ?? 12;
+  const frames = descriptor ? frameConfig(descriptor).frameCount : 1;
+  return (frames / fps) * 1000;
+}
 
 /**
  * Pick the animation state for an animated entity from its movement and AnimState.

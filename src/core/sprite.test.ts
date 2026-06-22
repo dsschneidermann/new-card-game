@@ -70,3 +70,18 @@ describe('slime spritesheets in the manifest', () => {
     }
   });
 });
+
+describe('animation descriptors carry an fps marker', () => {
+  const animatedKeys = [
+    'player.idle', 'player.walk', 'player.ready', 'player.attack1', 'player.attack2',
+    'slime.idle', 'slime.walk', 'slime.attack', 'slime1.idle', 'slime1.attack',
+  ];
+  it('every animated character sheet declares a positive sprite.fps (its animation marker)', () => {
+    for (const key of animatedKeys) {
+      expect(manifest.resolve(key)?.descriptor.sprite?.fps).toBeGreaterThan(0);
+    }
+  });
+  it('a multi-frame non-animation (ui.button) has no fps, so it is not built as an animation', () => {
+    expect(manifest.resolve('ui.button')?.descriptor.sprite?.fps).toBeUndefined();
+  });
+});

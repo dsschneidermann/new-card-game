@@ -1,7 +1,13 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, frameRowOffsetY, AssetKeys, s, type AssetDescriptor } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, frameRowOffsetY, s, type AssetDescriptor } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
-import { PLAYER_ATTACK_ANIMS } from '@render/characterViews';
+
+/** Looping animations (idle/walk/ready resting + locomotion stances) repeat forever; everything else
+ *  (e.g. attacks) plays once. Decided by the asset name's suffix, so a new asset needs no per-anim wiring. */
+const LOOPING_ANIM_SUFFIXES = ['idle', 'walk', 'ready'] as const;
+function animRepeat(assetKey: string): number {
+  return LOOPING_ANIM_SUFFIXES.some((suffix) => assetKey.endsWith(suffix)) ? -1 : 0;
+}
 
 /**
  * Boot-time asset pipeline (feature 03): loads any real files flagged in the
@@ -75,59 +81,30 @@ export class PreloadScene extends Phaser.Scene {
       console.info('[assets] registered but unused (seeded ahead of use):', report.unused);
     }
 
-    this.createPlayerAnims();
-    this.createEnemyAnims();
+    this.createAnims();
     this.scene.start('MainMenuScene');
   }
 
   /**
-   * Define the player's right-facing animations from the sheets (features 14 + card-play feel).
-   * idle/walk/ready loop (repeat -1); the two attack variants are one-shots (repeat 0) so they
-   * play once and the scene returns the sprite to its resting stance.
+   * Define a right-facing animation for every animated descriptor in the manifest — one place, no
+   * per-character list to grow. A descriptor is an animation iff it declares sprite.fps (so a
+   * multi-frame but non-animated key like ui.button is skipped); the anim is keyed `${key}.right`,
+   * its frames come from spriteRowFrames (honouring frameOffsetY for multi-row sheets), and it loops
+   * or plays once by the asset name's suffix (animRepeat). Adding an animated asset needs no code here.
    */
-  private createPlayerAnims(): void {
-    const defs = [
-      { key: 'player.idle.right', sheet: AssetKeys.playerIdle, fps: 6, repeat: -1 },
-      { key: 'player.walk.right', sheet: AssetKeys.playerWalk, fps: 12, repeat: -1 },
-      { key: 'player.ready.right', sheet: AssetKeys.playerReady, fps: 6, repeat: -1 },
-      { key: 'player.attack1.right', sheet: AssetKeys.playerAttack1, fps: PLAYER_ATTACK_ANIMS.attack1.fps, repeat: 0 },
-      { key: 'player.attack2.right', sheet: AssetKeys.playerAttack2, fps: PLAYER_ATTACK_ANIMS.attack2.fps, repeat: 0 },
-    ];
-    for (const d of defs) {
-      if (this.anims.exists(d.key)) continue;
+  private createAnims(): void {
+    for (const key of manifest.keys()) {
+      const entry = manifest.resolve(key);
+      const fps = entry?.descriptor.sprite?.fps;
+      if (entry === undefined || fps === undefined) continue; // not an animated descriptor
+      const animKey = `${key}.right`;
+      if (this.anims.exists(animKey)) continue;
+      const { start, end } = this.spriteRowFrames(key, entry.descriptor);
       this.anims.create({
-        key: d.key,
-        frames: this.anims.generateFrameNumbers(d.sheet),
-        frameRate: d.fps,
-        repeat: d.repeat,
-      });
-    }
-  }
-
-  /**
-   * Define the right-facing animations for the slime variants from their spritesheets. slime is a
-   * single-row 64px strip (idle 6 / walk 8 / attack 10); slime1 is a multi-row Tiled sheet whose
-   * body animation rows start 128px down (frameOffsetY) — spriteRowFrames() turns that Y offset into
-   * the matching {start,end} frame indices. idle/walk loop (repeat -1); attack is a one-shot.
-   */
-  private createEnemyAnims(): void {
-    const defs = [
-      { anim: 'slime.idle.right', sheet: AssetKeys.slimeIdle, fps: 6, repeat: -1 },
-      { anim: 'slime.walk.right', sheet: AssetKeys.slimeWalk, fps: 10, repeat: -1 },
-      { anim: 'slime.attack.right', sheet: AssetKeys.slimeAttack, fps: 12, repeat: 0 },
-      { anim: 'slime1.idle.right', sheet: AssetKeys.slime1Idle, fps: 6, repeat: -1 },
-      { anim: 'slime1.attack.right', sheet: AssetKeys.slime1Attack, fps: 12, repeat: 0 },
-    ];
-    for (const d of defs) {
-      if (this.anims.exists(d.anim)) continue;
-      const entry = manifest.resolve(d.sheet);
-      if (entry === undefined) continue;
-      const { start, end } = this.spriteRowFrames(d.sheet, entry.descriptor);
-      this.anims.create({
-        key: d.anim,
-        frames: this.anims.generateFrameNumbers(d.sheet, { start, end }),
-        frameRate: d.fps,
-        repeat: d.repeat,
+        key: animKey,
+        frames: this.anims.generateFrameNumbers(key, { start, end }),
+        frameRate: fps,
+        repeat: animRepeat(key),
       });
     }
   }

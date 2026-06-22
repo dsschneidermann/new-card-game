@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld, HexPosition, FacingState, type HexLayout, type EntityId, type Hex } from '@core/index';
-import { Renderable, AnimState, buildCharacterViews, type AnimStateData } from '@render/characterViews';
+import { Renderable, AnimState, buildCharacterViews, attackDurationMs, type AnimStateData } from '@render/characterViews';
 
 const LAYOUT: HexLayout = { width: 32, height: 24, rowPitch: 18, originX: 24, originY: 28 };
 
@@ -51,5 +51,12 @@ describe('buildCharacterViews', () => {
 
     // moving (walking) wins over everything, even an active attack overlay
     expect(anim(new Map<EntityId, Hex>([[e, { q: 1, r: 0 }]]))).toBe('player.walk.right');
+  });
+});
+
+describe('attackDurationMs (one-shot overlay timing from the registry)', () => {
+  it('derives ms from the attack sheet frame count / fps (the single source)', () => {
+    expect(attackDurationMs('attack1')).toBeCloseTo((3 / 8) * 1000); // 375ms: 3 frames @ 8fps
+    expect(attackDurationMs('attack2')).toBeCloseTo((7 / 12) * 1000); // ~583ms: 7 frames @ 12fps
   });
 });
