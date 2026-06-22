@@ -16,4 +16,11 @@ export default defineConfig({
   build: {
     target: 'esnext',
   },
+  server: {
+    watch: {
+      ignored: [
+        '**/**.pdnSave'
+      ],
+    },
+  },
 });

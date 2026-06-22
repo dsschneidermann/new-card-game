@@ -39,15 +39,23 @@ const ROSTER_FPS = { idle: 6, walk: 10, attack: 12 } as const;
  * code use — plain keys (not in AssetKeys); they animate but no entity is placed on them yet.
  */
 const ROSTER_ASSETS: readonly AssetDescriptor[] = ENEMY_ROSTER.flatMap((enemy) =>
-  (['idle', 'walk', 'attack'] as const).map((action) =>
-    asset(
+  (['idle', 'walk', 'attack'] as const).map((action) => {
+    const anim = enemy[action];
+    return asset(
       `${enemy.name}.${action}`,
       [enemy.frameSize, enemy.frameSize, 0.5],
       `imported ${enemy.name} ${action}`,
       `Roster enemy ${enemy.name} ${action} (assets/pending.local)`,
-      { frameCount: enemy[action].frames, fps: ROSTER_FPS[action], frameOffsetY: enemy.frameOffsetY },
-    ),
-  ),
+      {
+        frameCount: anim.frames,
+        fps: ROSTER_FPS[action],
+        frameOffsetY: enemy.frameOffsetY,
+        // Optional per-anim draw nudges — omit (don't pass undefined) under exactOptionalPropertyTypes.
+        ...(anim.downPx !== undefined ? { downPx: anim.downPx } : {}),
+        ...(anim.forwardPx !== undefined ? { forwardPx: anim.forwardPx } : {}),
+      },
+    );
+  }),
 );
 
 /**
@@ -100,7 +108,7 @@ export type { AssetKey };
 
 /**
  * Keys referenced by code; the validation pass checks they all resolve. The roster keys are
- * included so the manifest doesn't report all ~216 of them as 'registered but unused' on every boot
+ * included so the manifest doesn't report all of them as 'registered but unused' on every boot
  * (they're used at runtime via createAnims + the Enemy.art spawn, just not by a literal AssetKeys ref).
  */
 export const USED_ASSET_KEYS: readonly string[] = [

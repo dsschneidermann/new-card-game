@@ -37,7 +37,12 @@ export class SceneSync {
         }
       }
       if (v.anim !== undefined) {
-        if (sprite.anims.currentAnim?.key !== v.anim) sprite.play(v.anim);
+        try {
+          if (sprite.anims.currentAnim?.key !== v.anim) sprite.play(v.anim);
+        }
+        catch(err) {
+          console.error(err)
+        }
       } else if (v.frame !== undefined) {
         sprite.setFrame(v.frame);
       }

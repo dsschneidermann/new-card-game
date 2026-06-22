@@ -352,13 +352,13 @@ export class WorldScene extends Phaser.Scene {
     world.store(DeckState).add(this.player, deck);
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
-    // Showcase: one enemy per roster entry, laid out on a spaced lattice (every 2 cols / 4 rows) so
+    // Showcase: one enemy per roster entry, laid out on a spaced lattice (every 3 cols / 3 rows) so
     // all the imported art is visible at once without sprites overlapping; the player's hex is skipped.
     // Each enemy carries its roster art key (Enemy.art); installSystems renders it. (Real encounters
     // will later spawn a curated subset rather than the whole roster.)
     const slots: { col: number; row: number }[] = [];
-    for (let row = 0; row < GRID_ROWS && slots.length < ENEMY_ROSTER.length; row += 4) {
-      for (let col = 0; col < GRID_COLS && slots.length < ENEMY_ROSTER.length; col += 2) {
+    for (let row = 5; row < GRID_ROWS && slots.length < ENEMY_ROSTER.length; row += 3) {
+      for (let col = 0; col < GRID_COLS && slots.length < ENEMY_ROSTER.length; col += 3) {
         if (!hexEquals(offsetToAxial({ col, row }), start)) slots.push({ col, row });
       }
     }

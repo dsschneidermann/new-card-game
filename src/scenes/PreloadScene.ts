@@ -125,7 +125,7 @@ export class PreloadScene extends Phaser.Scene {
     // Trust the real sheet's layout, but if the wanted row isn't in the LOADED texture — a missing-file
     // placeholder is a single row, or a sheet is shorter than expected — fall back to the top row so the
     // animation stays valid (frames 0..frameCount-1) rather than an empty, out-of-range range that would
-    // crash on play. (The aliases fs test still guards that the real files are present.)
+    // crash on play.
     let row = Math.floor(frameRowOffsetY(descriptor) / frameHeight);
     if (row >= rows) row = 0;
     const start = row * columns;
