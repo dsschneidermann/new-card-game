@@ -98,8 +98,15 @@ export const manifest = new AssetManifest(GAME_ASSETS, REAL_ASSET_KEYS);
 export { AssetKeys };
 export type { AssetKey };
 
-/** Keys referenced by code; the validation pass checks they all resolve. */
-export const USED_ASSET_KEYS: readonly AssetKey[] = Object.values(AssetKeys);
+/**
+ * Keys referenced by code; the validation pass checks they all resolve. The roster keys are
+ * included so the manifest doesn't report all ~216 of them as 'registered but unused' on every boot
+ * (they're used at runtime via createAnims + the Enemy.art spawn, just not by a literal AssetKeys ref).
+ */
+export const USED_ASSET_KEYS: readonly string[] = [
+  ...Object.values(AssetKeys),
+  ...ROSTER_ASSETS.map((descriptor) => descriptor.key),
+];
 
 /** Resolve a key against the default game manifest. */
 export function resolveKey(key: string): ManifestEntry | undefined {

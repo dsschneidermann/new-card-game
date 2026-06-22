@@ -318,9 +318,7 @@ export class WorldScene extends Phaser.Scene {
     this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
     // Enemies render through the same pipeline: a transient Renderable per enemy carrying its own
     // roster art base (Enemy.art), re-attached here on Resume/Restart Turn like the player's.
-    const enemies = this.world.store(Enemy);
-    for (const enemy of this.world.entitiesWith(Enemy)) {
-      const art = enemies.get(enemy)?.art ?? 'slime1';
+    for (const [enemy, { art }] of this.world.store(Enemy).entries()) {
       this.world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
     }
   }

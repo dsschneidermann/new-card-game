@@ -119,8 +119,16 @@ export class PreloadScene extends Phaser.Scene {
    */
   private spriteRowFrames(sheetKey: string, descriptor: AssetDescriptor): { start: number; end: number } {
     const { frameWidth, frameHeight, frameCount } = frameConfig(descriptor);
-    const columns = Math.floor(this.textures.get(sheetKey).getSourceImage().width / frameWidth);
-    const start = Math.floor(frameRowOffsetY(descriptor) / frameHeight) * columns;
+    const source = this.textures.get(sheetKey).getSourceImage();
+    const columns = Math.floor(source.width / frameWidth);
+    const rows = Math.floor(source.height / frameHeight);
+    // Trust the real sheet's layout, but if the wanted row isn't in the LOADED texture — a missing-file
+    // placeholder is a single row, or a sheet is shorter than expected — fall back to the top row so the
+    // animation stays valid (frames 0..frameCount-1) rather than an empty, out-of-range range that would
+    // crash on play. (The aliases fs test still guards that the real files are present.)
+    let row = Math.floor(frameRowOffsetY(descriptor) / frameHeight);
+    if (row >= rows) row = 0;
+    const start = row * columns;
     return { start, end: start + frameCount - 1 };
   }
 }

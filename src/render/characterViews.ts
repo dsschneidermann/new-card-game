@@ -67,9 +67,12 @@ export const AnimState: ComponentType<AnimStateData> = defineComponent<AnimState
 const ATTACK_SHEET = { attack1: AssetKeys.playerAttack1, attack2: AssetKeys.playerAttack2 } as const;
 export function attackDurationMs(variant: 'attack1' | 'attack2'): number {
   const descriptor = manifest.resolve(ATTACK_SHEET[variant])?.descriptor;
-  const fps = descriptor?.sprite?.fps ?? 12;
-  const frames = descriptor ? frameConfig(descriptor).frameCount : 1;
-  return (frames / fps) * 1000;
+  const fps = descriptor?.sprite?.fps;
+  // attack1/attack2 are always registered animations; fail loud rather than invent a fallback timing.
+  if (descriptor === undefined || fps === undefined) {
+    throw new Error(`attackDurationMs: ${ATTACK_SHEET[variant]} is not a registered animation`);
+  }
+  return (frameConfig(descriptor).frameCount / fps) * 1000;
 }
 
 /**
