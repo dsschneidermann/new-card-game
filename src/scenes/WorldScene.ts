@@ -172,15 +172,18 @@ export class WorldScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (this.inputLocked) return;
+      this.move.cancel();
       this.cards.cancel();
       this.world.submit({ kind: 'EndTurn', entity: this.player });
     });
     this.input.keyboard?.on('keydown-R', () => {
       if (this.inputLocked) return;
+      this.move.cancel();
       this.restartTurn();
     });
     this.input.keyboard?.on('keydown-ESC', () => {
-      if (this.cards.isArmed()) this.cards.cancel();
+      if (this.move.isPreviewing()) this.move.cancel(); // abort an in-progress move preview first
+      else if (this.cards.isArmed()) this.cards.cancel();
       else router.dispatch('Pause');
     });
 

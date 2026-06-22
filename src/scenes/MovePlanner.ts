@@ -84,6 +84,11 @@ export class MovePlanner {
     if (this.pressing) this.clear();
   }
 
+  /** True while a press-and-hold move preview is active (so Esc can abort it before opening Pause). */
+  isPreviewing(): boolean {
+    return this.pressing;
+  }
+
   private updateRoute(hex: Hex): void {
     const key = hexKey(hex);
     if (key === this.lastRouteKey) return; // same hex — nothing to redraw
