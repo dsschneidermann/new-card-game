@@ -43,7 +43,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.world1Floor, [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
   asset(AssetKeys.world1Wall, [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
   asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle', { frameCount: 6, fps: 6, downPx: -6 }),
-  asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk', { frameCount: 8, fps: 12, downPx: -6 }),
+  asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk', { frameCount: 8, fps: 10, downPx: -6 }),
   asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameCount: 2, fps: 6, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack1, [128, 128, 0.5], 'same character, attack A, right-facing', 'Player attack variant 1', { frameCount: 3, fps: 8, downPx: -6, forwardPx: 8 }),
   asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameCount: 7, fps: 12, downPx: -6 }),
@@ -73,140 +73,140 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // copper_golem
   asset(AssetKeys.copperGolemIdle, [128, 128, 0.5], 'copper_golem idle', 'Enemy copper_golem idle', { frameCount: 6, fps: 6, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.copperGolemWalk, [128, 128, 0.5], 'copper_golem walk', 'Enemy copper_golem walk', { frameCount: 8, fps: 10, downPx: -6, forwardPx: 4 }),
-  asset(AssetKeys.copperGolemAttack, [128, 128, 0.5], 'copper_golem attack', 'Enemy copper_golem attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.copperGolemAttack, [128, 128, 0.5], 'copper_golem attack', 'Enemy copper_golem attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.copperGolemHurt, [128, 128, 0.5], 'copper_golem hurt', 'Enemy copper_golem hurt'),
   asset(AssetKeys.copperGolemDeath, [128, 128, 0.5], 'copper_golem death', 'Enemy copper_golem death'),
 
   // demon_2
   asset(AssetKeys.demon2Idle, [128, 128, 0.5], 'demon_2 idle', 'Enemy demon_2 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.demon2Walk, [128, 128, 0.5], 'demon_2 walk', 'Enemy demon_2 walk', { frameCount: 12, fps: 10, downPx: -6 }),
-  asset(AssetKeys.demon2Attack, [128, 128, 0.5], 'demon_2 attack', 'Enemy demon_2 attack', { frameCount: 5, fps: 12, downPx: -6 }),
+  asset(AssetKeys.demon2Attack, [128, 128, 0.5], 'demon_2 attack', 'Enemy demon_2 attack', { frameCount: 5, fps: 8, downPx: -6 }),
   asset(AssetKeys.demon2Hurt, [128, 128, 0.5], 'demon_2 hurt', 'Enemy demon_2 hurt'),
   asset(AssetKeys.demon2Death, [128, 128, 0.5], 'demon_2 death', 'Enemy demon_2 death'),
 
   // demon_3
   asset(AssetKeys.demon3Idle, [128, 128, 0.5], 'demon_3 idle', 'Enemy demon_3 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.demon3Walk, [128, 128, 0.5], 'demon_3 walk', 'Enemy demon_3 walk', { frameCount: 12, fps: 10, downPx: -6 }),
-  asset(AssetKeys.demon3Attack, [128, 128, 0.5], 'demon_3 attack', 'Enemy demon_3 attack', { frameCount: 5, fps: 12, downPx: -6 }),
+  asset(AssetKeys.demon3Attack, [128, 128, 0.5], 'demon_3 attack', 'Enemy demon_3 attack', { frameCount: 5, fps: 10, downPx: -6 }),
   asset(AssetKeys.demon3Hurt, [128, 128, 0.5], 'demon_3 hurt', 'Enemy demon_3 hurt'),
   asset(AssetKeys.demon3Death, [128, 128, 0.5], 'demon_3 death', 'Enemy demon_3 death'),
 
   // dragon_1
   asset(AssetKeys.dragon1Idle, [256, 256, 0.5], 'dragon_1 idle', 'Enemy dragon_1 idle', { frameCount: 8, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon1Walk, [256, 256, 0.5], 'dragon_1 walk', 'Enemy dragon_1 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
-  asset(AssetKeys.dragon1Attack, [256, 256, 0.5], 'dragon_1 attack', 'Enemy dragon_1 attack', { frameCount: 10, fps: 12, downPx: -16, forwardPx: 18 }),
+  asset(AssetKeys.dragon1Attack, [256, 256, 0.5], 'dragon_1 attack', 'Enemy dragon_1 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon1Hurt, [256, 256, 0.5], 'dragon_1 hurt', 'Enemy dragon_1 hurt'),
   asset(AssetKeys.dragon1Death, [256, 256, 0.5], 'dragon_1 death', 'Enemy dragon_1 death'),
 
   // dragon_2
   asset(AssetKeys.dragon2Idle, [256, 256, 0.5], 'dragon_2 idle', 'Enemy dragon_2 idle', { frameCount: 8, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon2Walk, [256, 256, 0.5], 'dragon_2 walk', 'Enemy dragon_2 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
-  asset(AssetKeys.dragon2Attack, [256, 256, 0.5], 'dragon_2 attack', 'Enemy dragon_2 attack', { frameCount: 10, fps: 12, downPx: -16, forwardPx: 18 }),
+  asset(AssetKeys.dragon2Attack, [256, 256, 0.5], 'dragon_2 attack', 'Enemy dragon_2 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon2Hurt, [256, 256, 0.5], 'dragon_2 hurt', 'Enemy dragon_2 hurt'),
   asset(AssetKeys.dragon2Death, [256, 256, 0.5], 'dragon_2 death', 'Enemy dragon_2 death'),
 
   // dragon_3
   asset(AssetKeys.dragon3Idle, [256, 256, 0.5], 'dragon_3 idle', 'Enemy dragon_3 idle', { frameCount: 8, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon3Walk, [256, 256, 0.5], 'dragon_3 walk', 'Enemy dragon_3 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
-  asset(AssetKeys.dragon3Attack, [256, 256, 0.5], 'dragon_3 attack', 'Enemy dragon_3 attack', { frameCount: 10, fps: 12, downPx: -16, forwardPx: 18 }),
+  asset(AssetKeys.dragon3Attack, [256, 256, 0.5], 'dragon_3 attack', 'Enemy dragon_3 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon3Hurt, [256, 256, 0.5], 'dragon_3 hurt', 'Enemy dragon_3 hurt'),
   asset(AssetKeys.dragon3Death, [256, 256, 0.5], 'dragon_3 death', 'Enemy dragon_3 death'),
 
   // elf_queen_1
   asset(AssetKeys.elfQueen1Idle, [128, 128, 0.5], 'elf_queen_1 idle', 'Enemy elf_queen_1 idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.elfQueen1Walk, [128, 128, 0.5], 'elf_queen_1 walk', 'Enemy elf_queen_1 walk', { frameCount: 12, fps: 10, downPx: -6 }),
-  asset(AssetKeys.elfQueen1Attack, [128, 128, 0.5], 'elf_queen_1 attack', 'Enemy elf_queen_1 attack', { frameCount: 14, fps: 12, downPx: -6 }),
+  asset(AssetKeys.elfQueen1Attack, [128, 128, 0.5], 'elf_queen_1 attack', 'Enemy elf_queen_1 attack', { frameCount: 14, fps: 8, downPx: -6 }),
   asset(AssetKeys.elfQueen1Hurt, [128, 128, 0.5], 'elf_queen_1 hurt', 'Enemy elf_queen_1 hurt'),
   asset(AssetKeys.elfQueen1Death, [128, 128, 0.5], 'elf_queen_1 death', 'Enemy elf_queen_1 death'),
 
   // elf_queen_2
   asset(AssetKeys.elfQueen2Idle, [128, 128, 0.5], 'elf_queen_2 idle', 'Enemy elf_queen_2 idle', { frameCount: 6, fps: 6, downPx: -2 }),
   asset(AssetKeys.elfQueen2Walk, [128, 128, 0.5], 'elf_queen_2 walk', 'Enemy elf_queen_2 walk', { frameCount: 5, fps: 10, downPx: 0 }),
-  asset(AssetKeys.elfQueen2Attack, [128, 128, 0.5], 'elf_queen_2 attack', 'Enemy elf_queen_2 attack', { frameCount: 6, fps: 12, downPx: -2, forwardPx: 4 }),
+  asset(AssetKeys.elfQueen2Attack, [128, 128, 0.5], 'elf_queen_2 attack', 'Enemy elf_queen_2 attack', { frameCount: 6, fps: 10, downPx: -2, forwardPx: 4 }),
   asset(AssetKeys.elfQueen2Hurt, [128, 128, 0.5], 'elf_queen_2 hurt', 'Enemy elf_queen_2 hurt'),
   asset(AssetKeys.elfQueen2Death, [128, 128, 0.5], 'elf_queen_2 death', 'Enemy elf_queen_2 death'),
 
   // goblin_1
   asset(AssetKeys.goblin1Idle, [128, 128, 0.5], 'goblin_1 idle', 'Enemy goblin_1 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.goblin1Walk, [128, 128, 0.5], 'goblin_1 walk', 'Enemy goblin_1 walk', { frameCount: 8, fps: 10, downPx: -6 }),
-  asset(AssetKeys.goblin1Attack, [128, 128, 0.5], 'goblin_1 attack', 'Enemy goblin_1 attack', { frameCount: 6, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.goblin1Attack, [128, 128, 0.5], 'goblin_1 attack', 'Enemy goblin_1 attack', { frameCount: 6, fps: 10, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.goblin1Hurt, [128, 128, 0.5], 'goblin_1 hurt', 'Enemy goblin_1 hurt'),
   asset(AssetKeys.goblin1Death, [128, 128, 0.5], 'goblin_1 death', 'Enemy goblin_1 death'),
 
   // goblin_2
   asset(AssetKeys.goblin2Idle, [128, 128, 0.5], 'goblin_2 idle', 'Enemy goblin_2 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.goblin2Walk, [128, 128, 0.5], 'goblin_2 walk', 'Enemy goblin_2 walk', { frameCount: 8, fps: 10, downPx: -6 }),
-  asset(AssetKeys.goblin2Attack, [128, 128, 0.5], 'goblin_2 attack', 'Enemy goblin_2 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: -4 }),
+  asset(AssetKeys.goblin2Attack, [128, 128, 0.5], 'goblin_2 attack', 'Enemy goblin_2 attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: -4 }),
   asset(AssetKeys.goblin2Hurt, [128, 128, 0.5], 'goblin_2 hurt', 'Enemy goblin_2 hurt'),
   asset(AssetKeys.goblin2Death, [128, 128, 0.5], 'goblin_2 death', 'Enemy goblin_2 death'),
 
   // goblin_3
   asset(AssetKeys.goblin3Idle, [128, 128, 0.5], 'goblin_3 idle', 'Enemy goblin_3 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.goblin3Walk, [128, 128, 0.5], 'goblin_3 walk', 'Enemy goblin_3 walk', { frameCount: 7, fps: 10, downPx: -6 }),
-  asset(AssetKeys.goblin3Attack, [128, 128, 0.5], 'goblin_3 attack', 'Enemy goblin_3 attack', { frameCount: 6, fps: 12, downPx: -6 }),
+  asset(AssetKeys.goblin3Attack, [128, 128, 0.5], 'goblin_3 attack', 'Enemy goblin_3 attack', { frameCount: 6, fps: 10, downPx: -6 }),
   asset(AssetKeys.goblin3Hurt, [128, 128, 0.5], 'goblin_3 hurt', 'Enemy goblin_3 hurt'),
   asset(AssetKeys.goblin3Death, [128, 128, 0.5], 'goblin_3 death', 'Enemy goblin_3 death'),
 
   // gorgon_1
-  asset(AssetKeys.gorgon1Idle, [128, 128, 0.5], 'gorgon_1 idle', 'Enemy gorgon_1 idle', { frameCount: 7, fps: 6, downPx: -6, forwardPx: 6 }),
+  asset(AssetKeys.gorgon1Idle, [128, 128, 0.5], 'gorgon_1 idle', 'Enemy gorgon_1 idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.gorgon1Walk, [128, 128, 0.5], 'gorgon_1 walk', 'Enemy gorgon_1 walk', { frameCount: 7, fps: 10, downPx: -6 }),
-  asset(AssetKeys.gorgon1Attack, [128, 128, 0.5], 'gorgon_1 attack', 'Enemy gorgon_1 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.gorgon1Attack, [128, 128, 0.5], 'gorgon_1 attack', 'Enemy gorgon_1 attack', { frameCount: 7, fps: 10, downPx: -6 }),
   asset(AssetKeys.gorgon1Hurt, [128, 128, 0.5], 'gorgon_1 hurt', 'Enemy gorgon_1 hurt'),
   asset(AssetKeys.gorgon1Death, [128, 128, 0.5], 'gorgon_1 death', 'Enemy gorgon_1 death'),
 
   // gorgon_2
   asset(AssetKeys.gorgon2Idle, [128, 128, 0.5], 'gorgon_2 idle', 'Enemy gorgon_2 idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.gorgon2Walk, [128, 128, 0.5], 'gorgon_2 walk', 'Enemy gorgon_2 walk', { frameCount: 7, fps: 10, downPx: -6 }),
-  asset(AssetKeys.gorgon2Attack, [128, 128, 0.5], 'gorgon_2 attack', 'Enemy gorgon_2 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: 2 }),
+  asset(AssetKeys.gorgon2Attack, [128, 128, 0.5], 'gorgon_2 attack', 'Enemy gorgon_2 attack', { frameCount: 7, fps: 10, downPx: -6 }),
   asset(AssetKeys.gorgon2Hurt, [128, 128, 0.5], 'gorgon_2 hurt', 'Enemy gorgon_2 hurt'),
   asset(AssetKeys.gorgon2Death, [128, 128, 0.5], 'gorgon_2 death', 'Enemy gorgon_2 death'),
 
   // gorgon_3
-  asset(AssetKeys.gorgon3Idle, [128, 128, 0.5], 'gorgon_3 idle', 'Enemy gorgon_3 idle', { frameCount: 7, fps: 6, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.gorgon3Idle, [128, 128, 0.5], 'gorgon_3 idle', 'Enemy gorgon_3 idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.gorgon3Walk, [128, 128, 0.5], 'gorgon_3 walk', 'Enemy gorgon_3 walk', { frameCount: 7, fps: 10, downPx: -6 }),
-  asset(AssetKeys.gorgon3Attack, [128, 128, 0.5], 'gorgon_3 attack', 'Enemy gorgon_3 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: -4 }),
+  asset(AssetKeys.gorgon3Attack, [128, 128, 0.5], 'gorgon_3 attack', 'Enemy gorgon_3 attack', { frameCount: 7, fps: 10, downPx: -6 }),
   asset(AssetKeys.gorgon3Hurt, [128, 128, 0.5], 'gorgon_3 hurt', 'Enemy gorgon_3 hurt'),
   asset(AssetKeys.gorgon3Death, [128, 128, 0.5], 'gorgon_3 death', 'Enemy gorgon_3 death'),
 
   // knight_1
-  asset(AssetKeys.knight1Idle, [128, 128, 0.5], 'knight_1 idle', 'Enemy knight_1 idle', { frameCount: 4, fps: 6, downPx: -6, forwardPx: 16 }),
+  asset(AssetKeys.knight1Idle, [128, 128, 0.5], 'knight_1 idle', 'Enemy knight_1 idle', { frameCount: 4, fps: 4, downPx: -6, forwardPx: 16 }),
   asset(AssetKeys.knight1Walk, [128, 128, 0.5], 'knight_1 walk', 'Enemy knight_1 walk', { frameCount: 8, fps: 10, downPx: -6, forwardPx: 16 }),
-  asset(AssetKeys.knight1Attack, [128, 128, 0.5], 'knight_1 attack', 'Enemy knight_1 attack', { frameCount: 6, fps: 12, downPx: -6, forwardPx: 14 }),
+  asset(AssetKeys.knight1Attack, [128, 128, 0.5], 'knight_1 attack', 'Enemy knight_1 attack', { frameCount: 6, fps: 8, downPx: -6, forwardPx: 14 }),
   asset(AssetKeys.knight1Hurt, [128, 128, 0.5], 'knight_1 hurt', 'Enemy knight_1 hurt'),
   asset(AssetKeys.knight1Death, [128, 128, 0.5], 'knight_1 death', 'Enemy knight_1 death'),
 
   // knight_2
-  asset(AssetKeys.knight2Idle, [128, 128, 0.5], 'knight_2 idle', 'Enemy knight_2 idle', { frameCount: 4, fps: 6, downPx: -6, forwardPx: 16 }),
+  asset(AssetKeys.knight2Idle, [128, 128, 0.5], 'knight_2 idle', 'Enemy knight_2 idle', { frameCount: 4, fps: 4, downPx: -6, forwardPx: 16 }),
   asset(AssetKeys.knight2Walk, [128, 128, 0.5], 'knight_2 walk', 'Enemy knight_2 walk', { frameCount: 8, fps: 10, downPx: -6, forwardPx: 16 }),
-  asset(AssetKeys.knight2Attack, [128, 128, 0.5], 'knight_2 attack', 'Enemy knight_2 attack', { frameCount: 6, fps: 12, downPx: -6, forwardPx: 14 }),
+  asset(AssetKeys.knight2Attack, [128, 128, 0.5], 'knight_2 attack', 'Enemy knight_2 attack', { frameCount: 6, fps: 8, downPx: -6, forwardPx: 14 }),
   asset(AssetKeys.knight2Hurt, [128, 128, 0.5], 'knight_2 hurt', 'Enemy knight_2 hurt'),
   asset(AssetKeys.knight2Death, [128, 128, 0.5], 'knight_2 death', 'Enemy knight_2 death'),
 
   // knight_3
-  asset(AssetKeys.knight3Idle, [128, 128, 0.5], 'knight_3 idle', 'Enemy knight_3 idle', { frameCount: 4, fps: 6, downPx: -6, forwardPx: 16 }),
+  asset(AssetKeys.knight3Idle, [128, 128, 0.5], 'knight_3 idle', 'Enemy knight_3 idle', { frameCount: 4, fps: 4, downPx: -6, forwardPx: 16 }),
   asset(AssetKeys.knight3Walk, [128, 128, 0.5], 'knight_3 walk', 'Enemy knight_3 walk', { frameCount: 8, fps: 10, downPx: -6, forwardPx: 16 }),
-  asset(AssetKeys.knight3Attack, [128, 128, 0.5], 'knight_3 attack', 'Enemy knight_3 attack', { frameCount: 6, fps: 12, downPx: -6, forwardPx: 14 }),
+  asset(AssetKeys.knight3Attack, [128, 128, 0.5], 'knight_3 attack', 'Enemy knight_3 attack', { frameCount: 6, fps: 8, downPx: -6, forwardPx: 14 }),
   asset(AssetKeys.knight3Hurt, [128, 128, 0.5], 'knight_3 hurt', 'Enemy knight_3 hurt'),
   asset(AssetKeys.knight3Death, [128, 128, 0.5], 'knight_3 death', 'Enemy knight_3 death'),
 
   // lava_golem
   asset(AssetKeys.lavaGolemIdle, [128, 128, 0.5], 'lava_golem idle', 'Enemy lava_golem idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.lavaGolemWalk, [128, 128, 0.5], 'lava_golem walk', 'Enemy lava_golem walk', { frameCount: 10, fps: 10, downPx: -6 }),
-  asset(AssetKeys.lavaGolemAttack, [128, 128, 0.5], 'lava_golem attack', 'Enemy lava_golem attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.lavaGolemAttack, [128, 128, 0.5], 'lava_golem attack', 'Enemy lava_golem attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.lavaGolemHurt, [128, 128, 0.5], 'lava_golem hurt', 'Enemy lava_golem hurt'),
   asset(AssetKeys.lavaGolemDeath, [128, 128, 0.5], 'lava_golem death', 'Enemy lava_golem death'),
 
   // mimic_1
   asset(AssetKeys.mimic1Idle, [128, 128, 0.5], 'mimic_1 idle', 'Enemy mimic_1 idle', { frameCount: 1, fps: 6, downPx: -6, forwardPx: -2 }),
   asset(AssetKeys.mimic1Walk, [128, 128, 0.5], 'mimic_1 walk', 'Enemy mimic_1 walk', { frameCount: 11, fps: 10, downPx: -6 }),
-  asset(AssetKeys.mimic1Attack, [128, 128, 0.5], 'mimic_1 attack', 'Enemy mimic_1 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.mimic1Attack, [128, 128, 0.5], 'mimic_1 attack', 'Enemy mimic_1 attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.mimic1Hurt, [128, 128, 0.5], 'mimic_1 hurt', 'Enemy mimic_1 hurt'),
   asset(AssetKeys.mimic1Death, [128, 128, 0.5], 'mimic_1 death', 'Enemy mimic_1 death'),
 
   // mimic_2
   asset(AssetKeys.mimic2Idle, [128, 128, 0.5], 'mimic_2 idle', 'Enemy mimic_2 idle', { frameCount: 1, fps: 6, downPx: -6 }),
   asset(AssetKeys.mimic2Walk, [128, 128, 0.5], 'mimic_2 walk', 'Enemy mimic_2 walk', { frameCount: 9, fps: 10, downPx: -6 }),
-  asset(AssetKeys.mimic2Attack, [128, 128, 0.5], 'mimic_2 attack', 'Enemy mimic_2 attack', { frameCount: 4, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.mimic2Attack, [128, 128, 0.5], 'mimic_2 attack', 'Enemy mimic_2 attack', { frameCount: 4, fps: 8, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.mimic2Hurt, [128, 128, 0.5], 'mimic_2 hurt', 'Enemy mimic_2 hurt'),
   asset(AssetKeys.mimic2Death, [128, 128, 0.5], 'mimic_2 death', 'Enemy mimic_2 death'),
 
@@ -220,49 +220,49 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // minotaur_1
   asset(AssetKeys.minotaur1Idle, [128, 128, 0.5], 'minotaur_1 idle', 'Enemy minotaur_1 idle', { frameCount: 10, fps: 6, downPx: -6, forwardPx: 2 }),
   asset(AssetKeys.minotaur1Walk, [128, 128, 0.5], 'minotaur_1 walk', 'Enemy minotaur_1 walk', { frameCount: 12, fps: 10, downPx: -6, forwardPx: 2 }),
-  asset(AssetKeys.minotaur1Attack, [128, 128, 0.5], 'minotaur_1 attack', 'Enemy minotaur_1 attack', { frameCount: 5, fps: 12, downPx: -6, forwardPx: 6 }),
+  asset(AssetKeys.minotaur1Attack, [128, 128, 0.5], 'minotaur_1 attack', 'Enemy minotaur_1 attack', { frameCount: 5, fps: 8, downPx: -6, forwardPx: 6 }),
   asset(AssetKeys.minotaur1Hurt, [128, 128, 0.5], 'minotaur_1 hurt', 'Enemy minotaur_1 hurt'),
   asset(AssetKeys.minotaur1Death, [128, 128, 0.5], 'minotaur_1 death', 'Enemy minotaur_1 death'),
 
   // minotaur_2
   asset(AssetKeys.minotaur2Idle, [128, 128, 0.5], 'minotaur_2 idle', 'Enemy minotaur_2 idle', { frameCount: 10, fps: 6, downPx: -6, forwardPx: 2 }),
   asset(AssetKeys.minotaur2Walk, [128, 128, 0.5], 'minotaur_2 walk', 'Enemy minotaur_2 walk', { frameCount: 12, fps: 10, downPx: -6, forwardPx: 2 }),
-  asset(AssetKeys.minotaur2Attack, [128, 128, 0.5], 'minotaur_2 attack', 'Enemy minotaur_2 attack', { frameCount: 5, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.minotaur2Attack, [128, 128, 0.5], 'minotaur_2 attack', 'Enemy minotaur_2 attack', { frameCount: 5, fps: 8, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.minotaur2Hurt, [128, 128, 0.5], 'minotaur_2 hurt', 'Enemy minotaur_2 hurt'),
   asset(AssetKeys.minotaur2Death, [128, 128, 0.5], 'minotaur_2 death', 'Enemy minotaur_2 death'),
 
   // minotaur_3
   asset(AssetKeys.minotaur3Idle, [128, 128, 0.5], 'minotaur_3 idle', 'Enemy minotaur_3 idle', { frameCount: 10, fps: 6, downPx: -6, forwardPx: 2 }),
   asset(AssetKeys.minotaur3Walk, [128, 128, 0.5], 'minotaur_3 walk', 'Enemy minotaur_3 walk', { frameCount: 12, fps: 10, downPx: -6, forwardPx: 2 }),
-  asset(AssetKeys.minotaur3Attack, [128, 128, 0.5], 'minotaur_3 attack', 'Enemy minotaur_3 attack', { frameCount: 4, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.minotaur3Attack, [128, 128, 0.5], 'minotaur_3 attack', 'Enemy minotaur_3 attack', { frameCount: 4, fps: 8, downPx: -6, forwardPx: 4 }),
   asset(AssetKeys.minotaur3Hurt, [128, 128, 0.5], 'minotaur_3 hurt', 'Enemy minotaur_3 hurt'),
   asset(AssetKeys.minotaur3Death, [128, 128, 0.5], 'minotaur_3 death', 'Enemy minotaur_3 death'),
 
   // orc_warrior_brown
   asset(AssetKeys.orcWarriorBrownIdle, [128, 128, 0.5], 'orc_warrior_brown idle', 'Enemy orc_warrior_brown idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.orcWarriorBrownWalk, [128, 128, 0.5], 'orc_warrior_brown walk', 'Enemy orc_warrior_brown walk', { frameCount: 8, fps: 10, downPx: -6 }),
-  asset(AssetKeys.orcWarriorBrownAttack, [128, 128, 0.5], 'orc_warrior_brown attack', 'Enemy orc_warrior_brown attack', { frameCount: 5, fps: 12, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.orcWarriorBrownAttack, [128, 128, 0.5], 'orc_warrior_brown attack', 'Enemy orc_warrior_brown attack', { frameCount: 5, fps: 8, downPx: -6, forwardPx: -2 }),
   asset(AssetKeys.orcWarriorBrownHurt, [128, 128, 0.5], 'orc_warrior_brown hurt', 'Enemy orc_warrior_brown hurt'),
   asset(AssetKeys.orcWarriorBrownDeath, [128, 128, 0.5], 'orc_warrior_brown death', 'Enemy orc_warrior_brown death'),
 
   // orc_warrior_green
   asset(AssetKeys.orcWarriorGreenIdle, [128, 128, 0.5], 'orc_warrior_green idle', 'Enemy orc_warrior_green idle', { frameCount: 7, fps: 6, downPx: -6 }),
   asset(AssetKeys.orcWarriorGreenWalk, [128, 128, 0.5], 'orc_warrior_green walk', 'Enemy orc_warrior_green walk', { frameCount: 8, fps: 10, downPx: -6 }),
-  asset(AssetKeys.orcWarriorGreenAttack, [128, 128, 0.5], 'orc_warrior_green attack', 'Enemy orc_warrior_green attack', { frameCount: 5, fps: 12, downPx: -6, forwardPx: 2 }),
+  asset(AssetKeys.orcWarriorGreenAttack, [128, 128, 0.5], 'orc_warrior_green attack', 'Enemy orc_warrior_green attack', { frameCount: 5, fps: 8, downPx: -6, forwardPx: 2 }),
   asset(AssetKeys.orcWarriorGreenHurt, [128, 128, 0.5], 'orc_warrior_green hurt', 'Enemy orc_warrior_green hurt'),
   asset(AssetKeys.orcWarriorGreenDeath, [128, 128, 0.5], 'orc_warrior_green death', 'Enemy orc_warrior_green death'),
 
   // orc_woman
   asset(AssetKeys.orcWomanIdle, [128, 128, 0.5], 'orc_woman idle', 'Enemy orc_woman idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.orcWomanWalk, [128, 128, 0.5], 'orc_woman walk', 'Enemy orc_woman walk', { frameCount: 8, fps: 10, downPx: -6 }),
-  asset(AssetKeys.orcWomanAttack, [128, 128, 0.5], 'orc_woman attack', 'Enemy orc_woman attack', { frameCount: 6, fps: 12, downPx: -6, forwardPx: 2 }),
+  asset(AssetKeys.orcWomanAttack, [128, 128, 0.5], 'orc_woman attack', 'Enemy orc_woman attack', { frameCount: 6, fps: 8, downPx: -6, forwardPx: 2 }),
   asset(AssetKeys.orcWomanHurt, [128, 128, 0.5], 'orc_woman hurt', 'Enemy orc_woman hurt'),
   asset(AssetKeys.orcWomanDeath, [128, 128, 0.5], 'orc_woman death', 'Enemy orc_woman death'),
 
   // stone_golem
   asset(AssetKeys.stoneGolemIdle, [128, 128, 0.5], 'stone_golem idle', 'Enemy stone_golem idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.stoneGolemWalk, [128, 128, 0.5], 'stone_golem walk', 'Enemy stone_golem walk', { frameCount: 6, fps: 10, downPx: -6 }),
-  asset(AssetKeys.stoneGolemAttack, [128, 128, 0.5], 'stone_golem attack', 'Enemy stone_golem attack', { frameCount: 5, fps: 12, downPx: -6 }),
+  asset(AssetKeys.stoneGolemAttack, [128, 128, 0.5], 'stone_golem attack', 'Enemy stone_golem attack', { frameCount: 5, fps: 8, downPx: -6 }),
   asset(AssetKeys.stoneGolemHurt, [128, 128, 0.5], 'stone_golem hurt', 'Enemy stone_golem hurt'),
   asset(AssetKeys.stoneGolemDeath, [128, 128, 0.5], 'stone_golem death', 'Enemy stone_golem death'),
 ];
