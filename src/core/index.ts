@@ -41,9 +41,6 @@ export type { AssetDescriptor, ManifestEntry, ValidationReport } from './assets/
 export { AssetManifest, frameConfig, assetScale, spriteOffset, frameRowOffsetY } from './assets/manifest';
 export type { AssetKey } from './assets/registry';
 export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validateManifest } from './assets/registry';
-export { ASSET_PATH_ALIASES, aliasedPath } from './assets/aliases';
-export { ENEMY_ROSTER } from './assets/enemyRoster';
-export type { RosterEntry, RosterAnim } from './assets/enemyRoster';
 
 // Hex grid, pathfinding & movement
 export type { Hex } from './hex/hex';
