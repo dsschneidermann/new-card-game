@@ -352,10 +352,11 @@ export class WorldScene extends Phaser.Scene {
     world.store(DeckState).add(this.player, deck);
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
-    // Showcase: one enemy per roster entry, laid out on a spaced lattice (every 3 cols / 3 rows) so
-    // all the imported art is visible at once without sprites overlapping; the player's hex is skipped.
-    // Each enemy carries its roster art key (Enemy.art); installSystems renders it. (Real encounters
-    // will later spawn a curated subset rather than the whole roster.)
+    // Showcase: roster enemies on a spaced lattice (every 3 cols / 3 rows from row 5) — the spacing is
+    // intentional and fills ~54 slots, so the first 54 roster entries appear without sprite overlap
+    // (the rest exceed the lattice and are skipped); the player's hex is skipped. Each enemy carries
+    // its roster art key (Enemy.art); installSystems renders it. (Real encounters will later spawn a
+    // curated subset rather than the whole roster.)
     const slots: { col: number; row: number }[] = [];
     for (let row = 5; row < GRID_ROWS && slots.length < ENEMY_ROSTER.length; row += 3) {
       for (let col = 0; col < GRID_COLS && slots.length < ENEMY_ROSTER.length; col += 3) {
@@ -364,7 +365,7 @@ export class WorldScene extends Phaser.Scene {
     }
     ENEMY_ROSTER.forEach((entry, i) => {
       const slot = slots[i];
-      if (slot === undefined) return; // more enemies than lattice slots (won't happen: 78 >= 72)
+      if (slot === undefined) return; // roster entries beyond the ~54 lattice slots are skipped (by design)
       const enemy = world.createEntity();
       world.store(Enemy).add(enemy, { isEnemy: true, art: entry.name });
       world.store(HexPosition).add(enemy, { hex: offsetToAxial(slot) });
