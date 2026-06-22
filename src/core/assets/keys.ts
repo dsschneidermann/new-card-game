@@ -18,6 +18,7 @@ export const AssetKeys = {
   playerReady: 'player.ready',
   playerAttack1: 'player.attack1',
   playerAttack2: 'player.attack2',
+  playerDeath: 'player.death',
 
   // slime1
   slime1Idle: 'slime1.idle',
