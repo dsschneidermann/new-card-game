@@ -21,8 +21,13 @@ describe('asset path aliases', () => {
     expect(aliasEntries.length).toBeGreaterThan(0);
   });
 
-  it.each(aliasEntries)('%s → assets/%s is present on disk', (_key, relativePath) => {
-    expect(existsSync(join(repoRoot, 'assets', String(relativePath)))).toBe(true);
+  it('every aliased file is present on disk', () => {
+    // One assertion over all aliases (not it.each) to keep the test count flat; a failure
+    // lists exactly which key -> file pairs are missing.
+    const missing = aliasEntries
+      .filter(([, relativePath]) => !existsSync(join(repoRoot, 'assets', relativePath)))
+      .map(([key, relativePath]) => `${key} -> assets/${relativePath}`);
+    expect(missing).toEqual([]);
   });
 
   it('aliasedPath overrides the default only for aliased keys', () => {
