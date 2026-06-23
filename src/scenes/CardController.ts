@@ -42,6 +42,8 @@ export interface CardUiContext {
   canAct(): boolean;
   /** Surface a transient message to the player (e.g. why a card can't be played). */
   notify(message: string): void;
+  /** True when `hex` is FULLY inside the visible board window (not just within grid bounds). */
+  isHexVisible(hex: Hex): boolean;
 }
 
 interface Armed {
@@ -108,7 +110,7 @@ export class CardController {
   }
 
   create(): void {
-    this.painter = new TargetingPainter(this.scene, this.ctx.grid, this.ctx.layout);
+    this.painter = new TargetingPainter(this.scene, this.ctx.grid, this.ctx.layout, (h) => this.ctx.isHexVisible(h));
     this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false).setScrollFactor(0);
     this.buildSpellSidebar();
     this.buildDeckIcon();

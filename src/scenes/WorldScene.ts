@@ -174,6 +174,12 @@ export class WorldScene extends Phaser.Scene {
       submit: (cmd) => this.submitPlayerCommand(cmd),
       canAct: () => !this.inputLocked && this.isPlayerPhase(),
       notify: (m) => this.flashRejected(m),
+      // Targeting paint is clipped to what's on-screen: only hexes fully inside the visible frame, so an
+      // AOE/range highlight near the frame edge doesn't bleed into the off-board margin (larger world).
+      isHexVisible: (hex) => {
+        const { x, y } = hexToPixel(this.layout, hex);
+        return this.fullyInFrame(x, y);
+      },
     });
     this.cards.create();
 

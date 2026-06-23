@@ -39,6 +39,10 @@ export class TargetingPainter {
     scene: Phaser.Scene,
     private readonly grid: HexGrid,
     private readonly layout: HexLayout,
+    // True when a hex is FULLY inside the visible board window (not just in grid bounds). With the
+    // larger world + camera follow, in-bounds is no longer the same as on-screen, so the paint is
+    // clipped to this too — otherwise a tint/outline near the frame edge bleeds into the off-board margin.
+    private readonly isVisible: (hex: Hex) => boolean,
   ) {
     this.highlight = scene.add.graphics().setDepth(HL_DEPTH);
     this.rangeOutline = scene.add.graphics().setDepth(HL_DEPTH);
@@ -46,7 +50,7 @@ export class TargetingPainter {
 
   /**
    * Repaint the target tint for the armed card: the resolveTargeting primary (red) / secondary
-   * (yellow) hexes, each clipped to the board. selfAoe paints regardless of the pointer; every other
+   * (yellow) hexes, each clipped to the visible board window. selfAoe paints regardless of the pointer; every other
    * target needs an in-bounds hovered hex. isBlocked suppresses the tint on a forbidden hex (an
    * attack's own hex) — that rule is owned by CardController and passed in.
    */
@@ -62,10 +66,11 @@ export class TargetingPainter {
     const effectiveHovered = hovered ?? origin; // selfAoe ignores it; origin is a harmless default
     if (isBlocked(effectiveHovered)) return;
     const { primary, secondary } = resolveTargeting(spec, origin, effectiveHovered, firstPick);
-    // Clip each highlighted hex to the board so a multi-hex target (e.g. an areaOfEffect disk near an
-    // edge) never paints off-grid — the hovered centre being in-bounds is not enough.
-    for (const h of secondary) if (this.grid.inBounds(h)) this.fillHex(h, TINT_SECONDARY);
-    for (const h of primary) if (this.grid.inBounds(h)) this.fillHex(h, TINT_PRIMARY);
+    // Clip each highlighted hex to the VISIBLE board window — in grid bounds AND fully on-screen — so a
+    // multi-hex target (e.g. an areaOfEffect disk near the frame edge) never paints off-grid or in the
+    // off-frame margin; the hovered centre being in-bounds is not enough.
+    for (const h of secondary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_SECONDARY);
+    for (const h of primary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_PRIMARY);
   }
 
   /**
@@ -81,7 +86,7 @@ export class TargetingPainter {
     if (maxRange === undefined) return;
     this.rangeOutline.lineStyle(s(2), TINT_SECONDARY, 0.9);
     for (const hex of hexesWithinRange(origin, maxRange)) {
-      if (!this.grid.inBounds(hex)) continue;
+      if (!this.grid.inBounds(hex) || !this.isVisible(hex)) continue; // clip to the visible window, like the tint
       const verts = this.hexVertices(hex);
       for (const n of neighbors(hex)) {
         if (hexDistance(origin, n) <= maxRange) continue;
