@@ -76,6 +76,9 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
 const CAMERA_STAGGER_HEXES = 2;
 const HOP_MS = 200; // per-hex hop duration: the SceneSync slide tween + the MoveAnimator replay cadence (must match)
+// After a failed card/spell play, click-to-move is suppressed for this long so a reflexive follow-up
+// board click (the player trying to "retry" on the world) is swallowed instead of starting a move.
+const MOVE_LOCKOUT_AFTER_REJECT_MS = 250;
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -121,6 +124,9 @@ export class WorldScene extends Phaser.Scene {
   private lastGridScrollY = NaN;
   // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
   private attackClearTimer: Phaser.Time.TimerEvent | undefined;
+  // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
+  // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
+  private moveLockedUntilMs = 0;
 
   constructor() {
     super('WorldScene');
@@ -181,7 +187,11 @@ export class WorldScene extends Phaser.Scene {
       world: () => this.world,
       player: () => this.player,
       submit: (cmd) => this.submitPlayerCommand(cmd),
-      canStart: () => !this.inputLocked && this.isPlayerPhase() && !this.cards.isArmed(),
+      canStart: () =>
+        !this.inputLocked &&
+        this.isPlayerPhase() &&
+        !this.cards.isArmed() &&
+        this.time.now >= this.moveLockedUntilMs, // brief post-rejection lockout (see flashRejected)
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
@@ -518,6 +528,9 @@ export class WorldScene extends Phaser.Scene {
   private flashRejected(reason: string): void {
     this.toast.setText(`✗ ${reason}`);
     this.time.delayedCall(1200, () => this.toast?.setText(''));
+    // Every failed play funnels through here (CardController's notify + sim ActionRejected), so arming the
+    // move-lockout once here covers them all: the next board click is swallowed instead of moving.
+    this.moveLockedUntilMs = this.time.now + MOVE_LOCKOUT_AFTER_REJECT_MS;
   }
 
   /**
