@@ -20,6 +20,11 @@ export const AssetKeys = {
   playerAttack2: 'player.attack2',
   playerDeath: 'player.death',
 
+  // Card UI: static card-face backgrounds by class (underscore keys so they don't read as the
+  // .idle/.walk/.attack character-animation suffix that must be an animated sprite).
+  cardAttack: 'card_attack',
+  cardSkill: 'card_skill',
+
   // slime1
   slime1Idle: 'slime1.idle',
   slime1Walk: 'slime1.walk',

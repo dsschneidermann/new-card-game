@@ -16,6 +16,9 @@ import {
   hexEquals,
   SPELL_DEFS,
   s,
+  AssetKeys,
+  resolveKey,
+  assetScale,
   canPlayCard,
   canPlaySpell,
   type World,
@@ -301,7 +304,8 @@ export class CardController {
     // displayed state changes mid-turn (cardFaceSignature is the single place that lists those params).
     card.setData('faceSig', this.cardFaceSignature(def, cost, tempFree));
     this.placeCard(card, i, count, layout, false);
-    card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
+    const { w: hitW, h: hitH } = this.cardFaceBase(); // hit area tracks the face size (matches the art)
+    card.setInteractive(new Phaser.Geom.Rectangle(-s(hitW) / 2, -s(hitH) / 2, s(hitW), s(hitH)), Phaser.Geom.Rectangle.Contains);
     card.on('pointerover', () => {
       if (this.armed === null) {
         card.setY((card.getData('homeY') as number) - s(28));
@@ -640,15 +644,31 @@ export class CardController {
   }
 
   /**
+   * The card face's base size (px before s()): the background art's native size at its display scale
+   * (assetScale), so the face matches the art's aspect EXACTLY (no squish) and renders natively at the
+   * desktop 2x scale. Attack and skill backgrounds share one size, so either descriptor gives it.
+   */
+  private cardFaceBase(): { w: number; h: number } {
+    const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
+    if (d === undefined) return { w: 96, h: 144 }; // unreachable (the key is registered) — safe fallback
+    return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
+  }
+
+  /**
    * Build a card face showing its EFFECTIVE cost. The cost is GREEN when a temporary override is
    * active (free this hand), else YELLOW — the normal colour, including a permanently-reduced cost.
    */
   private makeCardFace(def: CardDef, scale: number, cost: number, tempFree: boolean): Phaser.GameObjects.Container {
-    const w = s(96);
-    const h = s(144);
+    const { w: baseW, h: baseH } = this.cardFaceBase();
+    const w = s(baseW);
+    const h = s(baseH);
     const c = this.scene.add.container(0, 0).setScrollFactor(0); // pinned: hand cards stay put while the world scrolls
+    // Full-card background art by class (attack vs skill), sized to the face so it matches the art's
+    // aspect exactly; degrades to a generated placeholder texture if the file is missing (PreloadScene).
+    const bgKey = isAttackCard(def.id) ? AssetKeys.cardAttack : AssetKeys.cardSkill;
+    const background = this.scene.add.image(0, 0, bgKey).setOrigin(0.5).setDisplaySize(w, h);
     const bg = this.scene.add
-      .rectangle(0, 0, w, h, 0x1f2430)
+      .rectangle(0, 0, w, h, 0x000000, 0) // fill-transparent: only the frame + selection border, over the art
       .setStrokeStyle(s(2), this.frameColor(def.id))
       .setOrigin(0.5);
     const costText = this.scene.add
@@ -661,7 +681,6 @@ export class CardController {
     const name = this.scene.add
       .text(0, -h / 2 + s(22), def.name, { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
       .setOrigin(0.5, 0);
-    const art = this.scene.add.rectangle(0, -s(2), w - s(16), s(56), 0x394150).setOrigin(0.5); // card.art.<id> slot
     const eff = this.scene.add
       .text(0, h / 2 - s(42), def.effectText, {
         fontFamily: 'monospace',
@@ -671,7 +690,7 @@ export class CardController {
         wordWrap: { width: w - s(12) },
       })
       .setOrigin(0.5, 0);
-    c.add([bg, costText, name, art, eff]);
+    c.add([background, bg, costText, name, eff]);
     c.setData('bg', bg);
     c.setData('frameColor', this.frameColor(def.id));
     c.setScale(scale);
