@@ -40,7 +40,8 @@ export class PileOverlay {
 
   constructor(private readonly scene: Phaser.Scene) {
     const { width, height } = scene.scale;
-    this.container = scene.add.container(0, 0).setDepth(OVERLAY_DEPTH).setVisible(false);
+    // Pinned (scrollFactor 0): the whole modal stays fixed while the world camera scrolls.
+    this.container = scene.add.container(0, 0).setDepth(OVERLAY_DEPTH).setVisible(false).setScrollFactor(0);
     const dim = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
     // A press on the backdrop starts a potential scroll-drag; a release WITHOUT a drag (a tap) resolves.
     dim.on('pointerdown', (p: Phaser.Input.Pointer) => this.beginDrag(p));
@@ -52,6 +53,7 @@ export class PileOverlay {
     const viewportH = height - s(OVERLAY_BOTTOM_MARGIN) - s(OVERLAY_TOP);
     const maskShape = scene.make.graphics({}, false);
     maskShape.fillStyle(0xffffff).fillRect(0, s(OVERLAY_TOP), width, viewportH);
+    maskShape.setScrollFactor(0); // clip region is screen-fixed, matching the pinned (scrollFactor 0) content
     this.content.setMask(maskShape.createGeometryMask());
     this.container.add([dim, this.title, this.content]);
     // Scroll input — WHEEL + DRAG — guarded to act only while the overlay is open.

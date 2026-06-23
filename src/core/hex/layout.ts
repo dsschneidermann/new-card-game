@@ -92,3 +92,29 @@ export function pixelToHex(l: HexLayout, x: number, y: number): Hex {
   }
   return nearest;
 }
+
+/** The pixel bounding box of every cell in a grid (cell extremes, including the odd-row half-shift). */
+export interface WorldPixelBounds {
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
+}
+
+/**
+ * The pixel extent of an entire `cols` x `rows` hex grid: from the left edge of column 0 to the right
+ * edge of the last column (which, on odd rows, sits a further half-width right), and from the top of
+ * row 0 to the bottom of the last row. The camera clamps its scroll to this box so the visible frame
+ * never scrolls past the world. Pure (no Phaser).
+ */
+export function worldPixelBounds(layout: HexLayout, cols: number, rows: number): WorldPixelBounds {
+  const hw = layout.width / 2;
+  const hh = layout.height / 2;
+  const oddRowShift = rows > 1 ? hw : 0; // odd rows (shifted +half-width) exist only with >= 2 rows
+  return {
+    minX: layout.originX - hw,
+    minY: layout.originY - hh,
+    maxX: layout.originX + (cols - 1) * layout.width + oddRowShift + hw,
+    maxY: layout.originY + (rows - 1) * layout.rowPitch + hh,
+  };
+}

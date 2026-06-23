@@ -45,8 +45,8 @@ export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validate
 // Hex grid, pathfinding & movement
 export type { Hex } from './hex/hex';
 export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } from './hex/hex';
-export type { HexLayout, Offset } from './hex/layout';
-export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial } from './hex/layout';
+export type { HexLayout, Offset, WorldPixelBounds } from './hex/layout';
+export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds } from './hex/layout';
 export { HexGrid } from './hex/grid';
 export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';

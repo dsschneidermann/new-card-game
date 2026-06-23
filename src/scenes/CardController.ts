@@ -109,7 +109,7 @@ export class CardController {
 
   create(): void {
     this.painter = new TargetingPainter(this.scene, this.ctx.grid, this.ctx.layout);
-    this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false);
+    this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false).setScrollFactor(0);
     this.buildSpellSidebar();
     this.buildDeckIcon();
     this.buildDiscardIcon();
@@ -644,7 +644,7 @@ export class CardController {
   private makeCardFace(def: CardDef, scale: number, cost: number, tempFree: boolean): Phaser.GameObjects.Container {
     const w = s(96);
     const h = s(144);
-    const c = this.scene.add.container(0, 0);
+    const c = this.scene.add.container(0, 0).setScrollFactor(0); // pinned: hand cards stay put while the world scrolls
     const bg = this.scene.add
       .rectangle(0, 0, w, h, 0x1f2430)
       .setStrokeStyle(s(2), this.frameColor(def.id))
@@ -691,7 +691,7 @@ export class CardController {
     SPELL_DEFS.forEach((def, i) => {
       const x = s(44);
       const y = s(150) + i * s(84);
-      const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH);
+      const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
       const ring = this.scene.add.circle(0, 0, s(30), 0x394150).setStrokeStyle(s(3), 0x6b7280);
       const label = this.scene.add
         .text(0, 0, def.name.slice(0, 4), { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
@@ -733,7 +733,7 @@ export class CardController {
 
   private buildDeckIcon(): void {
     const { height } = this.scene.scale;
-    const icon = this.scene.add.container(s(44), height - s(40)).setDepth(HUD_DEPTH);
+    const icon = this.scene.add.container(s(44), height - s(40)).setDepth(HUD_DEPTH).setScrollFactor(0);
     const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
     const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
     // Cards still in the draw pile, shown over the stack (kept current by refreshPileCounts).
@@ -751,7 +751,7 @@ export class CardController {
   /** A discard-pile icon mirroring the deck icon at the lower-right, showing the discard count. */
   private buildDiscardIcon(): void {
     const { width, height } = this.scene.scale;
-    const icon = this.scene.add.container(width - s(44), height - s(40)).setDepth(HUD_DEPTH);
+    const icon = this.scene.add.container(width - s(44), height - s(40)).setDepth(HUD_DEPTH).setScrollFactor(0);
     const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
     const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
     this.discardCount = this.scene.add

@@ -29,7 +29,10 @@ import {
   hexToPixel,
   pixelToHex,
   offsetToAxial,
+  hexDistance,
+  worldPixelBounds,
   s,
+  type Hex,
   type HexLayout,
   type EntityId,
   type World,
@@ -59,9 +62,20 @@ interface WorldSceneData {
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
 // The LAYOUT pixel fields are base (iPad) values scaled via s() into this.layout at
 // create time (s() must not run at module load).
-const GRID_COLS = 26;
-const GRID_ROWS = 21;
-const HOP_MS = 110; // per-hex hop duration: the SceneSync slide tween + the MoveAnimator replay cadence (must match)
+// 4x the original area (was 26x21) — the camera follows the player and renders only the visible window
+// of hexes (Larger World & Hex-Snap Camera Follow feature).
+const GRID_COLS = 52;
+const GRID_ROWS = 42;
+// The visible window stays exactly the original 26x21 grid (same on-screen frame + full hexes); the
+// camera shows this 26x21 window into the larger world and content outside it is hidden.
+const VIEW_COLS = 26;
+const VIEW_ROWS = 21;
+const VIEW_CENTER_COL = Math.floor(VIEW_COLS / 2); // the window cell the player is centred on (13)
+const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
+// Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
+// reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
+const CAMERA_STAGGER_HEXES = 2;
+const HOP_MS = 200; // per-hex hop duration: the SceneSync slide tween + the MoveAnimator replay cadence (must match)
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
@@ -90,6 +104,21 @@ export class WorldScene extends Phaser.Scene {
   private moveAnimator!: MoveAnimator;
   private move!: MovePlanner;
   private layout!: HexLayout;
+  // The grass grid, drawn in WORLD space and redrawn (only on a camera pan) for the world cells that
+  // fall fully inside the visible frame — so every drawn hex is a real, in-bounds world cell.
+  private gridGfx!: Phaser.GameObjects.Graphics;
+  // The on-screen frame (the original 26x21 grid rect): only full hexes inside it are drawn and shown.
+  private frame!: { left: number; right: number; top: number; bottom: number };
+  // Camera scroll is clamped to this pixel box so the frame never scrolls past the world edge.
+  private scrollBounds!: { minX: number; maxX: number; minY: number; maxY: number };
+  // Screen pixel of the frame's centre cell — the camera scrolls so the reference hex lands here.
+  private viewCenterPx!: { x: number; y: number };
+  // The world hex the camera is currently anchored on; re-anchored only when the player drifts
+  // CAMERA_STAGGER_HEXES from it (staggered pan). undefined until the first updateCamera().
+  private camRefHex: Hex | undefined;
+  // Last scroll the grid was redrawn at, so the grid only redraws when the camera actually pans.
+  private lastGridScrollX = NaN;
+  private lastGridScrollY = NaN;
   // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
   private attackClearTimer: Phaser.Time.TimerEvent | undefined;
 
@@ -104,11 +133,30 @@ export class WorldScene extends Phaser.Scene {
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(28) };
+    // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
+    // reference hex sits at the frame's centre-cell screen position so the player is where it was
+    // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
+    const hw = this.layout.width / 2;
+    const hh = this.layout.height / 2;
+    this.frame = {
+      left: this.layout.originX - hw,
+      right: this.layout.originX + (VIEW_COLS - 1) * this.layout.width + this.layout.width,
+      top: this.layout.originY - hh,
+      bottom: this.layout.originY + (VIEW_ROWS - 1) * this.layout.rowPitch + hh,
+    };
+    const wb = worldPixelBounds(this.layout, GRID_COLS, GRID_ROWS);
+    this.scrollBounds = {
+      minX: wb.minX - this.frame.left,
+      maxX: wb.maxX - this.frame.right,
+      minY: wb.minY - this.frame.top,
+      maxY: wb.maxY - this.frame.bottom,
+    };
+    this.viewCenterPx = hexToPixel(this.layout, offsetToAxial({ col: VIEW_CENTER_COL, row: VIEW_CENTER_ROW }));
 
     this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
     this.installSystems();
 
-    this.drawGrid();
+    this.gridGfx = this.add.graphics().setDepth(-1_000_000); // world-space grass; filled by redrawGrid()
     this.buildHud();
 
     this.cards = new CardController({
@@ -142,6 +190,7 @@ export class WorldScene extends Phaser.Scene {
       .rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0)
       .setOrigin(0)
       .setDepth(-500_000)
+      .setScrollFactor(0)
       .setInteractive()
       .on('pointerdown', (p: Phaser.Input.Pointer) => {
         if (p.rightButtonDown()) return; // right-click is handled globally (cancel), never a move/target
@@ -188,6 +237,7 @@ export class WorldScene extends Phaser.Scene {
       else router.dispatch('Pause');
     });
 
+    this.updateCamera(); // centre on the player's start hex on frame 1 (before the sprite exists)
     this.autosave(); // checkpoint at the start of round 1 (later turns checkpoint on TurnStarted)
   }
 
@@ -198,7 +248,13 @@ export class WorldScene extends Phaser.Scene {
     this.syncPlayerAnim(events);
     this.moveAnimator.ingest(events);
     this.moveAnimator.update(delta);
-    this.sync.sync(buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes()));
+    this.updateCamera(); // hex-snap follow: set the scroll BEFORE culling so off-frame sprites are hidden
+    // Show only the sprites whose hex falls fully inside the visible frame; entities elsewhere in the
+    // larger world are dropped so nothing renders in the margins around the grid.
+    const views = [...buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes())].filter(
+      (v) => this.fullyInFrame(v.x, v.y),
+    );
+    this.sync.sync(views);
     this.refreshHud();
     for (const e of events) {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
@@ -352,22 +408,30 @@ export class WorldScene extends Phaser.Scene {
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
     // Showcase: one of every enemy in the manifest (each enemy's idle key, art base = key minus the
-    // '.idle' suffix) on a spaced lattice (every 3 cols / 3 rows from row 5) — the spacing fills ~54
-    // slots so all the enemies appear without sprite overlap; the player's hex is skipped. Each enemy
-    // carries its art base (Enemy.art); installSystems renders <art>.idle. (Real encounters will later
-    // spawn a curated subset rather than every enemy.)
+    // '.idle' suffix), spread EVENLY across the whole enlarged world (Larger World feature) so the
+    // bigger map is demonstrated by panning to find them — an aspect-aware lattice inset from the edges,
+    // sized to the enemy count, rather than packing them into the top-left. The player's start hex is
+    // skipped. Each enemy carries its art base (Enemy.art); installSystems renders <art>.idle. (Real
+    // encounters will later spawn a curated subset rather than every enemy.)
     const enemyArt = Object.values(AssetKeys)
       .filter((key) => key.endsWith('.idle') && key !== AssetKeys.playerIdle)
       .map((key) => key.slice(0, -'.idle'.length));
+    const latticeCols = Math.max(1, Math.ceil(Math.sqrt((enemyArt.length * GRID_COLS) / GRID_ROWS)));
+    const latticeRows = Math.max(1, Math.ceil(enemyArt.length / latticeCols));
+    const stepCol = GRID_COLS / (latticeCols + 1); // cells sit at 1..n of n+1 divisions (inset from edges)
+    const stepRow = GRID_ROWS / (latticeRows + 1);
     const slots: { col: number; row: number }[] = [];
-    for (let row = 5; row < GRID_ROWS && slots.length < enemyArt.length; row += 3) {
-      for (let col = 0; col < GRID_COLS && slots.length < enemyArt.length; col += 3) {
-        if (!hexEquals(offsetToAxial({ col, row }), start)) slots.push({ col, row });
+    for (let latRow = 1; latRow <= latticeRows && slots.length < enemyArt.length; latRow += 1) {
+      for (let latCol = 1; latCol <= latticeCols && slots.length < enemyArt.length; latCol += 1) {
+        let col = Math.round(latCol * stepCol);
+        const row = Math.round(latRow * stepRow);
+        if (hexEquals(offsetToAxial({ col, row }), start)) col += 1; // never stack on the player's start hex
+        slots.push({ col, row });
       }
     }
     enemyArt.forEach((art, i) => {
       const slot = slots[i];
-      if (slot === undefined) return; // enemies beyond the ~54 lattice slots are skipped (by design)
+      if (slot === undefined) return; // defensive: the lattice always yields >= enemyArt.length slots
       const enemy = world.createEntity();
       world.store(Enemy).add(enemy, { isEnemy: true, art });
       world.store(HexPosition).add(enemy, { hex: offsetToAxial(slot) });
@@ -422,17 +486,20 @@ export class WorldScene extends Phaser.Scene {
   private buildHud(): void {
     this.hud = this.add
       .text(s(8), s(8), '', { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#cbd5e1' })
-      .setDepth(1_000_000);
+      .setDepth(1_000_000)
+      .setScrollFactor(0);
     this.add
       .text(s(8), s(28), 'click: move  ·  Space: end turn  ·  R: restart turn  ·  Esc: pause', {
         fontFamily: 'monospace',
         fontSize: `${s(12)}px`,
         color: '#6b7280',
       })
-      .setDepth(1_000_000);
+      .setDepth(1_000_000)
+      .setScrollFactor(0);
     this.toast = this.add
       .text(s(8), s(48), '', { fontFamily: 'monospace', fontSize: `${s(13)}px`, color: '#f0a0a0' })
-      .setDepth(1_000_000);
+      .setDepth(1_000_000)
+      .setScrollFactor(0);
     this.refreshHud();
   }
 
@@ -453,29 +520,83 @@ export class WorldScene extends Phaser.Scene {
     this.time.delayedCall(1200, () => this.toast?.setText(''));
   }
 
-  private drawGrid(): void {
-    const g = this.add.graphics().setDepth(-1_000_000);
-    // Placeholder: hexes filled light grass green (ships with this feature) until real grass tiles
-    // land. Was the outline-only grid (no fill; stroke 0x2a2f3a @0.8).
+  /**
+   * Hex-snap camera follow, staggered. The reference is the player's current VISUAL hex (the
+   * MoveAnimator's replay cursor during a move, else the committed HexPosition), re-anchored only once
+   * the player has drifted CAMERA_STAGGER_HEXES from it — so the camera pans every ~3rd hex rather than
+   * every hop. The reference sits at the frame's centre cell, then the scroll is CLAMPED to scrollBounds
+   * so the frame never reveals anything past the world edge (the camera simply stops at the edge). The
+   * grid is redrawn only when the scroll actually changes.
+   */
+  private updateCamera(): void {
+    const visual =
+      this.moveAnimator.visualHexes().get(this.player) ??
+      this.world.store(HexPosition).get(this.player)?.hex;
+    if (visual === undefined) return;
+    if (this.camRefHex === undefined || hexDistance(visual, this.camRefHex) >= CAMERA_STAGGER_HEXES) {
+      this.camRefHex = visual;
+    }
+    const { x, y } = hexToPixel(this.layout, this.camRefHex);
+    const sx = Math.min(Math.max(x - this.viewCenterPx.x, this.scrollBounds.minX), this.scrollBounds.maxX);
+    const sy = Math.min(Math.max(y - this.viewCenterPx.y, this.scrollBounds.minY), this.scrollBounds.maxY);
+    this.cameras.main.setScroll(sx, sy);
+    if (sx !== this.lastGridScrollX || sy !== this.lastGridScrollY) {
+      this.lastGridScrollX = sx;
+      this.lastGridScrollY = sy;
+      this.redrawGrid();
+    }
+  }
+
+  /**
+   * True when a hex centred at world pixel (worldX, worldY) sits FULLY inside the on-screen frame — so
+   * only complete hexes show and nothing renders in the margins. Shared by the grid draw and the sprite
+   * cull so they agree on exactly which cells are visible.
+   */
+  private fullyInFrame(worldX: number, worldY: number): boolean {
+    const cam = this.cameras.main;
+    const sx = worldX - cam.scrollX;
+    const sy = worldY - cam.scrollY;
+    const hw = this.layout.width / 2;
+    const hh = this.layout.height / 2;
+    return (
+      sx - hw >= this.frame.left &&
+      sx + hw <= this.frame.right &&
+      sy - hh >= this.frame.top &&
+      sy + hh <= this.frame.bottom
+    );
+  }
+
+  /**
+   * Redraw the grass grid for the current camera scroll: every WORLD cell whose hexagon falls fully
+   * inside the frame is drawn (as a full hex) at its true world position; partial cells at the frame edge
+   * are skipped. So every drawn hex is a real, in-bounds world cell — and clamping the camera to the
+   * world (updateCamera) lets the player reach and view every one of them. Runs only on a camera pan.
+   */
+  private redrawGrid(): void {
     const grassFill = 0x9ccc65; // light grass green
     const grassLine = 0x7cb342; // slightly darker green outline
     const hw = this.layout.width / 2;
     const q1 = this.layout.height / 4;
     const q2 = this.layout.height / 2;
-    for (const hex of this.grid.cells()) {
-      const { x, y } = hexToPixel(this.layout, hex);
-      g.fillStyle(grassFill, 1);
-      g.lineStyle(s(1), grassLine, 0.8);
-      g.beginPath();
-      g.moveTo(x, y - q2);
-      g.lineTo(x + hw, y - q1);
-      g.lineTo(x + hw, y + q1);
-      g.lineTo(x, y + q2);
-      g.lineTo(x - hw, y + q1);
-      g.lineTo(x - hw, y - q1);
-      g.closePath();
-      g.fillPath();
-      g.strokePath();
+    const g = this.gridGfx;
+    g.clear();
+    g.fillStyle(grassFill, 1);
+    g.lineStyle(s(1), grassLine, 0.8);
+    for (let row = 0; row < GRID_ROWS; row += 1) {
+      for (let col = 0; col < GRID_COLS; col += 1) {
+        const { x, y } = hexToPixel(this.layout, offsetToAxial({ col, row }));
+        if (!this.fullyInFrame(x, y)) continue;
+        g.beginPath();
+        g.moveTo(x, y - q2);
+        g.lineTo(x + hw, y - q1);
+        g.lineTo(x + hw, y + q1);
+        g.lineTo(x, y + q2);
+        g.lineTo(x - hw, y + q1);
+        g.lineTo(x - hw, y - q1);
+        g.closePath();
+        g.fillPath();
+        g.strokePath();
+      }
     }
   }
 }

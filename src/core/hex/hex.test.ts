@@ -14,6 +14,7 @@ import {
   hexToPixel,
   pixelToHex,
   offsetToAxial,
+  worldPixelBounds,
   type Hex,
   type HexLayout,
   type GameEvent,
@@ -264,5 +265,44 @@ describe('facing (movement intent)', () => {
     const target = offsetToAxial({ col: 5, row: 0 }); // directly above (dx == 0)
     advance(world, [{ kind: 'MoveTo', entity: e, q: target.q, r: target.r }]);
     expect(world.store(FacingState).get(e)?.facing).toBe('left'); // kept, not reset
+  });
+});
+
+describe('worldPixelBounds (camera clamp extent)', () => {
+  // LAYOUT: width 32, height 24, rowPitch 18, origin (24,28). hw=16, hh=12.
+  it('spans from col0/row0 cell edges to the last cell edges (incl. the odd-row half-shift)', () => {
+    const b = worldPixelBounds(LAYOUT, 52, 42);
+    expect(b.minX).toBe(LAYOUT.originX - 16); // col 0 even-row left edge
+    expect(b.minY).toBe(LAYOUT.originY - 12); // row 0 top edge
+    // last col on an odd row: origin + 51*width + half-width (odd shift) + half-width (cell edge)
+    expect(b.maxX).toBe(LAYOUT.originX + 51 * 32 + 16 + 16);
+    expect(b.maxY).toBe(LAYOUT.originY + 41 * 18 + 12); // last row bottom edge
+  });
+
+  it('grows with the grid size on both axes', () => {
+    const small = worldPixelBounds(LAYOUT, 26, 21);
+    const big = worldPixelBounds(LAYOUT, 52, 42);
+    expect(big.maxX - big.minX).toBeGreaterThan(small.maxX - small.minX);
+    expect(big.maxY - big.minY).toBeGreaterThan(small.maxY - small.minY);
+  });
+
+  it('omits the odd-row shift for a single-row grid', () => {
+    const oneRow = worldPixelBounds(LAYOUT, 10, 1);
+    expect(oneRow.maxX).toBe(LAYOUT.originX + 9 * 32 + 16); // no odd-row half-shift, just the cell edge
+  });
+
+  it('every cell of a grid lies within its world pixel bounds', () => {
+    const cols = 12;
+    const rows = 10;
+    const b = worldPixelBounds(LAYOUT, cols, rows);
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const { x, y } = hexToPixel(LAYOUT, offsetToAxial({ col, row }));
+        expect(x - 16).toBeGreaterThanOrEqual(b.minX); // cell left edge in-bounds
+        expect(x + 16).toBeLessThanOrEqual(b.maxX); // cell right edge in-bounds
+        expect(y - 12).toBeGreaterThanOrEqual(b.minY);
+        expect(y + 12).toBeLessThanOrEqual(b.maxY);
+      }
+    }
   });
 });

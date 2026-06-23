@@ -14,7 +14,9 @@ export const SAVE_KEY = 'ncg.save.v1';
 // Bump this whenever the persisted shape changes — a mismatched save is discarded (the run resets)
 // rather than migrated (ADR-010; dev game, easy to reset). v2: the card-entity deck model changed
 // DeckState's shape (instance-id piles + per-instance components). v3: EnemyData gained `art`.
-export const SAVE_VERSION = 3 as const;
+// v4: the world grew to 52x42 with a new centered start + full-world enemy spread — discard pre-
+// enlargement saves so a resumed run starts in the new world (no shape change; clean reset).
+export const SAVE_VERSION = 4 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

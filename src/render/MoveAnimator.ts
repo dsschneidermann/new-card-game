@@ -1,6 +1,6 @@
 import type { EntityId, GameEvent, Hex } from '@core/index';
 
-/** A short move (1-2 hops) holds its final hex this much longer than a normal step so the walk anim can read. */
+/** A short move (1 hop) holds its final hex this much longer than a normal step so the walk anim can read. */
 const SHORT_MOVE_EXTRA_MS = 100;
 
 /**
@@ -32,7 +32,7 @@ export class MoveAnimator {
       if (lastIndex < 1) continue; // nothing to walk
       // Hold the final hex for a normal step, plus an extra beat for a SHORT move (1-2 hops) so it
       // lasts long enough for the walk animation to visibly play rather than snapping idle->idle.
-      const finalDwellMs = this.stepMs + (lastIndex <= 2 ? SHORT_MOVE_EXTRA_MS : 0);
+      const finalDwellMs = this.stepMs + (lastIndex <= 1 ? SHORT_MOVE_EXTRA_MS : 0);
       // Head to the first step immediately (the sprite is still at path[0] from the previous frame).
       this.active.set(e.entity, { path: e.path, index: 1, lastIndex, elapsedMs: 0, finalDwellMs });
     }
