@@ -77,8 +77,8 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 const CAMERA_STAGGER_HEXES = 2;
 const HOP_MS = 200; // per-hex hop duration: the SceneSync slide tween + the MoveAnimator replay cadence (must match)
 // After a failed card/spell play, click-to-move is suppressed for this long so a reflexive follow-up
-// board click (the player trying to "retry" on the world) is swallowed instead of starting a move.
-const MOVE_LOCKOUT_AFTER_REJECT_MS = 250;
+// board click (the player trying to play the card on the world) is swallowed instead of starting a move.
+const MOVE_LOCKOUT_AFTER_REJECT_MS = 750;
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 const ENERGY_MAX = 3;
