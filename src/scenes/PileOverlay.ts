@@ -42,7 +42,10 @@ export class PileOverlay {
     const { width, height } = scene.scale;
     // Pinned (scrollFactor 0): the whole modal stays fixed while the world camera scrolls.
     this.container = scene.add.container(0, 0).setDepth(OVERLAY_DEPTH).setVisible(false).setScrollFactor(0);
-    const dim = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setInteractive();
+    // scrollFactor(0) MUST be on the dim rect itself, not just the container: Phaser hit-tests an
+    // interactive child against ITS OWN scrollFactor, so without this the backdrop's hit area shifts
+    // with the world camera (while the container keeps it rendered pinned) and clicks leak to the world.
+    const dim = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setScrollFactor(0).setInteractive();
     // A press on the backdrop starts a potential scroll-drag; a release WITHOUT a drag (a tap) resolves.
     dim.on('pointerdown', (p: Phaser.Input.Pointer) => this.beginDrag(p));
     this.title = scene.add
