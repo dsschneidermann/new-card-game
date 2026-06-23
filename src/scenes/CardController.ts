@@ -70,9 +70,9 @@ const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DIS
 // Card mod flash: when a hand card's cost/effect changes mid-turn, a white frame quickly highlights it
 // then fades away (presentation-only feedback). Tunable.
 const FLASH_IN_MS = 80; // the white frame ramps to full fast
-const FLASH_OUT_MS = 400; // then fades away
+const FLASH_OUT_MS = 1200; // then fades away
 const FLASH_COLOR = 0xffffff;
-const FLASH_THICKNESS = 3;
+const FLASH_THICKNESS = 2;
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -188,29 +188,26 @@ export class CardController {
     const staying = this.handCards.filter((c) => newSet.has(c.getData('cardEntity') as EntityId));
     // Snapshot, BEFORE destroying the sprites (getData/x/y are gone after destroy): which instances are
     // already on screen (so they don't re-deal), WHERE they are (so they slide to their new slot), and
-    // their rendered cost/free (so a card whose modifier changed this refresh can be flashed afterwards).
+    // their face signature (so a card whose surfaced state changed this refresh can be flashed afterwards).
     const wasPresent = new Set(staying.map((c) => c.getData('cardEntity') as EntityId));
     const fromPos = new Map<EntityId, { x: number; y: number; angle: number }>();
-    const oldVals = new Map<EntityId, { cost: number; tempFree: boolean }>();
+    const oldSig = new Map<EntityId, string>();
     for (const c of staying) {
       const id = c.getData('cardEntity') as EntityId;
       fromPos.set(id, { x: c.x, y: c.y, angle: c.angle });
-      oldVals.set(id, { cost: c.getData('cost') as number, tempFree: c.getData('tempFree') as boolean });
+      oldSig.set(id, c.getData('faceSig') as string);
     }
     this.animateHandDiscard(leaving);
     for (const c of staying) c.destroy(); // replaced by a fresh face (so a changed cost re-renders)
     const dealBase = leaving.length > 0 ? discardTotalMs(leaving.length) + DRAW_AFTER_DISCARD_MS : 0;
     // Genuinely-new cards fade in; kept cards slide from their old position to the (shifted) new slot.
     this.buildHand(dealBase, (instance) => !wasPresent.has(instance), fromPos);
-    // A card that stayed in hand but whose effective cost / temp-free changed had a modifier land on it
-    // this refresh (e.g. Sharpen's cost reduction) — flash a white frame to draw the eye to the change.
-    const world = this.ctx.world();
-    for (const [instance, prev] of oldVals) {
+    // A card that stayed in hand but whose face signature changed had a surfaced parameter change this
+    // refresh (e.g. Sharpen's cost reduction) — flash a white frame to draw the eye to it. The rebuilt
+    // card already carries its new signature (buildHandCard), so this is a single comparison.
+    for (const [instance, prevSig] of oldSig) {
       const card = this.handCards.find((c) => (c.getData('cardEntity') as EntityId) === instance);
-      if (card === undefined) continue;
-      if (cardEffectiveCost(world, instance) !== prev.cost || isTempFree(world, instance) !== prev.tempFree) {
-        this.flashCard(card);
-      }
+      if (card !== undefined && (card.getData('faceSig') as string) !== prevSig) this.flashCard(card);
     }
   }
 
@@ -234,6 +231,16 @@ export class CardController {
         { alpha: 0, duration: FLASH_OUT_MS, ease: 'Quad.easeIn' },
       ],
     });
+  }
+
+  /**
+   * The signature of everything the card face surfaces — cost, cost colour (temp-free), name, and effect
+   * text. refreshHand flashes a hand card whose signature changed mid-turn. INVARIANT: every parameter
+   * rendered on the face by makeCardFace MUST be added here, or a change to it won't trigger the flash.
+   */
+  private cardFaceSignature(def: CardDef, cost: number, tempFree: boolean): string {
+    // Join on the unit-separator control char (31), which cannot occur in cost/name/effect text.
+    return [cost, tempFree, def.name, def.effectText].join(String.fromCharCode(31));
   }
 
   /**
@@ -288,9 +295,9 @@ export class CardController {
     const tempFree = isTempFree(world, instance);
     const card = this.makeCardFace(def, 1, cost, tempFree);
     card.setData('cardEntity', instance);
-    // Record the rendered cost/free so refreshHand can detect a mid-turn change to this card and flash it.
-    card.setData('cost', cost);
-    card.setData('tempFree', tempFree);
+    // Record a signature of everything the face surfaces so refreshHand can flash the card when its
+    // displayed state changes mid-turn (cardFaceSignature is the single place that lists those params).
+    card.setData('faceSig', this.cardFaceSignature(def, cost, tempFree));
     this.placeCard(card, i, count, layout, false);
     card.setInteractive(new Phaser.Geom.Rectangle(-s(48), -s(72), s(96), s(144)), Phaser.Geom.Rectangle.Contains);
     card.on('pointerover', () => {
