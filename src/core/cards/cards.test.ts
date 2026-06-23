@@ -144,7 +144,7 @@ describe('starter content', () => {
     expect(STARTER_COLLECTION).toEqual([
       'melee', 'melee', 'melee',
       'longstrike', 'longstrike',
-      'ranged', 'ranged', 'ranged',
+      'rangedshot', 'rangedshot', 'rangedshot',
       'defend', 'defend',
       'jump', 'jump',
       'quickdraw', 'quickdraw',
@@ -159,7 +159,7 @@ describe('starter content', () => {
   it('isAttackCard is true for attack cards, false for skills, spells and unknown ids', () => {
     expect(isAttackCard('melee')).toBe(true);
     expect(isAttackCard('longstrike')).toBe(true);
-    expect(isAttackCard('ranged')).toBe(true);
+    expect(isAttackCard('rangedshot')).toBe(true);
     expect(isAttackCard('defend')).toBe(false);
     expect(isAttackCard('jump')).toBe(false);
     expect(isAttackCard('quickdraw')).toBe(false); // a skill demonstrator
@@ -173,7 +173,7 @@ describe('starter content', () => {
     expect(isHeavyAttack('whirlwind')).toBe(true);
     expect(isHeavyAttack('longstrike')).toBe(true);
     expect(isHeavyAttack('melee')).toBe(false); // a normal attack -> attack1
-    expect(isHeavyAttack('ranged')).toBe(false);
+    expect(isHeavyAttack('rangedshot')).toBe(false);
     expect(isHeavyAttack('defend')).toBe(false);
     expect(isHeavyAttack('quickdraw')).toBe(false);
     expect(isHeavyAttack('blizzard')).toBe(false); // a spell id, not a card
@@ -199,7 +199,7 @@ describe('starter content', () => {
   it('attack cards carry per-id art, costs, and their ranged target specs', () => {
     expect(cardDef('melee')).toMatchObject({ art: 'card.art.melee', cost: 1, target: { kind: 'singleHex', maxRange: 1 } });
     expect(cardDef('longstrike')?.target).toEqual({ kind: 'singleHex', maxRange: 2 });
-    expect(cardDef('ranged')?.target).toEqual({ kind: 'lineOfSight', maxRange: 5 });
+    expect(cardDef('rangedshot')?.target).toEqual({ kind: 'lineOfSight', maxRange: 5 });
     expect(cardDef('defend')?.target).toEqual({ kind: 'self' });
     expect(cardDef('jump')?.cost).toBe(0);
     expect(cardDef('whirlwind')).toMatchObject({ cost: 2, attack: true, target: { kind: 'selfAoe', radius: 2 } });

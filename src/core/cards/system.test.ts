@@ -78,7 +78,7 @@ describe('effectiveCost (pure)', () => {
 
 describe('deck cycle (drawOne / drawUpTo / reshuffle)', () => {
   it('drawUpTo fills the hand from the front of the draw pile', () => {
-    const { world, player } = setup(['melee', 'ranged', 'defend', 'jump', 'melee']);
+    const { world, player } = setup(['melee', 'rangedshot', 'defend', 'jump', 'melee']);
     const deck = deckOf(world, player);
     const order = [...deck.drawPile];
     const drawn = drawUpTo(deck, 3, world.rng);
@@ -122,7 +122,7 @@ describe('card system: turn-start draw', () => {
     // A 10-card deck so the draw pile (6 after the opening hand) refills the next hand without
     // having to reshuffle the just-discarded leftovers back in.
     const { world, player } = setup([
-      'melee', 'ranged', 'defend', 'jump', 'melee', 'ranged', 'defend', 'jump', 'melee', 'ranged',
+      'melee', 'rangedshot', 'defend', 'jump', 'melee', 'rangedshot', 'defend', 'jump', 'melee', 'rangedshot',
     ]);
     const deck = deckOf(world, player);
     drawUpTo(deck, HAND, world.rng); // stand in for the scene's opening draw
@@ -136,7 +136,7 @@ describe('card system: turn-start draw', () => {
 
 describe('card system: play -> discard', () => {
   it('moves the played instance from hand to the discard pile and emits CardDiscarded', () => {
-    const { world, player } = setup(['melee', 'ranged', 'defend', 'jump', 'melee']);
+    const { world, player } = setup(['melee', 'rangedshot', 'defend', 'jump', 'melee']);
     advance(world, [{ kind: 'EndTurn', entity: player }]); // draw a hand
     const deck = deckOf(world, player);
     const inst = deck.hand[0] as EntityId;
@@ -151,7 +151,7 @@ describe('card system: play -> discard', () => {
 
 describe('permanent effect (Sharpen / ReduceRandomOtherCost)', () => {
   it('lowers a random OTHER in-hand card by 1 permanently and persists across a save + cycle', () => {
-    const { world, player } = setup(['sharpen', 'melee', 'melee', 'melee', 'ranged']);
+    const { world, player } = setup(['sharpen', 'melee', 'melee', 'melee', 'rangedshot']);
     advance(world, [{ kind: 'EndTurn', entity: player }]); // hand = sharpen + 3 melee (deck order)
     const deck = deckOf(world, player);
     const sharpen = deck.hand.find((e) => defOf(world, e) === 'sharpen') as EntityId;
@@ -214,7 +214,7 @@ describe('permanent effect (Sharpen / ReduceRandomOtherCost)', () => {
 
 describe('temporary effect (Quick Draw / DrawAndFree)', () => {
   it('draws an extra card and frees it (cost 0), and clears the free when it leaves the hand', () => {
-    const { world, player } = setup(['quickdraw', 'melee', 'melee', 'melee', 'ranged', 'jump']);
+    const { world, player } = setup(['quickdraw', 'melee', 'melee', 'melee', 'rangedshot', 'jump']);
     advance(world, [{ kind: 'EndTurn', entity: player }]); // hand = quickdraw + 3 melee; draw = ranged, jump
     const deck = deckOf(world, player);
     const quickdraw = deck.hand.find((e) => defOf(world, e) === 'quickdraw') as EntityId;
@@ -235,7 +235,7 @@ describe('temporary effect (Quick Draw / DrawAndFree)', () => {
   });
 
   it('clears the temporary free at end of turn when an unplayed freed card is discarded', () => {
-    const { world, player } = setup(['quickdraw', 'melee', 'melee', 'melee', 'ranged']);
+    const { world, player } = setup(['quickdraw', 'melee', 'melee', 'melee', 'rangedshot']);
     advance(world, [{ kind: 'EndTurn', entity: player }]);
     const deck = deckOf(world, player);
     const quickdraw = deck.hand.find((e) => defOf(world, e) === 'quickdraw') as EntityId;
@@ -252,9 +252,9 @@ describe('temporary effect (Quick Draw / DrawAndFree)', () => {
 describe('sortPileForDisplay (overlay display order)', () => {
   it('orders attacks before skills, then by effective cost ascending, then by name', () => {
     // melee/ranged: attack cost 1; whirlwind: attack cost 2; jump: skill cost 0; defend/quickdraw: skill cost 1
-    const { world, player } = setup(['whirlwind', 'defend', 'melee', 'quickdraw', 'jump', 'ranged']);
+    const { world, player } = setup(['whirlwind', 'defend', 'melee', 'quickdraw', 'jump', 'rangedshot']);
     const sorted = sortPileForDisplay(world, deckOf(world, player).drawPile).map((e) => defOf(world, e));
-    expect(sorted).toEqual(['melee', 'ranged', 'whirlwind', 'jump', 'defend', 'quickdraw']);
+    expect(sorted).toEqual(['melee', 'rangedshot', 'whirlwind', 'jump', 'defend', 'quickdraw']);
   });
 
   it('uses EFFECTIVE cost: a permanent reduction moves a card to its reduced slot', () => {
@@ -329,11 +329,11 @@ describe('card-pick effect (Recall / MoveToHand)', () => {
 
 describe('pickCandidates (card-picker source)', () => {
   it('returns the named pile, narrowed by the optional filter (by def id)', () => {
-    const { world, player } = setup(['melee', 'ranged', 'defend', 'jump']);
+    const { world, player } = setup(['melee', 'rangedshot', 'defend', 'jump']);
     const deck = deckOf(world, player);
     const byDef = (id: string): EntityId => deck.drawPile.find((e) => defOf(world, e) === id) as EntityId;
     const melee = byDef('melee');
-    const ranged = byDef('ranged');
+    const ranged = byDef('rangedshot');
     const defend = byDef('defend');
     const jump = byDef('jump');
     deck.drawPile.length = 0;
@@ -348,7 +348,7 @@ describe('pickCandidates (card-picker source)', () => {
 
 describe('DeckState v3 persistence (feature 06 obligation)', () => {
   it('round-trips the three piles + per-instance Card / CardMods / TempCardMods', () => {
-    const { world, player } = setup(['melee', 'ranged', 'defend', 'jump']);
+    const { world, player } = setup(['melee', 'rangedshot', 'defend', 'jump']);
     const deck = deckOf(world, player);
     drawUpTo(deck, 2, world.rng); // hand = 2, draw = 2
     const h0 = deck.hand[0] as EntityId;

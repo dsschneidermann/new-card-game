@@ -54,15 +54,15 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.cardSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
 
   // --- Card art (per card type), shown behind the face. Static, scale 0.5; placeholders until art drops in ---
-  asset(AssetKeys.cardArtMelee, [256, 256, 0.5], 'card art (melee)', 'Card art: melee'),
-  asset(AssetKeys.cardArtLongstrike, [256, 256, 0.5], 'card art (longstrike)', 'Card art: longstrike'),
-  asset(AssetKeys.cardArtRanged, [256, 256, 0.5], 'card art (ranged)', 'Card art: ranged'),
-  asset(AssetKeys.cardArtDefend, [256, 256, 0.5], 'card art (defend)', 'Card art: defend'),
-  asset(AssetKeys.cardArtJump, [256, 256, 0.5], 'card art (jump)', 'Card art: jump'),
-  asset(AssetKeys.cardArtQuickdraw, [256, 256, 0.5], 'card art (quickdraw)', 'Card art: quickdraw'),
-  asset(AssetKeys.cardArtSharpen, [256, 256, 0.5], 'card art (sharpen)', 'Card art: sharpen'),
-  asset(AssetKeys.cardArtWhirlwind, [256, 256, 0.5], 'card art (whirlwind)', 'Card art: whirlwind'),
-  asset(AssetKeys.cardArtRecall, [256, 256, 0.5], 'card art (recall)', 'Card art: recall'),
+  asset(AssetKeys.cardArtMelee, [256, 256, 0.35], 'card art (melee)', 'Card art: melee'),
+  asset(AssetKeys.cardArtLongstrike, [256, 256, 0.35], 'card art (longstrike)', 'Card art: longstrike'),
+  asset(AssetKeys.cardArtRangedshot, [256, 256, 0.35], 'card art (rangedshot)', 'Card art: rangedshot'),
+  asset(AssetKeys.cardArtDefend, [256, 256, 0.35], 'card art (defend)', 'Card art: defend'),
+  asset(AssetKeys.cardArtJump, [256, 256, 0.35], 'card art (jump)', 'Card art: jump'),
+  asset(AssetKeys.cardArtQuickdraw, [256, 256, 0.35], 'card art (quickdraw)', 'Card art: quickdraw'),
+  asset(AssetKeys.cardArtSharpen, [256, 256, 0.35], 'card art (sharpen)', 'Card art: sharpen'),
+  asset(AssetKeys.cardArtWhirlwind, [256, 256, 0.35], 'card art (whirlwind)', 'Card art: whirlwind'),
+  asset(AssetKeys.cardArtRecall, [256, 256, 0.35], 'card art (recall)', 'Card art: recall'),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
@@ -108,21 +108,21 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.demon3Death, [128, 128, 0.5], 'demon_3 death', 'Enemy demon_3 death'),
 
   // dragon_1
-  asset(AssetKeys.dragon1Idle, [256, 256, 0.5], 'dragon_1 idle', 'Enemy dragon_1 idle', { frameCount: 8, fps: 6, downPx: -16 }),
+  asset(AssetKeys.dragon1Idle, [256, 256, 0.5], 'dragon_1 idle', 'Enemy dragon_1 idle', { frameCount: 7, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon1Walk, [256, 256, 0.5], 'dragon_1 walk', 'Enemy dragon_1 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
   asset(AssetKeys.dragon1Attack, [256, 256, 0.5], 'dragon_1 attack', 'Enemy dragon_1 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon1Hurt, [256, 256, 0.5], 'dragon_1 hurt', 'Enemy dragon_1 hurt'),
   asset(AssetKeys.dragon1Death, [256, 256, 0.5], 'dragon_1 death', 'Enemy dragon_1 death'),
 
   // dragon_2
-  asset(AssetKeys.dragon2Idle, [256, 256, 0.5], 'dragon_2 idle', 'Enemy dragon_2 idle', { frameCount: 8, fps: 6, downPx: -16 }),
+  asset(AssetKeys.dragon2Idle, [256, 256, 0.5], 'dragon_2 idle', 'Enemy dragon_2 idle', { frameCount: 7, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon2Walk, [256, 256, 0.5], 'dragon_2 walk', 'Enemy dragon_2 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
   asset(AssetKeys.dragon2Attack, [256, 256, 0.5], 'dragon_2 attack', 'Enemy dragon_2 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon2Hurt, [256, 256, 0.5], 'dragon_2 hurt', 'Enemy dragon_2 hurt'),
   asset(AssetKeys.dragon2Death, [256, 256, 0.5], 'dragon_2 death', 'Enemy dragon_2 death'),
 
   // dragon_3
-  asset(AssetKeys.dragon3Idle, [256, 256, 0.5], 'dragon_3 idle', 'Enemy dragon_3 idle', { frameCount: 8, fps: 6, downPx: -16 }),
+  asset(AssetKeys.dragon3Idle, [256, 256, 0.5], 'dragon_3 idle', 'Enemy dragon_3 idle', { frameCount: 7, fps: 6, downPx: -16 }),
   asset(AssetKeys.dragon3Walk, [256, 256, 0.5], 'dragon_3 walk', 'Enemy dragon_3 walk', { frameCount: 12, fps: 10, downPx: -16, forwardPx: 6 }),
   asset(AssetKeys.dragon3Attack, [256, 256, 0.5], 'dragon_3 attack', 'Enemy dragon_3 attack', { frameCount: 10, fps: 10, downPx: -16, forwardPx: 18 }),
   asset(AssetKeys.dragon3Hurt, [256, 256, 0.5], 'dragon_3 hurt', 'Enemy dragon_3 hurt'),
@@ -296,16 +296,6 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiPanel,
   AssetKeys.world1Floor,
   AssetKeys.world1Wall,
-  // Per-card art has no files yet — placeholders until real art drops in (promote per key in review).
-  AssetKeys.cardArtMelee,
-  AssetKeys.cardArtLongstrike,
-  AssetKeys.cardArtRanged,
-  AssetKeys.cardArtDefend,
-  AssetKeys.cardArtJump,
-  AssetKeys.cardArtQuickdraw,
-  AssetKeys.cardArtSharpen,
-  AssetKeys.cardArtWhirlwind,
-  AssetKeys.cardArtRecall,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

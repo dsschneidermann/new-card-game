@@ -27,7 +27,7 @@ export const AssetKeys = {
   // Card art shown BEHIND the face (per card type), revealed through the frame's transparent top-half opening.
   cardArtMelee: 'card_art_melee',
   cardArtLongstrike: 'card_art_longstrike',
-  cardArtRanged: 'card_art_ranged',
+  cardArtRangedshot: 'card_art_rangedshot',
   cardArtDefend: 'card_art_defend',
   cardArtJump: 'card_art_jump',
   cardArtQuickdraw: 'card_art_quickdraw',

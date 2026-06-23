@@ -60,7 +60,8 @@ const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
-const CARD_ART_OFFSET_Y = -22; // base px: per-card art centre in the frame's top-half window (tune in review)
+const CARD_ATTACK_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
+const CARD_SKILL_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
 
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
@@ -684,12 +685,12 @@ export class CardController {
     const name = this.scene.add
       .text(0, -h / 2 + nameOffset, def.name, { fontFamily: 'monospace', fontSize: `${s(9)}px`, color: '#e5e7eb' })
       .setOrigin(0.5, 0);
-    const effOffset = isAttackCard(def.id) ? s(38) : s(38);
+    const effOffset = isAttackCard(def.id) ? s(38) : s(39);
     const eff = this.scene.add
       .text(0, h / 2 - effOffset, def.effectText, {
         fontFamily: 'monospace',
         fontSize: `${s(8)}px`,
-        color: '#9ca3af',
+        color: '#020202',
         align: 'center',
         wordWrap: { width: w - s(24) },
       })
@@ -702,7 +703,7 @@ export class CardController {
       const ad = resolveKey(artKey)?.descriptor;
       const artScale = ad ? assetScale(ad) : 0.5;
       const cardArt = this.scene.add
-        .image(0, s(CARD_ART_OFFSET_Y), artKey)
+        .image(0, isAttackCard(def.id) ? s(CARD_ATTACK_ART_OFFSET_Y) : s(CARD_SKILL_ART_OFFSET_Y), artKey)
         .setOrigin(0.5)
         .setDisplaySize(s((ad?.size[0] ?? 256) * artScale), s((ad?.size[1] ?? 256) * artScale));
       layers.unshift(cardArt); // backmost: behind the frame
