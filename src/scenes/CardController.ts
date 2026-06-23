@@ -77,7 +77,7 @@ const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DIS
 const FLASH_IN_MS = 80; // the white frame ramps to full fast
 const FLASH_OUT_MS = 1200; // then fades away
 const FLASH_COLOR = 0xffffff;
-const FLASH_THICKNESS = 2;
+const FLASH_THICKNESS = 3;
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -305,7 +305,8 @@ export class CardController {
     card.setData('faceSig', this.cardFaceSignature(def, cost, tempFree));
     this.placeCard(card, i, count, layout, false);
     const { w: hitW, h: hitH } = this.cardFaceBase(); // hit area tracks the face size (matches the art)
-    card.setInteractive(new Phaser.Geom.Rectangle(-s(hitW) / 2, -s(hitH) / 2, s(hitW), s(hitH)), Phaser.Geom.Rectangle.Contains);
+    const hitBot = s(20); // hit area extends off the bottom of the card so hover stays while the mouse is there
+    card.setInteractive(new Phaser.Geom.Rectangle(-s(hitW) / 2, -s(hitH) / 2, s(hitW), s(hitH) + hitBot), Phaser.Geom.Rectangle.Contains);
     card.on('pointerover', () => {
       if (this.armed === null) {
         card.setY((card.getData('homeY') as number) - s(28));
@@ -343,7 +344,7 @@ export class CardController {
    */
   private fanLayout(count: number): { spacing: number; baseX: number; baseY: number } {
     const { width, height } = this.scene.scale;
-    const maxSpan = width - s(192); // outermost card centres stay inside the screen
+    const maxSpan = width - s(250); // outermost card centres stay inside the screen
     const spacing = count > 1 ? Math.min(s(104), maxSpan / (count - 1)) : 0;
     const baseX = width / 2 - ((count - 1) * spacing) / 2;
     const baseY = height - s(52); // tucked: most of each card shows above the bottom edge
@@ -644,13 +645,13 @@ export class CardController {
   }
 
   /**
-   * The card face's base size (px before s()): the background art's native size at its display scale
-   * (assetScale), so the face matches the art's aspect EXACTLY (no squish) and renders natively at the
-   * desktop 2x scale. Attack and skill backgrounds share one size, so either descriptor gives it.
+   * The card face's base size (px before s()): the card-background art (195x284) at its 0.5 display
+   * scale, so the face matches the art's aspect EXACTLY (no squish) and renders natively at the desktop
+   * 2x scale. Attack and skill backgrounds share one size.
    */
   private cardFaceBase(): { w: number; h: number } {
     const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
-    if (d === undefined) return { w: 96, h: 144 }; // unreachable (the key is registered) — safe fallback
+    if (d === undefined) return { w: 195 / 2, h: 284 / 2 }; // unreachable (the key is registered) — safe fallback
     return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
   }
 
@@ -669,25 +670,27 @@ export class CardController {
     const background = this.scene.add.image(0, 0, bgKey).setOrigin(0.5).setDisplaySize(w, h);
     const bg = this.scene.add
       .rectangle(0, 0, w, h, 0x000000, 0) // fill-transparent: only the frame + selection border, over the art
-      .setStrokeStyle(s(2), this.frameColor(def.id))
+      .setStrokeStyle(s(0), this.frameColor(def.id)) // no visible border for cards normally
       .setOrigin(0.5);
     const costText = this.scene.add
-      .text(-w / 2 + s(6), -h / 2 + s(4), `E${cost}`, {
+      .text(-w / 2 + s(6), -h / 2 + s(22), `E${cost}`, {
         fontFamily: 'monospace',
         fontSize: `${s(14)}px`,
         color: tempFree ? '#22c55e' : '#facc15', // green = temporary free; yellow = base/permanent
       })
       .setOrigin(0, 0);
+    const nameOffset = isAttackCard(def.id) ? s(8.5) : s(5.5);
     const name = this.scene.add
-      .text(0, -h / 2 + s(22), def.name, { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
+      .text(0, -h / 2 + nameOffset, def.name, { fontFamily: 'monospace', fontSize: `${s(9)}px`, color: '#e5e7eb' })
       .setOrigin(0.5, 0);
+    const effOffset = isAttackCard(def.id) ? s(38) : s(38);
     const eff = this.scene.add
-      .text(0, h / 2 - s(42), def.effectText, {
+      .text(0, h / 2 - effOffset, def.effectText, {
         fontFamily: 'monospace',
-        fontSize: `${s(10)}px`,
+        fontSize: `${s(8)}px`,
         color: '#9ca3af',
         align: 'center',
-        wordWrap: { width: w - s(12) },
+        wordWrap: { width: w - s(24) },
       })
       .setOrigin(0.5, 0);
     c.add([background, bg, costText, name, eff]);
@@ -705,7 +708,7 @@ export class CardController {
   private setCardSelected(card: Phaser.GameObjects.Container, on: boolean): void {
     const bg = card.getData('bg') as Phaser.GameObjects.Rectangle | undefined;
     if (bg === undefined) return;
-    bg.setStrokeStyle(s(2), on ? 0xfacc15 : (card.getData('frameColor') as number));
+    bg.setStrokeStyle(on ? s(2) : s(0), on ? 0xfacc15 : (card.getData('frameColor') as number));
   }
 
   private buildSpellSidebar(): void {

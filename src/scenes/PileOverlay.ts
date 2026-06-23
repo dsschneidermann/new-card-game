@@ -8,13 +8,13 @@ const OVERLAY_BOTTOM_MARGIN = 24;
 const OVERLAY_PAD = 70; // top pad inside the scroll content so the first row clears the viewport edge
 const OVERLAY_COLS = 5;
 const OVERLAY_COL_W = 110;
-const OVERLAY_ROW_H = 130;
-export const OVERLAY_FACE_SCALE = 0.8; // shared with CardController.makeCardFace so the hit-test matches the art
+const OVERLAY_ROW_H = 140;
+export const OVERLAY_FACE_SCALE = 0.9; // shared with CardController.makeCardFace so the hit-test matches the art
 // Card face footprint (base px, pre-scale) for the tap hit-test — the background art's native size at its
 // display scale (assetScale), matching CardController.makeCardFace exactly so the hit-test tracks the art.
 const CARD_FACE_DESC = resolveKey(AssetKeys.cardSkill)?.descriptor;
-const FACE_W = CARD_FACE_DESC ? CARD_FACE_DESC.size[0] * assetScale(CARD_FACE_DESC) : 96;
-const FACE_H = CARD_FACE_DESC ? CARD_FACE_DESC.size[1] * assetScale(CARD_FACE_DESC) : 144;
+const FACE_W = CARD_FACE_DESC ? CARD_FACE_DESC.size[0] * assetScale(CARD_FACE_DESC) : 195 / 2;
+const FACE_H = CARD_FACE_DESC ? CARD_FACE_DESC.size[1] * assetScale(CARD_FACE_DESC) : 284 / 2;
 const OVERLAY_DEPTH = 2_000_000 + 100; // above the HUD
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a tap
 

@@ -49,7 +49,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.playerAttack2, [128, 128, 0.5], 'same character, attack B, right-facing', 'Player attack variant 2', { frameCount: 7, fps: 12, downPx: -6 }),
   asset(AssetKeys.playerDeath, [128, 128, 0.5], 'same character, death, right-facing', 'Player death'),
 
-  // --- Card UI: static face backgrounds by class. size[2]=0.5 (art is 2x its display size), no sprite ---
+  // --- Card UI: static face backgrounds by class ---
   asset(AssetKeys.cardAttack, [195, 284, 0.5], 'attack-card frame + background', 'Card face background (attack class)'),
   asset(AssetKeys.cardSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
 

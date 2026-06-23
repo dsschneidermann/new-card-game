@@ -138,7 +138,7 @@ export class WorldScene extends Phaser.Scene {
     this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
-    this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(28) };
+    this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(38) };
     // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
     // reference hex sits at the frame's centre-cell screen position so the player is where it was
     // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
