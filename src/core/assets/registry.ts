@@ -53,6 +53,17 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.cardAttack, [195, 284, 0.5], 'attack-card frame + background', 'Card face background (attack class)'),
   asset(AssetKeys.cardSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
 
+  // --- Card art (per card type), shown behind the face. Static, scale 0.5; placeholders until art drops in ---
+  asset(AssetKeys.cardArtMelee, [256, 256, 0.5], 'card art (melee)', 'Card art: melee'),
+  asset(AssetKeys.cardArtLongstrike, [256, 256, 0.5], 'card art (longstrike)', 'Card art: longstrike'),
+  asset(AssetKeys.cardArtRanged, [256, 256, 0.5], 'card art (ranged)', 'Card art: ranged'),
+  asset(AssetKeys.cardArtDefend, [256, 256, 0.5], 'card art (defend)', 'Card art: defend'),
+  asset(AssetKeys.cardArtJump, [256, 256, 0.5], 'card art (jump)', 'Card art: jump'),
+  asset(AssetKeys.cardArtQuickdraw, [256, 256, 0.5], 'card art (quickdraw)', 'Card art: quickdraw'),
+  asset(AssetKeys.cardArtSharpen, [256, 256, 0.5], 'card art (sharpen)', 'Card art: sharpen'),
+  asset(AssetKeys.cardArtWhirlwind, [256, 256, 0.5], 'card art (whirlwind)', 'Card art: whirlwind'),
+  asset(AssetKeys.cardArtRecall, [256, 256, 0.5], 'card art (recall)', 'Card art: recall'),
+
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
   asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 192, downPx: 10 }),
@@ -285,6 +296,16 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiPanel,
   AssetKeys.world1Floor,
   AssetKeys.world1Wall,
+  // Per-card art has no files yet — placeholders until real art drops in (promote per key in review).
+  AssetKeys.cardArtMelee,
+  AssetKeys.cardArtLongstrike,
+  AssetKeys.cardArtRanged,
+  AssetKeys.cardArtDefend,
+  AssetKeys.cardArtJump,
+  AssetKeys.cardArtQuickdraw,
+  AssetKeys.cardArtSharpen,
+  AssetKeys.cardArtWhirlwind,
+  AssetKeys.cardArtRecall,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

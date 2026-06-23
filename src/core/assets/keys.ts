@@ -24,6 +24,17 @@ export const AssetKeys = {
   cardAttack: 'card_attack',
   cardSkill: 'card_skill',
 
+  // Card art shown BEHIND the face (per card type), revealed through the frame's transparent top-half opening.
+  cardArtMelee: 'card_art_melee',
+  cardArtLongstrike: 'card_art_longstrike',
+  cardArtRanged: 'card_art_ranged',
+  cardArtDefend: 'card_art_defend',
+  cardArtJump: 'card_art_jump',
+  cardArtQuickdraw: 'card_art_quickdraw',
+  cardArtSharpen: 'card_art_sharpen',
+  cardArtWhirlwind: 'card_art_whirlwind',
+  cardArtRecall: 'card_art_recall',
+
   // slime1
   slime1Idle: 'slime1.idle',
   slime1Walk: 'slime1.walk',

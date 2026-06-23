@@ -60,6 +60,7 @@ const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
+const CARD_ART_OFFSET_Y = -22; // base px: per-card art centre in the frame's top-half window (tune in review)
 
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
@@ -693,7 +694,20 @@ export class CardController {
         wordWrap: { width: w - s(24) },
       })
       .setOrigin(0.5, 0);
-    c.add([background, bg, costText, name, eff]);
+    const layers = [background, bg, costText, name, eff];
+    // Per-card art BEHIND the frame, revealed through the frame's transparent top-half window (the frame is
+    // opaque around that window, so it masks the art's in-card overflow). Missing art -> generated placeholder.
+    const artKey = `card_art_${def.id}`;
+    if (this.scene.textures.exists(artKey)) {
+      const ad = resolveKey(artKey)?.descriptor;
+      const artScale = ad ? assetScale(ad) : 0.5;
+      const cardArt = this.scene.add
+        .image(0, s(CARD_ART_OFFSET_Y), artKey)
+        .setOrigin(0.5)
+        .setDisplaySize(s((ad?.size[0] ?? 256) * artScale), s((ad?.size[1] ?? 256) * artScale));
+      layers.unshift(cardArt); // backmost: behind the frame
+    }
+    c.add(layers);
     c.setData('bg', bg);
     c.setData('frameColor', this.frameColor(def.id));
     c.setScale(scale);
