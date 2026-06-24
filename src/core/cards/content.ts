@@ -113,7 +113,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     target: { kind: 'areaOfEffect', radius: 1 },
   },
   {
-    id: 'heal',
+    id: 'selfheal',
     name: 'Self Heal',
     cost: 2,
     art: AssetKeys.spellArtSelfheal,

@@ -211,7 +211,7 @@ describe('starter content', () => {
       cost: 3,
       target: { kind: 'areaOfEffect', radius: 1 },
     });
-    expect(spellDef('heal')?.target).toEqual({ kind: 'self' });
+    expect(spellDef('selfheal')?.target).toEqual({ kind: 'self' });
     expect(spellDef('teleport')?.target.kind).toBe('twoStep');
   });
 });
