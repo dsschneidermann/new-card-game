@@ -9,6 +9,9 @@ import { axialToOffset, offsetToAxial } from './layout';
  */
 export class HexGrid {
   private readonly blocked = new Set<string>();
+  // Hexes that block line of sight (opaque obstacles like walls). Independent of `blocked`: a low rock
+  // blocks movement but not sight, and a future sight-only obstacle would block sight but not movement.
+  private readonly sightBlocked = new Set<string>();
 
   constructor(
     readonly cols: number,
@@ -27,6 +30,16 @@ export class HexGrid {
   setWalkable(h: Hex, walkable: boolean): void {
     if (walkable) this.blocked.delete(hexKey(h));
     else this.blocked.add(hexKey(h));
+  }
+
+  /** Whether this hex blocks line of sight (an opaque obstacle stands on it). Independent of walkability. */
+  blocksSight(h: Hex): boolean {
+    return this.sightBlocked.has(hexKey(h));
+  }
+
+  setBlocksSight(h: Hex, blocks: boolean): void {
+    if (blocks) this.sightBlocked.add(hexKey(h));
+    else this.sightBlocked.delete(hexKey(h));
   }
 
   /** In-bounds, walkable neighbours in fixed direction order. */

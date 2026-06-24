@@ -11,6 +11,8 @@ import {
   FacingState,
   Player,
   Enemy,
+  Obstacle,
+  applyObstacles,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -173,6 +175,7 @@ export class WorldScene extends Phaser.Scene {
     this.level = FOREST_LEVEL;
     this.theme = terrainThemeForLevel(this.level.id);
     this.grid = new HexGrid(this.level.cols, this.level.rows);
+    applyObstacles(this.grid, this.level.obstacles); // walls/rocks block movement; walls also block line of sight
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(38) };
@@ -430,6 +433,11 @@ export class WorldScene extends Phaser.Scene {
     for (const [enemy, { art }] of this.world.store(Enemy).entries()) {
       this.world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
     }
+    // Obstacles render through the same pipeline as a STATIC sprite (no animBase): a transient Renderable
+    // carrying the level theme's art for the obstacle's kind, re-attached here on Resume/Restart Turn.
+    for (const [obstacle, { kind }] of this.world.store(Obstacle).entries()) {
+      this.world.store(Renderable).add(obstacle, { texture: this.theme.obstacleArt[kind] });
+    }
   }
 
   /** A brand-new run: a clock-seeded world with the player and its turn state. */
@@ -467,6 +475,13 @@ export class WorldScene extends Phaser.Scene {
       const enemy = world.createEntity();
       world.store(Enemy).add(enemy, { isEnemy: true, art: spawn.art });
       world.store(HexPosition).add(enemy, { hex: spawn.hex });
+    }
+    // Obstacles are entities too (Obstacle{kind} + HexPosition): installSystems attaches their art
+    // Renderable and create() already applied their walkability/sight flags to the grid.
+    for (const spawn of this.level.obstacles) {
+      const obstacle = world.createEntity();
+      world.store(Obstacle).add(obstacle, { kind: spawn.kind });
+      world.store(HexPosition).add(obstacle, { hex: spawn.hex });
     }
     return world;
   }

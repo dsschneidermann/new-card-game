@@ -65,7 +65,9 @@ export class TargetingPainter {
     if (spec.kind !== 'selfAoe' && (hovered === null || !this.grid.inBounds(hovered))) return;
     const effectiveHovered = hovered ?? origin; // selfAoe ignores it; origin is a harmless default
     if (isBlocked(effectiveHovered)) return;
-    const { primary, secondary } = resolveTargeting(spec, origin, effectiveHovered, firstPick);
+    const { primary, secondary } = resolveTargeting(spec, origin, effectiveHovered, firstPick, (h) =>
+      this.grid.blocksSight(h),
+    );
     // Clip each highlighted hex to the VISIBLE board window — in grid bounds AND fully on-screen — so a
     // multi-hex target (e.g. an areaOfEffect disk near the frame edge) never paints off-grid or in the
     // off-frame margin; the hovered centre being in-bounds is not enough.

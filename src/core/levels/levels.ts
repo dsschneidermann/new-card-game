@@ -1,4 +1,5 @@
 import type { Hex } from '../hex/hex';
+import type { ObstacleKind } from '../obstacles';
 
 /**
  * A single enemy placed at level start: its art base (the renderer draws `${art}.idle`)
@@ -7,6 +8,16 @@ import type { Hex } from '../hex/hex';
  */
 export interface EnemySpawn {
   readonly art: string;
+  readonly hex: Hex;
+}
+
+/**
+ * A single obstacle placed on the level: its kind (wall/rock — see OBSTACLE_RULES for what each blocks)
+ * and the hex it occupies. Pure data; WorldScene turns each into an Obstacle entity, applies its
+ * walkability/sight flags to the grid, and renders it via the TerrainTheme's art for its kind.
+ */
+export interface ObstacleSpawn {
+  readonly kind: ObstacleKind;
   readonly hex: Hex;
 }
 
@@ -26,5 +37,6 @@ export interface LevelDef {
   readonly rows: number;
   readonly startHex: Hex;
   readonly enemySpawns: readonly EnemySpawn[];
+  readonly obstacles: readonly ObstacleSpawn[];
   readonly terrainSeed: number;
 }

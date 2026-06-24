@@ -4,6 +4,7 @@ import {
   type TerrainKind,
   type TerrainOverlay,
   type LeafShape,
+  type ObstacleKind,
 } from '@core/index';
 
 /**
@@ -28,6 +29,9 @@ export interface TerrainTheme {
   // the TMX "reeds" layer. The core scatters them one-per-slot on grass; each decal must fit within a
   // single leaf slot.
   readonly leafShapes: readonly LeafShape[];
+  // Per obstacle KIND -> the texture for that obstacle's prop sprite. WorldScene spawns an obstacle
+  // entity with this art and renders it bottom-anchored + depth-sorted, like a character.
+  readonly obstacleArt: Record<ObstacleKind, AssetKey>;
 }
 
 /**
@@ -91,6 +95,10 @@ export const FOREST_THEME: TerrainTheme = {
     [{ dx: 0, dy: 0, frame: 328 }], // 1x1
     [{ dx: 0, dy: 0, frame: 329 }], // 1x1
   ],
+  obstacleArt: {
+    wall: AssetKeys.obstacleWall,
+    rock: AssetKeys.obstacleRock,
+  },
 };
 
 const THEMES: Record<string, TerrainTheme> = { forest: FOREST_THEME };

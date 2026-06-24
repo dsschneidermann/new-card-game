@@ -45,6 +45,10 @@ export const AssetKeys = {
   // Grass-leaf foliage tileset (16x16 frame-indexed spritesheet) — the leaf detail layer reads its decal frames from it.
   terrainStairsGrass: 'terrain.stairs_grass',
 
+  // Obstacle props (per kind): rendered as bottom-anchored sprites standing on their hex.
+  obstacleWall: 'obstacle.wall',
+  obstacleRock: 'obstacle.rock',
+
   // slime1
   enemySlime1Idle: 'enemy_slime1.idle',
   enemySlime1Walk: 'enemy_slime1.walk',

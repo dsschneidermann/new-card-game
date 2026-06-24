@@ -80,6 +80,10 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // Grass-leaf foliage tileset (the stairs_grass sheet, 21x17 = 357 tiles); the leaf detail layer reads decal frames.
   asset(AssetKeys.terrainStairsGrass, [16, 16], 'grass-leaf foliage tiles', 'Terrain: grass-leaf foliage tileset', { frameCount: 357 }),
 
+  // --- Obstacle props (per kind): bottom-anchored sprites standing on a hex. Placeholders until real art drops in. ---
+  asset(AssetKeys.obstacleWall, [64, 64, 0.5], 'stone wall block, opaque, dark outline', 'Obstacle: wall (blocks movement + line of sight)'),
+  asset(AssetKeys.obstacleRock, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)'),
+
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
   asset(AssetKeys.enemySlime1Idle, [64, 64, 0.5], 'slime1 idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 192, downPx: 10 }),
@@ -312,6 +316,8 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiPanel,
   AssetKeys.world1Floor,
   AssetKeys.world1Wall,
+  AssetKeys.obstacleWall,
+  AssetKeys.obstacleRock,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

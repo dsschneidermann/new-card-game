@@ -50,6 +50,7 @@ export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds 
 export { HexGrid } from './hex/grid';
 export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
+export { hasLineOfSight } from './hex/los';
 export type { HexPositionData, FacingData } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
@@ -57,10 +58,14 @@ export { HexPosition, FacingState, makeMovementSystem, facingToward } from './he
 export type { TerrainKind, TerrainTile, TerrainOverlay, GrassNeighbours, LeafShape, LeafShapeTile } from './terrain/terrain';
 export { terrainTile, terrainKind, terrainOverlay, overlayFor, terrainLeaf, valueNoise } from './terrain/terrain';
 
-// Levels: pure per-level definitions (size, start hex, enemy spawns, terrain seed). The renderer
-// pairs each with a terrain theme by id (src/render/terrainTheme.ts); the seed feeds the pure terrain fns.
-export type { EnemySpawn, LevelDef } from './levels';
+// Levels: pure per-level definitions (size, start hex, enemy spawns, obstacles, terrain seed). The
+// renderer pairs each with a terrain theme by id (src/render/terrainTheme.ts); the seed feeds the pure terrain fns.
+export type { EnemySpawn, ObstacleSpawn, LevelDef } from './levels';
 export { FOREST_LEVEL } from './levels';
+
+// Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and applyObstacles (grid flags).
+export type { ObstacleKind, ObstacleRule, ObstacleData } from './obstacles';
+export { OBSTACLE_RULES, Obstacle, applyObstacles } from './obstacles';
 
 // Character sprite animation helpers
 export type { Facing } from './sprite';

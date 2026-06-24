@@ -18,7 +18,9 @@ export const SAVE_KEY = 'ncg.save.v1';
 // enlargement saves so a resumed run starts in the new world (no shape change; clean reset).
 // v5: enemy sprite assets renamed to enemy_<name>.<state>, so the persisted EnemyData.art base is now
 // enemy_<name> (e.g. enemy_slime1) — discard old saves whose art base lacks the prefix (no migration).
-export const SAVE_VERSION = 5 as const;
+// v6: obstacles are persisted entities (the new Obstacle component), so the saved world shape changed —
+// discard pre-obstacle saves so a resumed run has the level's walls/rocks.
+export const SAVE_VERSION = 6 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

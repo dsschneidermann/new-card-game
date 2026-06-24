@@ -11,6 +11,7 @@ import {
   isAttackCard,
   resolveTargeting,
   targetMaxRange,
+  hasLineOfSight,
   pixelToHex,
   hexDistance,
   hexEquals,
@@ -549,6 +550,15 @@ export class CardController {
     const maxRange = targetMaxRange(spec);
     const origin = this.originHex();
     if (maxRange !== undefined && origin !== null && hexDistance(origin, hex) > maxRange) return;
+    // Line of sight: a ranged (lineOfSight) or reach (singleHex WITH a maxRange) attack can't reach a hex
+    // it has no clear line to — ignore the click and stay armed, exactly like an out-of-range click.
+    if (
+      origin !== null &&
+      (spec.kind === 'lineOfSight' || (spec.kind === 'singleHex' && spec.maxRange !== undefined)) &&
+      !hasLineOfSight((h) => this.ctx.grid.blocksSight(h), origin, hex)
+    ) {
+      return;
+    }
     if (this.blocksOwnHex(hex)) return; // attacks can't target the caster's own hex: ignore (stay armed)
     if (spec.kind === 'twoStep' && this.armed.firstPick === null) {
       this.armed.firstPick = hex; // lock the first; the next click is the second
@@ -578,7 +588,9 @@ export class CardController {
         : spec.kind === 'selfAoe'
           ? origin === null
             ? []
-            : resolveTargeting(spec, origin, finalHex).primary.filter((h) => this.ctx.grid.inBounds(h))
+            : resolveTargeting(spec, origin, finalHex, undefined, (h) => this.ctx.grid.blocksSight(h)).primary.filter(
+                (h) => this.ctx.grid.inBounds(h),
+              )
           : spec.kind === 'twoStep' && firstPick !== null
             ? [firstPick, finalHex]
             : [finalHex];
