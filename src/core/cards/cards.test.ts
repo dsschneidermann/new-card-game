@@ -197,7 +197,7 @@ describe('starter content', () => {
   });
 
   it('attack cards carry per-id art, costs, and their ranged target specs', () => {
-    expect(cardDef('melee')).toMatchObject({ art: 'card.art.melee', cost: 1, target: { kind: 'singleHex', maxRange: 1 } });
+    expect(cardDef('melee')).toMatchObject({ art: 'card_art_melee', cost: 1, target: { kind: 'singleHex', maxRange: 1 } });
     expect(cardDef('longstrike')?.target).toEqual({ kind: 'singleHex', maxRange: 2 });
     expect(cardDef('rangedshot')?.target).toEqual({ kind: 'lineOfSight', maxRange: 5 });
     expect(cardDef('defend')?.target).toEqual({ kind: 'self' });

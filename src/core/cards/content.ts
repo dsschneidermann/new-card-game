@@ -1,16 +1,18 @@
 import type { CardDef, SpellDef } from './types';
+import { AssetKeys } from '../assets/keys';
 
 /**
  * The static starter card & spell content (feature 09). No mechanical effects
  * yet (feature 12); costs and targeting are real. Each definition IS a type,
- * keyed by id; art is keyed by id (card.art.<id> / spell.icon.<id>).
+ * keyed by id; a card's `art` is the registered AssetKey of its per-card art
+ * (read by makeCardFace); spell art is keyed by id (spell.icon.<id>).
  */
 export const CARD_DEFS: readonly CardDef[] = [
   {
     id: 'melee',
     name: 'Melee Strike',
     cost: 1,
-    art: 'card.art.melee',
+    art: AssetKeys.cardArtMelee,
     effectText: 'Deal damage to an adjacent enemy.',
     target: { kind: 'singleHex', maxRange: 1 },
     attack: true,
@@ -19,7 +21,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'longstrike',
     name: 'Long Strike',
     cost: 1,
-    art: 'card.art.longstrike',
+    art: AssetKeys.cardArtLongstrike,
     effectText: 'Deal damage to an enemy up to 2 hexes away.',
     target: { kind: 'singleHex', maxRange: 2 },
     attack: true,
@@ -29,7 +31,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'rangedshot',
     name: 'Ranged Shot',
     cost: 1,
-    art: 'card.art.rangedshot',
+    art: AssetKeys.cardArtRangedshot,
     effectText: 'Deal damage to a target in line of sight (up to 5 hexes).',
     target: { kind: 'lineOfSight', maxRange: 5 },
     attack: true,
@@ -38,7 +40,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'defend',
     name: 'Defend',
     cost: 1,
-    art: 'card.art.defend',
+    art: AssetKeys.cardArtDefend,
     effectText: 'Gain Block.',
     target: { kind: 'self' },
   },
@@ -46,7 +48,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'jump',
     name: 'Jump',
     cost: 0,
-    art: 'card.art.jump',
+    art: AssetKeys.cardArtJump,
     effectText: 'Refund your movement points.',
     target: { kind: 'self' },
   },
@@ -56,7 +58,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'quickdraw',
     name: 'Quick Draw',
     cost: 1,
-    art: 'card.art.quickdraw',
+    art: AssetKeys.cardArtQuickdraw,
     effectText: 'Draw a card. It costs 0 this turn.',
     target: { kind: 'self' },
     effect: { kind: 'DrawAndFree' },
@@ -68,7 +70,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'sharpen',
     name: 'Sharpen',
     cost: 1,
-    art: 'card.art.sharpen',
+    art: AssetKeys.cardArtSharpen,
     effectText: 'Permanently lower a random other card that still costs energy by 1.',
     target: { kind: 'self' },
     effect: { kind: 'ReduceRandomOtherCost', amount: 1 },
@@ -79,7 +81,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'whirlwind',
     name: 'Whirlwind',
     cost: 2,
-    art: 'card.art.whirlwind',
+    art: AssetKeys.cardArtWhirlwind,
     effectText: 'Hit all enemies within 2 hexes.',
     target: { kind: 'selfAoe', radius: 2 },
     attack: true,
@@ -92,7 +94,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     id: 'recall',
     name: 'Recall',
     cost: 1,
-    art: 'card.art.recall',
+    art: AssetKeys.cardArtRecall,
     effectText: 'Return a chosen card from your discard pile to your hand.',
     target: { kind: 'self' },
     pickFrom: { pile: 'discard' },

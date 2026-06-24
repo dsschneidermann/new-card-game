@@ -1,4 +1,5 @@
 import type { Hex } from '../hex/hex';
+import type { AssetKey } from '../assets/keys';
 
 /**
  * How a card/spell is targeted (feature 09). Extensible: a new shape is one new
@@ -37,14 +38,15 @@ export type CardPick = { pile: 'draw' | 'hand' | 'discard'; filter?: (defId: str
 
 /**
  * A card definition. Each CardDef IS a card type, identified by id; the deck holds card-instance
- * entities (duplicates = separate instances). Art is keyed by id (card.art.<id>). effectText is the
+ * entities (duplicates = separate instances). `art` is the registered AssetKey of the card's
+ * per-card art, read directly by makeCardFace (no longer derived from id). effectText is the
  * display string; `effect` (if present) is the mechanical effect the card system resolves on play.
  */
 export interface CardDef {
   readonly id: string;
   readonly name: string;
   readonly cost: number; // energy (base; per-instance modifiers adjust the effective cost)
-  readonly art: string; // asset key, conventionally card.art.<id>
+  readonly art: AssetKey; // registered asset key of the per-card art (e.g. AssetKeys.cardArtMelee)
   readonly effectText: string;
   readonly target: TargetSpec;
   /** Attack cards (melee/ranged) trigger the player's attack animation when played. */

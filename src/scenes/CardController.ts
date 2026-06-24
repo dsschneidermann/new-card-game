@@ -698,7 +698,7 @@ export class CardController {
     const layers = [background, bg, costText, name, eff];
     // Per-card art BEHIND the frame, revealed through the frame's transparent top-half window (the frame is
     // opaque around that window, so it masks the art's in-card overflow). Missing art -> generated placeholder.
-    const artKey = `card_art_${def.id}`;
+    const artKey = def.art;
     if (this.scene.textures.exists(artKey)) {
       const ad = resolveKey(artKey)?.descriptor;
       const artScale = ad ? assetScale(ad) : 0.5;
