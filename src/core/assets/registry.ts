@@ -18,8 +18,13 @@ const asset = (
   sprite?: SpriteOptions,
 ): AssetDescriptor => ({
   key,
-  // Flat dotted filename convention (ADR-004): one file per key at assets/<key>.png.
-  path: `assets/${key}.png`,
+  // The root-relative RUNTIME URL. Real art lives on disk at assets/<key>.png (the flat ADR-004 one-file-
+  // per-key convention), and the Vite publicDir 'assets' serves that folder at the SITE ROOT — so the file
+  // is served at /<key>.png. The path must be that served URL, NOT 'assets/<key>.png': referencing the
+  // public dir by name is the Vite dev antipattern (warns) AND breaks the production build (publicDir is
+  // copied to the dist ROOT, so /assets/<key>.png would 404 there). assetFiles.test maps URL->disk by
+  // re-prepending the publicDir.
+  path: `${key}.png`,
   size,
   ...(sprite ? { sprite } : {}),
   style,

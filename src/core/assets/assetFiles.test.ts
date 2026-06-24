@@ -12,14 +12,17 @@ import { GAME_ASSETS, REAL_ASSET_KEYS } from './registry';
  */
 // This test sits at src/core/assets/; the repo root (Vite publicDir 'assets' lives directly under it) is three levels up.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+// descriptor.path is the root-relative RUNTIME URL (<key>.png); on disk the file lives under the Vite
+// publicDir 'assets/' (served at the site root), so map URL -> disk by re-prepending the publicDir.
+const PUBLIC_DIR = 'assets';
 
 describe('real asset files', () => {
   it('every key flagged real has its file on disk at assets/<key>.png', () => {
     // One assertion over all real descriptors (not it.each) to keep the test count flat; a failure
     // lists exactly which keys are missing their file.
     const missing = GAME_ASSETS.filter((descriptor) => REAL_ASSET_KEYS.has(descriptor.key))
-      .filter((descriptor) => !existsSync(join(repoRoot, descriptor.path)))
-      .map((descriptor) => `${descriptor.key} -> ${descriptor.path}`);
+      .filter((descriptor) => !existsSync(join(repoRoot, PUBLIC_DIR, descriptor.path)))
+      .map((descriptor) => `${descriptor.key} -> ${PUBLIC_DIR}/${descriptor.path}`);
     expect(missing).toEqual([]);
   });
 
