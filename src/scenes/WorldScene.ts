@@ -31,9 +31,11 @@ import {
   offsetToAxial,
   hexDistance,
   worldPixelBounds,
+  terrainTile,
   s,
   type Hex,
   type HexLayout,
+  type TerrainKind,
   type EntityId,
   type World,
   type StorageAdapter,
@@ -72,6 +74,18 @@ const VIEW_COLS = 26;
 const VIEW_ROWS = 21;
 const VIEW_CENTER_COL = Math.floor(VIEW_COLS / 2); // the window cell the player is centred on (13)
 const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
+
+// Ground terrain (Hex Ground Terrain): a SQUARE background tile grid, independent of the hexes, drawn as a
+// world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
+const TERRAIN_TILE = 16; // base px of a square terrain tile; at desktop 2x this is s(16)=32px = twice the source's native 16px.
+const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
+const TERRAIN_SEED = 0x7e44a1; // fixed -> a consistent designed ground (could key off the world seed for per-run variation)
+// (kind, variant) -> frame index in the terrain.ground_grass 16x16 sheet. Curated PLAIN fill tiles: the only clean
+// GRASS fill is the flat green; the textured fills are the DIRT/rock tiles. Lengths match TERRAIN_VARIANTS. Tuned at review.
+const TERRAIN_FILL_FRAMES: Record<TerrainKind, readonly number[]> = {
+  grass: [181, 527],
+  dirt: [422]
+};
 // Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
 const CAMERA_STAGGER_HEXES = 2;
@@ -110,6 +124,11 @@ export class WorldScene extends Phaser.Scene {
   // The grass grid, drawn in WORLD space and redrawn (only on a camera pan) for the world cells that
   // fall fully inside the visible frame — so every drawn hex is a real, in-bounds world cell.
   private gridGfx!: Phaser.GameObjects.Graphics;
+  // Ground terrain: a world-sized TilemapLayer (tile indices, no baked texture — Phaser culls to the viewport)
+  // MASKED to the visible hex frame, so terrain shows only under the hexes, not in the HUD margins.
+  private terrainLayer!: Phaser.Tilemaps.TilemapLayer;
+  private terrainCols = 0;
+  private terrainRows = 0;
   // The on-screen frame (the original 26x21 grid rect): only full hexes inside it are drawn and shown.
   private frame!: { left: number; right: number; top: number; bottom: number };
   // Camera scroll is clamped to this pixel box so the frame never scrolls past the world edge.
@@ -162,7 +181,8 @@ export class WorldScene extends Phaser.Scene {
     this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
     this.installSystems();
 
-    this.gridGfx = this.add.graphics().setDepth(-1_000_000); // world-space grass; filled by redrawGrid()
+    this.createTerrain(); // ground-tile background as a TilemapLayer windowed to the visible viewport
+    this.gridGfx = this.add.graphics().setDepth(-1_000_000); // world-space hex outline; drawn by redrawGrid()
     this.buildHud();
 
     this.cards = new CardController({
@@ -586,21 +606,75 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Redraw the grass grid for the current camera scroll: every WORLD cell whose hexagon falls fully
-   * inside the frame is drawn (as a full hex) at its true world position; partial cells at the frame edge
-   * are skipped. So every drawn hex is a real, in-bounds world cell — and clamping the camera to the
-   * world (updateCamera) lets the player reach and view every one of them. Runs only on a camera pan.
+   * Create the ground-terrain TilemapLayer sized to the whole hex GAME WORLD (worldPixelBounds of the
+   * GRID_COLS x GRID_ROWS grid), snapped to the terrain grid and filled ONCE from the pure core terrainTile.
+   * A TilemapLayer stores tile INDICES (no baked texture) and Phaser culls rendering to the viewport, so a
+   * world-sized layer stays cheap — the whole point of moving off the RenderTexture. It is world-space (scrolls
+   * with the camera) but MASKED to the visible hex frame (a screen-fixed rect) so terrain shows only under the
+   * hexes, not in the HUD margins.
+   */
+  private createTerrain(): void {
+    const tilePx = s(TERRAIN_TILE);
+    const key = AssetKeys.terrainGroundGrass;
+    // NEAREST so the 16px pixel-art tiles stay crisp scaled up.
+    this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    const wb = worldPixelBounds(this.layout, GRID_COLS, GRID_ROWS);
+    const originCol = Math.floor(wb.minX / tilePx);
+    // Extend the layer's TOP up by the mask's one-hex-height top-pad (layout.height) so real tiles fill it —
+    // no empty sliver above the terrain when scrolled hard against the world's top edge.
+    const topPadRows = Math.ceil(this.layout.height / tilePx);
+    const originRow = Math.floor(wb.minY / tilePx) - topPadRows;
+    this.terrainCols = Math.ceil(wb.maxX / tilePx) - originCol + 1;
+    this.terrainRows = Math.ceil(wb.maxY / tilePx) - originRow + 1;
+    const map = this.make.tilemap({ tileWidth: 16, tileHeight: 16, width: this.terrainCols, height: this.terrainRows });
+    const tileset = map.addTilesetImage('terrain', key, 16, 16);
+    this.terrainLayer = map
+      .createBlankLayer('terrain', tileset as Phaser.Tilemaps.Tileset, originCol * tilePx, originRow * tilePx)!
+      .setScale(tilePx / 16)
+      .setDepth(TERRAIN_DEPTH);
+    for (let ty = 0; ty < this.terrainRows; ty += 1) {
+      for (let tx = 0; tx < this.terrainCols; tx += 1) {
+        const { kind, variant } = terrainTile(originCol + tx, originRow + ty, TERRAIN_SEED);
+        const frames = TERRAIN_FILL_FRAMES[kind];
+        this.terrainLayer.putTileAt(frames[variant % frames.length] as number, tx, ty);
+      }
+    }
+    // Clip the world-sized layer to the visible hex FRAME so terrain shows only under the hexes, not in the HUD
+    // margins. The layer scrolls (world-space); the mask is screen-pinned (scrollFactor 0), like PileOverlay's.
+    // The TOP edge is extended up by an extra height so ground stays visible below sprites standing on the
+    // top-row hexes (sprites are bottom-anchored and tall; otherwise the terrain clips right at their shoulders).
+    const topPad = this.layout.height * 1.5; // one and half hex height
+    const bottomPad = this.layout.height * 0.25; // quarter hex height
+    const maskShape = this.make.graphics({}, false);
+    maskShape
+      .fillStyle(0xffffff)
+      .fillRect(
+        this.frame.left,
+        this.frame.top - topPad,
+        this.frame.right - this.frame.left,
+        this.frame.bottom - this.frame.top + topPad + bottomPad,
+      );
+    maskShape.setScrollFactor(0);
+    this.terrainLayer.setMask(maskShape.createGeometryMask());
+    console.info(
+      `[terrain] world layer: ${this.terrainCols} x ${this.terrainRows} = ${this.terrainCols * this.terrainRows} tiles (tile ${tilePx}px)`,
+    );
+  }
+
+  /**
+   * Redraw the hex OUTLINE for the current camera scroll: every WORLD cell whose hexagon falls fully
+   * inside the frame is stroked at its true world position; partial cells at the frame edge are skipped.
+   * The terrain layer supplies the fill now, so this strokes only the hex outline. Runs
+   * only on a camera pan.
    */
   private redrawGrid(): void {
-    const grassFill = 0x9ccc65; // light grass green
-    const grassLine = 0x7cb342; // slightly darker green outline
+    const gridLine = 0x000000; // faint dark hex outline over the textured terrain (tactical grid; tunable)
     const hw = this.layout.width / 2;
     const q1 = this.layout.height / 4;
     const q2 = this.layout.height / 2;
     const g = this.gridGfx;
     g.clear();
-    g.fillStyle(grassFill, 1);
-    g.lineStyle(s(1), grassLine, 0.8);
+    g.lineStyle(s(1), gridLine, 0.18);
     for (let row = 0; row < GRID_ROWS; row += 1) {
       for (let col = 0; col < GRID_COLS; col += 1) {
         const { x, y } = hexToPixel(this.layout, offsetToAxial({ col, row }));
@@ -613,7 +687,6 @@ export class WorldScene extends Phaser.Scene {
         g.lineTo(x - hw, y + q1);
         g.lineTo(x - hw, y - q1);
         g.closePath();
-        g.fillPath();
         g.strokePath();
       }
     }

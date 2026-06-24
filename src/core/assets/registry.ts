@@ -69,6 +69,10 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.spellArtSelfheal, [128, 128, 0.46], 'spell art (self heal)', 'Spell art: self heal'),
   asset(AssetKeys.spellArtTeleport, [128, 128, 0.46], 'spell art (teleport)', 'Spell art: teleport'),
 
+  // --- Ground terrain: the Ground_grass tileset as a 16x16 frame-indexed spritesheet (frameCount, NO
+  //     fps = static frame states, not an animation). The square terrain background reads fill frames from it. ---
+  asset(AssetKeys.terrainGroundGrass, [16, 16], 'ground + grass terrain fill tiles', 'Terrain: ground/grass tileset', { frameCount: 651 }),
+
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
   asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 192, downPx: 10 }),

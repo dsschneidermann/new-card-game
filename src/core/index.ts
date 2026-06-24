@@ -53,6 +53,10 @@ export { hexLine, hexesWithinRange } from './hex/range';
 export type { HexPositionData, FacingData } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
+// Procedural ground terrain (its own square background grid; the hexes render on top)
+export type { TerrainKind, TerrainTile } from './terrain/terrain';
+export { terrainTile, valueNoise, TERRAIN_VARIANTS } from './terrain/terrain';
+
 // Character sprite animation helpers
 export type { Facing } from './sprite';
 export { facingFromIntent } from './sprite';

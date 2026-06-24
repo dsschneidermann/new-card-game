@@ -40,6 +40,9 @@ export const AssetKeys = {
   spellArtSelfheal: 'spell_art_selfheal',
   spellArtTeleport: 'spell_art_teleport',
 
+  // Ground terrain tileset (16x16 frame-indexed spritesheet) for the square terrain background.
+  terrainGroundGrass: 'terrain.ground_grass',
+
   // slime1
   slime1Idle: 'slime1.idle',
   slime1Walk: 'slime1.walk',
