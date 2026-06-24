@@ -8,17 +8,11 @@
 
 export type TerrainKind = 'grass' | 'dirt';
 
-/** A chosen ground tile: its kind and which variant within that kind (0..TERRAIN_VARIANTS[kind)). */
+/** A chosen ground tile: its kind and which variant within that kind (0-based). */
 export interface TerrainTile {
   readonly kind: TerrainKind;
   readonly variant: number;
 }
-
-/**
- * How many fill-tile variants each kind has. The renderer holds the matching frame-index lists and
- * maps (kind, variant) -> a sheet frame; these counts are the source of truth for the variant range.
- */
-export const TERRAIN_VARIANTS: Record<TerrainKind, number> = { grass: 2, dirt: 4 };
 
 // Cell coords are multiplied by this before sampling the noise, so the value-noise lattice spans
 // ~1/scale cells — LOWER = larger, smoother patches. This is what gives coherent grass/dirt regions.
@@ -60,9 +54,9 @@ export function valueNoise(x: number, y: number, seed: number): number {
 // value-noise field. This bends the dirt/grass boundary into organic curves and breaks up value noise's
 // axis-aligned (straight, blocky) edges WITHOUT shrinking the patches — the warp field is large-scale
 // (WARP_FREQ near the base frequency), so whole blob edges bend coherently rather than pinching off into
-// specks. Units are noise-lattice units (1 unit = 1/PATCH_SCALE cells), so WARP_AMP 0.5 ≈ 3 cells at
-// PATCH_SCALE 0.16. Because warping the DOMAIN (not the values) leaves the value distribution unchanged,
-// DIRT_THRESHOLD keeps the same dirt fraction it had without the warp.
+// specks. Units are noise-lattice units (1 unit = 1/PATCH_SCALE cells), so a sub-unit WARP_AMP nudges the
+// sample by a few terrain cells. Because warping the DOMAIN (not the values) leaves the value distribution
+// unchanged, DIRT_THRESHOLD keeps the same dirt fraction it had without the warp.
 const WARP_AMP = 0.5;
 const WARP_FREQ = 1.5;
 
@@ -110,12 +104,19 @@ export function terrainKind(col: number, row: number, seed: number): TerrainKind
 
 /**
  * The ground tile for a square terrain cell: its 2x2-block kind (terrainKind) plus a per-cell variant
- * hash (decorrelated from the patch noise). Pure + deterministic, so the renderer regenerates the whole
- * background from the seed alone.
+ * index in [0, variantCounts[kind]), decorrelated from the patch noise. The caller passes how many
+ * variants each kind has (the renderer derives this from its fill-frame lists), so the core carries no
+ * sheet-frame knowledge. Pure + deterministic, so the renderer regenerates the whole background from the
+ * seed alone.
  */
-export function terrainTile(col: number, row: number, seed: number): TerrainTile {
+export function terrainTile(
+  col: number,
+  row: number,
+  seed: number,
+  variantCounts: Record<TerrainKind, number>,
+): TerrainTile {
   const kind = terrainKind(col, row, seed);
-  const variant = Math.floor(hash01(col, row, seed ^ 0x5bd1e995) * TERRAIN_VARIANTS[kind]);
+  const variant = Math.floor(hash01(col, row, seed ^ 0x5bd1e995) * variantCounts[kind]);
   return { kind, variant };
 }
 
@@ -189,4 +190,71 @@ export function terrainOverlay(col: number, row: number, seed: number): TerrainO
     se: grass(col + 1, row + 1),
     sw: grass(col - 1, row + 1),
   });
+}
+
+/** One tile of a leaf decal: its offset from the decal's top-left anchor and the foliage-sheet frame to draw. */
+export interface LeafShapeTile {
+  readonly dx: number;
+  readonly dy: number;
+  readonly frame: number;
+}
+
+/**
+ * A grass-leaf decal: a connected cluster of tiles of ANY shape, anchored at its top-left (min dx = min dy = 0).
+ * The frame indices are opaque to the core — the renderer maps them to its foliage sheet.
+ */
+export type LeafShape = readonly LeafShapeTile[];
+
+// Grass-leaf detail layer: foliage decals scattered on grass. Each decal occupies one square SLOT; the slots tile
+// the plane DISJOINTLY, so decals (of any shape up to LEAF_SLOT in size) never overlap, and a decal is jittered
+// within its slot for natural scatter. A decal lands only where its WHOLE footprint is grass. Placement is
+// CLUSTERED: a noise field modulates the fill into patches (centred so it does NOT lower the mean). All tunable.
+const LEAF_SLOT = 3; // slot size in cells = the smallest that fits the largest decal (3x3); SMALLER -> more decals
+const LEAF_DENSITY = 0.8; // MEAN fraction of slots that host a decal (0..1) — a clean linear knob (not noise-scaled)
+const LEAF_CLUSTER = 0.35; // how strongly the noise field clusters decals into patches (0 = uniform; in fill units)
+const LEAF_SCALE = 0.3; // clustering-noise scale over SLOT coords; lower = larger leaf patches
+
+/** A decal's bounding-box size (it is anchored so min dx = min dy = 0). */
+function shapeSize(shape: LeafShape): { w: number; h: number } {
+  let w = 0;
+  let h = 0;
+  for (const tile of shape) {
+    if (tile.dx + 1 > w) w = tile.dx + 1;
+    if (tile.dy + 1 > h) h = tile.dy + 1;
+  }
+  return { w, h };
+}
+
+/**
+ * The grass-leaf decal frame to draw at (col, row), or null. Foliage decals are scattered one-per-SLOT
+ * (LEAF_SLOT-cell squares that tile the plane disjointly, so decals never overlap). Each slot deterministically
+ * rolls — clustered by a noise field — whether to host a decal, picks one of `shapes`, and jitters its anchor
+ * within the slot; the decal lands only where its WHOLE footprint is grass (a decal touching dirt is skipped).
+ * Returns the foliage-sheet frame for this cell if it falls on a placed decal's tile, else null. `shapes` is the
+ * renderer's decal set (its source of truth; the frame indices are opaque here). Pure + deterministic.
+ */
+export function terrainLeaf(col: number, row: number, seed: number, shapes: readonly LeafShape[]): number | null {
+  if (shapes.length === 0) return null;
+  const slotCol = Math.floor(col / LEAF_SLOT);
+  const slotRow = Math.floor(row / LEAF_SLOT);
+  // Clustered roll: this slot hosts a decal iff its random draw falls under the local fill threshold. The noise is
+  // CENTRED on zero (valueNoise - 0.5) so it modulates the fill into patches WITHOUT lowering the mean, which stays
+  // at LEAF_DENSITY — so LEAF_DENSITY reads directly as "fraction of slots filled" and tunes the count linearly.
+  const cluster = valueNoise(slotCol * LEAF_SCALE, slotRow * LEAF_SCALE, seed ^ 0x2f1b9a3d) - 0.5; // ~[-0.5, 0.5)
+  if (hash01(slotCol, slotRow, seed ^ 0x6d2b79f5) >= LEAF_DENSITY + LEAF_CLUSTER * cluster) return null;
+  // Pick a decal and jitter its anchor so the whole footprint stays INSIDE the slot (hence no cross-slot overlap).
+  const shape = shapes[Math.floor(hash01(slotCol, slotRow, seed ^ 0x85ebca77) * shapes.length)]!;
+  const { w, h } = shapeSize(shape);
+  if (w > LEAF_SLOT || h > LEAF_SLOT) return null; // decal too big for a slot -> never placed
+  const anchorCol = slotCol * LEAF_SLOT + Math.floor(hash01(slotCol, slotRow, seed ^ 0x27d4eb2f) * (LEAF_SLOT - w + 1));
+  const anchorRow = slotRow * LEAF_SLOT + Math.floor(hash01(slotCol, slotRow, seed ^ 0x165667b1) * (LEAF_SLOT - h + 1));
+  // The decal lands only where its WHOLE footprint is grass.
+  for (const tile of shape) {
+    if (terrainKind(anchorCol + tile.dx, anchorRow + tile.dy, seed) !== 'grass') return null;
+  }
+  // Is THIS cell one of the decal's tiles? If so, draw its frame.
+  const dx = col - anchorCol;
+  const dy = row - anchorRow;
+  for (const tile of shape) if (tile.dx === dx && tile.dy === dy) return tile.frame;
+  return null;
 }

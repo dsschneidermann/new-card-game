@@ -42,6 +42,8 @@ export const AssetKeys = {
 
   // Ground terrain tileset (16x16 frame-indexed spritesheet) for the square terrain background.
   terrainGroundGrass: 'terrain.ground_grass',
+  // Grass-leaf foliage tileset (16x16 frame-indexed spritesheet) — the leaf detail layer reads its decal frames from it.
+  terrainStairsGrass: 'terrain.stairs_grass',
 
   // slime1
   slime1Idle: 'slime1.idle',

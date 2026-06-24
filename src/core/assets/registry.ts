@@ -72,6 +72,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // --- Ground terrain: the Ground_grass tileset as a 16x16 frame-indexed spritesheet (frameCount, NO
   //     fps = static frame states, not an animation). The square terrain background reads fill frames from it. ---
   asset(AssetKeys.terrainGroundGrass, [16, 16], 'ground + grass terrain fill tiles', 'Terrain: ground/grass tileset', { frameCount: 651 }),
+  // Grass-leaf foliage tileset (the stairs_grass sheet, 21x17 = 357 tiles); the leaf detail layer reads decal frames.
+  asset(AssetKeys.terrainStairsGrass, [16, 16], 'grass-leaf foliage tiles', 'Terrain: grass-leaf foliage tileset', { frameCount: 357 }),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
