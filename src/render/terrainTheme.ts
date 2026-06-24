@@ -23,17 +23,17 @@ export interface TerrainTheme {
   // Grass-edge overlay descriptor -> Ground_grass frame: pairs (two adjacent cardinals) / edges / diagonal corners.
   readonly overlayFrames: Record<TerrainOverlay, number>;
   // Grass-leaf decals from the stairs_grass foliage sheet (leafKey). Each decal is a SHAPE: a list of
-  // { dx, dy, frame } tiles anchored at its top-left (frame = LOCAL stairs_grass index, 21 cols; the
-  // renderer offsets it past the ground tileset). These 41 shapes were extracted from the gap-separated
-  // clusters in the TMX "reeds" layer. The core scatters them one-per-slot on grass; each decal must fit
-  // within LEAF_SLOT (5) cells.
+  // { dx, dy, frame } tiles anchored at its top-left (frame = LOCAL stairs_grass index; the renderer
+  // offsets it past the ground tileset). These shapes were extracted from the gap-separated clusters in
+  // the TMX "reeds" layer. The core scatters them one-per-slot on grass; each decal must fit within a
+  // single leaf slot.
   readonly leafShapes: readonly LeafShape[];
 }
 
 /**
- * The Forest level's terrain skin: the flat-green grass fill + the textured dirt fill, the 12
- * curated grass-edge transition frames, and the 41 grass-leaf foliage decals. Moved verbatim out
- * of WorldScene; keyed to FOREST_LEVEL.id ('forest') via terrainThemeForLevel.
+ * The Forest level's terrain skin: the flat-green grass fill + the textured dirt fill, the curated
+ * grass-edge transition frames, and the grass-leaf foliage decals. Moved verbatim out of WorldScene;
+ * keyed to FOREST_LEVEL.id ('forest') via terrainThemeForLevel.
  */
 export const FOREST_THEME: TerrainTheme = {
   groundKey: AssetKeys.terrainGroundGrass,
