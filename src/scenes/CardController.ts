@@ -60,8 +60,6 @@ const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
-const CARD_ATTACK_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
-const CARD_SKILL_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
 
 // Card face layout (presentation; tunable in one place, reviewed live). makeCardFace / setCardSelected /
 // frameColor / cardFaceBase read these. Lengths are "base px" (before s() scaling); colours are hex.
@@ -86,6 +84,8 @@ const CARD_BORDER_WIDTH_ON = 2; // border stroke width when selected/armed
 const CARD_BORDER_COLOR_SELECTED = 0xfacc15; // selected/armed border colour (yellow)
 const CARD_FRAME_COLOR_ATTACK = 0xb91c1c; // unselected border colour, attack (red)
 const CARD_FRAME_COLOR_SKILL = 0x2563eb; // unselected border colour, skill (blue)
+const CARD_ART_OFFSET_Y_ATTACK = -15; // base px: per-card art centre in the frame's top-half window (reviewed live)
+const CARD_ART_OFFSET_Y_SKILL = -15; // base px: per-card art centre in the frame's top-half window (reviewed live)
 const CARD_ART_FALLBACK_SIZE = 256; // per-card art size used when the asset descriptor is missing
 const CARD_ART_FALLBACK_SCALE = 0.5; // per-card art display scale used when the descriptor is missing
 
@@ -729,7 +729,7 @@ export class CardController {
       const ad = resolveKey(artKey)?.descriptor;
       const artScale = ad ? assetScale(ad) : CARD_ART_FALLBACK_SCALE;
       const cardArt = this.scene.add
-        .image(0, isAttackCard(def.id) ? s(CARD_ATTACK_ART_OFFSET_Y) : s(CARD_SKILL_ART_OFFSET_Y), artKey)
+        .image(0, isAttackCard(def.id) ? s(CARD_ART_OFFSET_Y_ATTACK) : s(CARD_ART_OFFSET_Y_SKILL), artKey)
         .setOrigin(0.5)
         .setDisplaySize(s((ad?.size[0] ?? CARD_ART_FALLBACK_SIZE) * artScale), s((ad?.size[1] ?? CARD_ART_FALLBACK_SIZE) * artScale));
       layers.unshift(cardArt); // backmost: behind the frame
