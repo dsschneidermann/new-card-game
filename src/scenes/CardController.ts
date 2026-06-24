@@ -63,6 +63,32 @@ const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 const CARD_ATTACK_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
 const CARD_SKILL_ART_OFFSET_Y = -15; // base px: per-card art centre in the frame's top-half window (tune in review)
 
+// Card face layout (presentation; tunable in one place, reviewed live). makeCardFace / setCardSelected /
+// frameColor / cardFaceBase read these. Lengths are "base px" (before s() scaling); colours are hex.
+const CARD_FACE_ART_W = 195; // the card-background art's native width; the face base is this at 0.5 display scale
+const CARD_FACE_ART_H = 284; // ...native height
+const CARD_COST_OFFSET_X = 6; // cost text inset from the face's LEFT edge
+const CARD_COST_OFFSET_Y = 22; // cost text inset from the face's TOP edge
+const CARD_COST_FONT_PX = 14; // cost text font size
+const CARD_COST_COLOR_FREE = '#22c55e'; // cost GREEN when temporarily free this hand
+const CARD_COST_COLOR_BASE = '#facc15'; // cost YELLOW for base/permanent cost
+const CARD_NAME_OFFSET_Y_ATTACK = 8.5; // name inset from the TOP (attack faces)
+const CARD_NAME_OFFSET_Y_SKILL = 5.5; // name inset from the TOP (skill faces)
+const CARD_NAME_FONT_PX = 9; // name font size
+const CARD_NAME_COLOR = '#e5e7eb'; // name text colour
+const CARD_EFFECT_OFFSET_Y_ATTACK = 38; // effect text inset from the BOTTOM (attack faces)
+const CARD_EFFECT_OFFSET_Y_SKILL = 39; // effect text inset from the BOTTOM (skill faces)
+const CARD_EFFECT_FONT_PX = 8; // effect text font size
+const CARD_EFFECT_COLOR = '#020202'; // effect text colour
+const CARD_EFFECT_WRAP_INSET = 24; // total horizontal inset for the effect text word-wrap width
+const CARD_BORDER_WIDTH_OFF = 0; // border stroke width when unselected (invisible)
+const CARD_BORDER_WIDTH_ON = 2; // border stroke width when selected/armed
+const CARD_BORDER_COLOR_SELECTED = 0xfacc15; // selected/armed border colour (yellow)
+const CARD_FRAME_COLOR_ATTACK = 0xb91c1c; // unselected border colour, attack (red)
+const CARD_FRAME_COLOR_SKILL = 0x2563eb; // unselected border colour, skill (blue)
+const CARD_ART_FALLBACK_SIZE = 256; // per-card art size used when the asset descriptor is missing
+const CARD_ART_FALLBACK_SCALE = 0.5; // per-card art display scale used when the descriptor is missing
+
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
 const DRAW_STAGGER_MS = 120; // gap between successive cards dealt (leftmost first)
@@ -653,7 +679,7 @@ export class CardController {
    */
   private cardFaceBase(): { w: number; h: number } {
     const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
-    if (d === undefined) return { w: 195 / 2, h: 284 / 2 }; // unreachable (the key is registered) — safe fallback
+    if (d === undefined) return { w: CARD_FACE_ART_W / 2, h: CARD_FACE_ART_H / 2 }; // unreachable (the key is registered) — safe fallback
     return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
   }
 
@@ -672,27 +698,27 @@ export class CardController {
     const background = this.scene.add.image(0, 0, bgKey).setOrigin(0.5).setDisplaySize(w, h);
     const bg = this.scene.add
       .rectangle(0, 0, w, h, 0x000000, 0) // fill-transparent: only the frame + selection border, over the art
-      .setStrokeStyle(s(0), this.frameColor(def.id)) // no visible border for cards normally
+      .setStrokeStyle(s(CARD_BORDER_WIDTH_OFF), this.frameColor(def.id)) // no visible border for cards normally
       .setOrigin(0.5);
     const costText = this.scene.add
-      .text(-w / 2 + s(6), -h / 2 + s(22), `E${cost}`, {
+      .text(-w / 2 + s(CARD_COST_OFFSET_X), -h / 2 + s(CARD_COST_OFFSET_Y), `E${cost}`, {
         fontFamily: 'monospace',
-        fontSize: `${s(14)}px`,
-        color: tempFree ? '#22c55e' : '#facc15', // green = temporary free; yellow = base/permanent
+        fontSize: `${s(CARD_COST_FONT_PX)}px`,
+        color: tempFree ? CARD_COST_COLOR_FREE : CARD_COST_COLOR_BASE, // green = temporary free; yellow = base/permanent
       })
       .setOrigin(0, 0);
-    const nameOffset = isAttackCard(def.id) ? s(8.5) : s(5.5);
+    const nameOffset = isAttackCard(def.id) ? s(CARD_NAME_OFFSET_Y_ATTACK) : s(CARD_NAME_OFFSET_Y_SKILL);
     const name = this.scene.add
-      .text(0, -h / 2 + nameOffset, def.name, { fontFamily: 'monospace', fontSize: `${s(9)}px`, color: '#e5e7eb' })
+      .text(0, -h / 2 + nameOffset, def.name, { fontFamily: 'monospace', fontSize: `${s(CARD_NAME_FONT_PX)}px`, color: CARD_NAME_COLOR })
       .setOrigin(0.5, 0);
-    const effOffset = isAttackCard(def.id) ? s(38) : s(39);
+    const effOffset = isAttackCard(def.id) ? s(CARD_EFFECT_OFFSET_Y_ATTACK) : s(CARD_EFFECT_OFFSET_Y_SKILL);
     const eff = this.scene.add
       .text(0, h / 2 - effOffset, def.effectText, {
         fontFamily: 'monospace',
-        fontSize: `${s(8)}px`,
-        color: '#020202',
+        fontSize: `${s(CARD_EFFECT_FONT_PX)}px`,
+        color: CARD_EFFECT_COLOR,
         align: 'center',
-        wordWrap: { width: w - s(24) },
+        wordWrap: { width: w - s(CARD_EFFECT_WRAP_INSET) },
       })
       .setOrigin(0.5, 0);
     const layers = [background, bg, costText, name, eff];
@@ -701,11 +727,11 @@ export class CardController {
     const artKey = def.art;
     if (this.scene.textures.exists(artKey)) {
       const ad = resolveKey(artKey)?.descriptor;
-      const artScale = ad ? assetScale(ad) : 0.5;
+      const artScale = ad ? assetScale(ad) : CARD_ART_FALLBACK_SCALE;
       const cardArt = this.scene.add
         .image(0, isAttackCard(def.id) ? s(CARD_ATTACK_ART_OFFSET_Y) : s(CARD_SKILL_ART_OFFSET_Y), artKey)
         .setOrigin(0.5)
-        .setDisplaySize(s((ad?.size[0] ?? 256) * artScale), s((ad?.size[1] ?? 256) * artScale));
+        .setDisplaySize(s((ad?.size[0] ?? CARD_ART_FALLBACK_SIZE) * artScale), s((ad?.size[1] ?? CARD_ART_FALLBACK_SIZE) * artScale));
       layers.unshift(cardArt); // backmost: behind the frame
     }
     c.add(layers);
@@ -716,14 +742,14 @@ export class CardController {
   }
 
   private frameColor(id: string): number {
-    return isAttackCard(id) ? 0xb91c1c : 0x2563eb; // attack red / skill blue
+    return isAttackCard(id) ? CARD_FRAME_COLOR_ATTACK : CARD_FRAME_COLOR_SKILL; // attack red / skill blue
   }
 
   /** Toggle a hand card's "selected" border: yellow when armed, its frame colour otherwise. */
   private setCardSelected(card: Phaser.GameObjects.Container, on: boolean): void {
     const bg = card.getData('bg') as Phaser.GameObjects.Rectangle | undefined;
     if (bg === undefined) return;
-    bg.setStrokeStyle(on ? s(2) : s(0), on ? 0xfacc15 : (card.getData('frameColor') as number));
+    bg.setStrokeStyle(on ? s(CARD_BORDER_WIDTH_ON) : s(CARD_BORDER_WIDTH_OFF), on ? CARD_BORDER_COLOR_SELECTED : (card.getData('frameColor') as number));
   }
 
   private buildSpellSidebar(): void {
