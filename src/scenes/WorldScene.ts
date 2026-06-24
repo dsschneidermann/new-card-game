@@ -221,6 +221,16 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(data?: WorldSceneData): void {
+    // This scene INSTANCE is reused across runs (New Game / Restart / Resume all re-run create() on the same
+    // WorldScene via mgr.start), and class-field initializers run only at CONSTRUCTION. Reset the per-run
+    // camera-redraw gate here so a fresh world always redraws its hex outline: lastGridScroll back to NaN (so
+    // the first updateCamera() trips the redraw gate even when the new run's start scroll equals the previous
+    // run's) and camRefHex back to undefined (so staggered-follow re-anchors on the new start hex). Without
+    // this, a New Game started at the same position as the abandoned run leaves the re-created, empty gridGfx
+    // never redrawn — a blank hex outline. (bug mqr8a6be)
+    this.lastGridScrollX = NaN;
+    this.lastGridScrollY = NaN;
+    this.camRefHex = undefined;
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
