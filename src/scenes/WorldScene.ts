@@ -11,7 +11,6 @@ import {
   FacingState,
   Player,
   Enemy,
-  hexEquals,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -34,12 +33,11 @@ import {
   terrainTile,
   terrainOverlay,
   terrainLeaf,
+  FOREST_LEVEL,
   s,
   type Hex,
   type HexLayout,
-  type TerrainKind,
-  type TerrainOverlay,
-  type LeafShape,
+  type LevelDef,
   type EntityId,
   type World,
   type StorageAdapter,
@@ -59,6 +57,7 @@ import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 import { MovePlanner } from '@scenes/MovePlanner';
 import { MoveAnimator } from '@render/MoveAnimator';
+import { terrainThemeForLevel, type TerrainTheme } from '@render/terrainTheme';
 
 /** Scene-start payload: Resume rebuilds from the save, otherwise a fresh run. */
 interface WorldSceneData {
@@ -68,10 +67,8 @@ interface WorldSceneData {
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
 // The LAYOUT pixel fields are base (iPad) values scaled via s() into this.layout at
 // create time (s() must not run at module load).
-// 4x the original area (was 26x21) — the camera follows the player and renders only the visible window
-// of hexes (Larger World & Hex-Snap Camera Follow feature).
-const GRID_COLS = 52;
-const GRID_ROWS = 42;
+// The world size, start hex, enemy spawns and terrain seed now live in the active LevelDef (FOREST_LEVEL);
+// WorldScene reads them off this.level. The Larger World feature made the forest 4x the original 26x21 area.
 // The visible window stays exactly the original 26x21 grid (same on-screen frame + full hexes); the
 // camera shows this 26x21 window into the larger world and content outside it is hidden.
 const VIEW_COLS = 26;
@@ -83,74 +80,8 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 // world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
 const TERRAIN_TILE = 16; // base px of a square terrain tile; at desktop 2x this is s(16)=32px = twice the source's native 16px.
 const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
-const TERRAIN_SEED = 0x7e44a1; // fixed -> a consistent designed ground (could key off the world seed for per-run variation)
-// (kind, variant) -> frame index in the terrain.ground_grass 16x16 sheet. Curated PLAIN fill tiles: the only clean
-// GRASS fill is the flat green; the textured fills are the DIRT/rock tiles. These lists are the single source of
-// truth for how many variants each kind has (see TERRAIN_VARIANT_COUNTS). Tuned at review.
-const TERRAIN_FILL_FRAMES: Record<TerrainKind, readonly number[]> = {
-  grass: [527],
-  dirt: [422]
-};
-// Per-kind variant count = its fill-frame list length, derived ONCE from the lists above and passed into the core
-// terrainTile, so the variant index always lands within the available frames (no separate count to keep in sync).
-const TERRAIN_VARIANT_COUNTS: Record<TerrainKind, number> = {
-  grass: TERRAIN_FILL_FRAMES.grass.length,
-  dirt: TERRAIN_FILL_FRAMES.dirt.length,
-};
 const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
-// Grass-edge overlay descriptor -> Ground_grass frame: pairs (two adjacent cardinals) / edges / diagonal corners.
-const OVERLAY_FRAMES: Record<TerrainOverlay, number> = {
-  pairWN: 571, pairNE: 572, pairES: 593, pairSW: 592,
-  edgeW: 591, edgeN: 611, edgeE: 589, edgeS: 578,
-  cornerNW: 612, cornerNE: 610, cornerSE: 568, cornerSW: 570,
-};
 const LEAF_DEPTH = -1_025_000; // grass-leaf detail layer: above the grass-edge overlay, below the hex outline
-// Grass-leaf decals from the stairs_grass foliage sheet (AssetKeys.terrainStairsGrass). Each decal is a SHAPE: a
-// list of { dx, dy, frame } tiles anchored at its top-left (frame = LOCAL stairs_grass index, 21 cols; the renderer
-// offsets it past the ground tileset). These 41 shapes were extracted from the gap-separated clusters in the TMX
-// "reeds" layer. The core scatters them one-per-slot on grass; each decal must fit within LEAF_SLOT (5) cells.
-const LEAF_SHAPES: readonly LeafShape[] = [
-  [{ dx: 0, dy: 0, frame: 113 }, { dx: 1, dy: 0, frame: 114 }, { dx: 0, dy: 1, frame: 134 }, { dx: 1, dy: 1, frame: 135 }, { dx: 0, dy: 2, frame: 155 }, { dx: 1, dy: 2, frame: 156 }], // 2x3
-  [{ dx: 0, dy: 0, frame: 115 }, { dx: 1, dy: 0, frame: 116 }, { dx: 2, dy: 0, frame: 117 }, { dx: 0, dy: 1, frame: 136 }, { dx: 1, dy: 1, frame: 137 }, { dx: 2, dy: 1, frame: 138 }, { dx: 0, dy: 2, frame: 157 }, { dx: 1, dy: 2, frame: 158 }, { dx: 2, dy: 2, frame: 159 }], // 3x3
-  [{ dx: 0, dy: 0, frame: 118 }, { dx: 1, dy: 0, frame: 119 }, { dx: 2, dy: 0, frame: 120 }, { dx: 0, dy: 1, frame: 139 }, { dx: 1, dy: 1, frame: 140 }, { dx: 2, dy: 1, frame: 141 }, { dx: 0, dy: 2, frame: 160 }, { dx: 1, dy: 2, frame: 161 }, { dx: 2, dy: 2, frame: 162 }], // 3x3
-  [{ dx: 0, dy: 0, frame: 121 }, { dx: 1, dy: 0, frame: 122 }, { dx: 0, dy: 1, frame: 142 }, { dx: 1, dy: 1, frame: 143 }, { dx: 0, dy: 2, frame: 163 }, { dx: 1, dy: 2, frame: 164 }], // 2x3
-  [{ dx: 0, dy: 0, frame: 169 }, { dx: 1, dy: 0, frame: 170 }, { dx: 2, dy: 0, frame: 171 }, { dx: 0, dy: 1, frame: 190 }, { dx: 1, dy: 1, frame: 191 }, { dx: 2, dy: 1, frame: 192 }, { dx: 0, dy: 2, frame: 211 }, { dx: 1, dy: 2, frame: 212 }, { dx: 2, dy: 2, frame: 213 }], // 3x3
-  [{ dx: 0, dy: 0, frame: 175 }, { dx: 1, dy: 0, frame: 176 }, { dx: 2, dy: 0, frame: 177 }, { dx: 0, dy: 1, frame: 196 }, { dx: 1, dy: 1, frame: 197 }, { dx: 2, dy: 1, frame: 198 }, { dx: 0, dy: 2, frame: 217 }, { dx: 1, dy: 2, frame: 218 }, { dx: 2, dy: 2, frame: 219 }], // 3x3
-  [{ dx: 0, dy: 0, frame: 178 }, { dx: 1, dy: 0, frame: 179 }, { dx: 0, dy: 1, frame: 199 }, { dx: 1, dy: 1, frame: 200 }, { dx: 0, dy: 2, frame: 220 }, { dx: 1, dy: 2, frame: 221 }], // 2x3
-  [{ dx: 0, dy: 0, frame: 180 }, { dx: 1, dy: 0, frame: 181 }, { dx: 0, dy: 1, frame: 201 }, { dx: 1, dy: 1, frame: 202 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 182 }, { dx: 1, dy: 0, frame: 183 }, { dx: 0, dy: 1, frame: 203 }, { dx: 1, dy: 1, frame: 204 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 184 }, { dx: 1, dy: 0, frame: 185 }, { dx: 0, dy: 1, frame: 205 }, { dx: 1, dy: 1, frame: 206 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 193 }, { dx: 1, dy: 0, frame: 194 }, { dx: 2, dy: 0, frame: 195 }, { dx: 0, dy: 1, frame: 214 }, { dx: 1, dy: 1, frame: 215 }, { dx: 2, dy: 1, frame: 216 }], // 3x2
-  [{ dx: 0, dy: 0, frame: 222 }, { dx: 1, dy: 0, frame: 223 }, { dx: 0, dy: 1, frame: 243 }, { dx: 1, dy: 1, frame: 244 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 224 }, { dx: 1, dy: 0, frame: 225 }, { dx: 0, dy: 1, frame: 245 }, { dx: 1, dy: 1, frame: 246 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 226 }, { dx: 1, dy: 0, frame: 227 }, { dx: 0, dy: 1, frame: 247 }, { dx: 1, dy: 1, frame: 248 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 232 }, { dx: 1, dy: 0, frame: 233 }, { dx: 2, dy: 0, frame: 234 }, { dx: 0, dy: 1, frame: 253 }, { dx: 1, dy: 1, frame: 254 }, { dx: 2, dy: 1, frame: 255 }], // 3x2
-  [{ dx: 0, dy: 0, frame: 235 }, { dx: 1, dy: 0, frame: 236 }, { dx: 0, dy: 1, frame: 256 }, { dx: 1, dy: 1, frame: 257 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 237 }, { dx: 1, dy: 0, frame: 238 }, { dx: 0, dy: 1, frame: 258 }, { dx: 1, dy: 1, frame: 259 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 239 }, { dx: 1, dy: 0, frame: 240 }, { dx: 0, dy: 1, frame: 260 }, { dx: 1, dy: 1, frame: 261 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 241 }, { dx: 1, dy: 0, frame: 242 }, { dx: 0, dy: 1, frame: 262 }, { dx: 1, dy: 1, frame: 263 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 264 }, { dx: 1, dy: 0, frame: 265 }], // 2x1
-  [{ dx: 0, dy: 0, frame: 266 }, { dx: 1, dy: 0, frame: 267 }], // 2x1
-  [{ dx: 0, dy: 0, frame: 268 }], // 1x1
-  [{ dx: 0, dy: 0, frame: 269 }], // 1x1
-  [{ dx: 0, dy: 0, frame: 274 }, { dx: 1, dy: 0, frame: 275 }, { dx: 0, dy: 1, frame: 295 }, { dx: 1, dy: 1, frame: 296 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 276 }, { dx: 1, dy: 0, frame: 277 }, { dx: 0, dy: 1, frame: 297 }, { dx: 1, dy: 1, frame: 298 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 278 }, { dx: 1, dy: 0, frame: 279 }, { dx: 2, dy: 0, frame: 280 }, { dx: 0, dy: 1, frame: 299 }, { dx: 1, dy: 1, frame: 300 }, { dx: 2, dy: 1, frame: 301 }], // 3x2
-  [{ dx: 0, dy: 0, frame: 281 }, { dx: 1, dy: 0, frame: 282 }, { dx: 0, dy: 1, frame: 302 }, { dx: 1, dy: 1, frame: 303 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 284 }, { dx: 1, dy: 0, frame: 285 }, { dx: 2, dy: 0, frame: 286 }, { dx: 0, dy: 1, frame: 305 }, { dx: 1, dy: 1, frame: 306 }, { dx: 2, dy: 1, frame: 307 }], // 3x2
-  [{ dx: 0, dy: 0, frame: 287 }, { dx: 1, dy: 0, frame: 288 }, { dx: 0, dy: 1, frame: 308 }, { dx: 1, dy: 1, frame: 309 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 289 }, { dx: 1, dy: 0, frame: 290 }, { dx: 0, dy: 1, frame: 310 }, { dx: 1, dy: 1, frame: 311 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 316 }, { dx: 0, dy: 1, frame: 337 }], // 1x2
-  [{ dx: 0, dy: 0, frame: 317 }, { dx: 1, dy: 0, frame: 318 }, { dx: 0, dy: 1, frame: 338 }, { dx: 1, dy: 1, frame: 339 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 319 }, { dx: 1, dy: 0, frame: 320 }, { dx: 0, dy: 1, frame: 340 }, { dx: 1, dy: 1, frame: 341 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 321 }, { dx: 0, dy: 1, frame: 342 }], // 1x2
-  [{ dx: 0, dy: 0, frame: 322 }, { dx: 1, dy: 0, frame: 323 }, { dx: 0, dy: 1, frame: 343 }, { dx: 1, dy: 1, frame: 344 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 324 }, { dx: 0, dy: 1, frame: 345 }], // 1x2
-  [{ dx: 0, dy: 0, frame: 325 }, { dx: 1, dy: 0, frame: 326 }, { dx: 0, dy: 1, frame: 346 }, { dx: 1, dy: 1, frame: 347 }], // 2x2
-  [{ dx: 0, dy: 0, frame: 327 }, { dx: 0, dy: 1, frame: 348 }], // 1x2
-  [{ dx: 0, dy: 0, frame: 328 }], // 1x1
-  [{ dx: 0, dy: 0, frame: 329 }], // 1x1
-];
 // Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
 const CAMERA_STAGGER_HEXES = 2;
@@ -177,6 +108,10 @@ const HAND_SIZE = 4;
 export class WorldScene extends Phaser.Scene {
   private world!: World;
   private grid!: HexGrid;
+  // The active level (size / start hex / enemy spawns / terrain seed) and its renderer terrain theme
+  // (tileset keys + fill/overlay/leaf frames & shapes). Resolved at the top of create().
+  private level!: LevelDef;
+  private theme!: TerrainTheme;
   private sync!: SceneSync;
   private player!: EntityId;
   private storage!: StorageAdapter;
@@ -233,7 +168,11 @@ export class WorldScene extends Phaser.Scene {
     this.camRefHex = undefined;
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
-    this.grid = new HexGrid(GRID_COLS, GRID_ROWS);
+    // Resolve the active level + its terrain theme. For now the game is the single Forest level; level
+    // transitions (later) will choose which LevelDef to load here.
+    this.level = FOREST_LEVEL;
+    this.theme = terrainThemeForLevel(this.level.id);
+    this.grid = new HexGrid(this.level.cols, this.level.rows);
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(38) };
@@ -248,7 +187,7 @@ export class WorldScene extends Phaser.Scene {
       top: this.layout.originY - hh,
       bottom: this.layout.originY + (VIEW_ROWS - 1) * this.layout.rowPitch + hh,
     };
-    const wb = worldPixelBounds(this.layout, GRID_COLS, GRID_ROWS);
+    const wb = worldPixelBounds(this.layout, this.level.cols, this.level.rows);
     this.scrollBounds = {
       minX: wb.minX - this.frame.left,
       maxX: wb.maxX - this.frame.right,
@@ -499,7 +438,7 @@ export class WorldScene extends Phaser.Scene {
     console.info('[world] new run seed:', seed);
     const world = createWorld(seed);
     this.player = world.createEntity();
-    const start = offsetToAxial({ col: Math.floor(GRID_COLS / 2), row: Math.floor(GRID_ROWS / 2) });
+    const start = this.level.startHex;
     world.store(Player).add(this.player, { isPlayer: true });
     world.store(HexPosition).add(this.player, { hex: start });
     world.store(FacingState).add(this.player, { facing: 'right' });
@@ -522,35 +461,13 @@ export class WorldScene extends Phaser.Scene {
     world.store(DeckState).add(this.player, deck);
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
-    // Showcase: one of every enemy in the manifest (each enemy's idle key, art base = key minus the
-    // '.idle' suffix), spread EVENLY across the whole enlarged world (Larger World feature) so the
-    // bigger map is demonstrated by panning to find them — an aspect-aware lattice inset from the edges,
-    // sized to the enemy count, rather than packing them into the top-left. The player's start hex is
-    // skipped. Each enemy carries its art base (Enemy.art); installSystems renders <art>.idle. (Real
-    // encounters will later spawn a curated subset rather than every enemy.)
-    const enemyArt = Object.values(AssetKeys)
-      .filter((key) => key.endsWith('.idle') && key !== AssetKeys.playerIdle)
-      .map((key) => key.slice(0, -'.idle'.length));
-    const latticeCols = Math.max(1, Math.ceil(Math.sqrt((enemyArt.length * GRID_COLS) / GRID_ROWS)));
-    const latticeRows = Math.max(1, Math.ceil(enemyArt.length / latticeCols));
-    const stepCol = GRID_COLS / (latticeCols + 1); // cells sit at 1..n of n+1 divisions (inset from edges)
-    const stepRow = GRID_ROWS / (latticeRows + 1);
-    const slots: { col: number; row: number }[] = [];
-    for (let latRow = 1; latRow <= latticeRows && slots.length < enemyArt.length; latRow += 1) {
-      for (let latCol = 1; latCol <= latticeCols && slots.length < enemyArt.length; latCol += 1) {
-        let col = Math.round(latCol * stepCol);
-        const row = Math.round(latRow * stepRow);
-        if (hexEquals(offsetToAxial({ col, row }), start)) col += 1; // never stack on the player's start hex
-        slots.push({ col, row });
-      }
-    }
-    enemyArt.forEach((art, i) => {
-      const slot = slots[i];
-      if (slot === undefined) return; // defensive: the lattice always yields >= enemyArt.length slots
+    // Enemies are spawned from the active level definition. The forest has none for now — the temporary
+    // "one of every enemy" showcase was removed; curated per-level rosters arrive with the enemy features.
+    for (const spawn of this.level.enemySpawns) {
       const enemy = world.createEntity();
-      world.store(Enemy).add(enemy, { isEnemy: true, art });
-      world.store(HexPosition).add(enemy, { hex: offsetToAxial(slot) });
-    });
+      world.store(Enemy).add(enemy, { isEnemy: true, art: spawn.art });
+      world.store(HexPosition).add(enemy, { hex: spawn.hex });
+    }
     return world;
   }
 
@@ -694,12 +611,19 @@ export class WorldScene extends Phaser.Scene {
    */
   private createTerrain(): void {
     const tilePx = s(TERRAIN_TILE);
-    const key = AssetKeys.terrainGroundGrass;
-    const leafKey = AssetKeys.terrainStairsGrass;
+    const key = this.theme.groundKey;
+    const leafKey = this.theme.leafKey;
+    const seed = this.level.terrainSeed;
+    // Per-kind variant count = its fill-frame list length, passed into the pure terrainTile so the variant
+    // index always lands within the available frames (no separate count to keep in sync with the frames).
+    const variantCounts = {
+      grass: this.theme.fillFrames.grass.length,
+      dirt: this.theme.fillFrames.dirt.length,
+    };
     // NEAREST so the 16px pixel-art tiles stay crisp scaled up.
     this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.textures.get(leafKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
-    const wb = worldPixelBounds(this.layout, GRID_COLS, GRID_ROWS);
+    const wb = worldPixelBounds(this.layout, this.level.cols, this.level.rows);
     const originCol = Math.floor(wb.minX / tilePx);
     // Extend the layer's TOP up by the mask's one-hex-height top-pad (layout.height) so real tiles fill it —
     // no empty sliver above the terrain when scrolled hard against the world's top edge.
@@ -729,11 +653,11 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(LEAF_DEPTH);
     for (let ty = 0; ty < this.terrainRows; ty += 1) {
       for (let tx = 0; tx < this.terrainCols; tx += 1) {
-        const { kind, variant } = terrainTile(originCol + tx, originRow + ty, TERRAIN_SEED, TERRAIN_VARIANT_COUNTS);
-        this.terrainLayer.putTileAt(TERRAIN_FILL_FRAMES[kind][variant] as number, tx, ty);
-        const overlay = terrainOverlay(originCol + tx, originRow + ty, TERRAIN_SEED);
-        if (overlay !== null) this.overlayLayer.putTileAt(OVERLAY_FRAMES[overlay], tx, ty);
-        const leafFrame = terrainLeaf(originCol + tx, originRow + ty, TERRAIN_SEED, LEAF_SHAPES);
+        const { kind, variant } = terrainTile(originCol + tx, originRow + ty, seed, variantCounts);
+        this.terrainLayer.putTileAt(this.theme.fillFrames[kind][variant] as number, tx, ty);
+        const overlay = terrainOverlay(originCol + tx, originRow + ty, seed);
+        if (overlay !== null) this.overlayLayer.putTileAt(this.theme.overlayFrames[overlay], tx, ty);
+        const leafFrame = terrainLeaf(originCol + tx, originRow + ty, seed, this.theme.leafShapes);
         // leaf frame indices are LOCAL to the stairs_grass sheet -> offset past the ground tileset's gid range.
         if (leafFrame !== null) this.leafLayer.putTileAt(leafFirstGid + leafFrame, tx, ty);
       }
@@ -777,8 +701,8 @@ export class WorldScene extends Phaser.Scene {
     const g = this.gridGfx;
     g.clear();
     g.lineStyle(s(1), gridLine, 0.18);
-    for (let row = 0; row < GRID_ROWS; row += 1) {
-      for (let col = 0; col < GRID_COLS; col += 1) {
+    for (let row = 0; row < this.level.rows; row += 1) {
+      for (let col = 0; col < this.level.cols; col += 1) {
         const { x, y } = hexToPixel(this.layout, offsetToAxial({ col, row }));
         if (!this.fullyInFrame(x, y)) continue;
         g.beginPath();
