@@ -89,6 +89,32 @@ const CARD_ART_OFFSET_Y_SKILL = -15; // base px: per-card art centre in the fram
 const CARD_ART_FALLBACK_SIZE = 256; // per-card art size used when the asset descriptor is missing
 const CARD_ART_FALLBACK_SCALE = 0.5; // per-card art display scale used when the descriptor is missing
 
+// Spell sidebar layout (presentation; tunable in one place, reviewed live). buildSpellSidebar /
+// setSpellSelected / showTooltip read these. Lengths are "base px" (before s() scaling); colours are hex.
+const SPELL_SIDEBAR_X = 44; // spell column inset from the LEFT edge
+const SPELL_FIRST_Y = 150; // y of the first spell disc
+const SPELL_SPACING_Y = 84; // vertical gap between successive spell discs
+const SPELL_DISC_RADIUS = 30; // backing-disc / ring / hit-area radius
+const SPELL_DISC_COLOR = 0x394150; // grey backing-disc fill
+const SPELL_ART_FALLBACK_SIZE = 64; // spell art size when the asset descriptor is missing
+const SPELL_RING_WIDTH_OFF = 1; // ring stroke width, unselected
+const SPELL_RING_WIDTH_ON = 2; // ring stroke width, selected/armed
+const SPELL_RING_COLOR_OFF = 0x6b7280; // ring colour, unselected (grey)
+const SPELL_RING_COLOR_ON = 0xfacc15; // ring colour, selected/armed (yellow)
+const SPELL_TOOLTIP_DX = 44; // tooltip x offset from the spell disc
+const SPELL_TOOLTIP_PAD_X = 8; // tooltip label inset from the bg LEFT
+const SPELL_TOOLTIP_PAD_Y = 6; // tooltip label inset from the bg TOP
+const SPELL_TOOLTIP_FONT_PX = 11; // tooltip text font size
+const SPELL_TOOLTIP_COLOR = '#e5e7eb'; // tooltip text colour
+const SPELL_TOOLTIP_WRAP_PX = 180; // tooltip text word-wrap width
+const SPELL_TOOLTIP_BG_PAD_X = 16; // horizontal padding added around the label for the bg
+const SPELL_TOOLTIP_BG_PAD_Y = 12; // vertical padding added around the label for the bg
+const SPELL_TOOLTIP_BG_COLOR = 0x111418; // tooltip background fill
+const SPELL_TOOLTIP_BG_ALPHA = 0.92; // tooltip background fill alpha
+const SPELL_TOOLTIP_BORDER_WIDTH = 1; // tooltip background border width
+const SPELL_TOOLTIP_BORDER_COLOR = 0x6b7280; // tooltip background border colour (grey)
+const SPELL_TOOLTIP_OFFSET_Y = 16; // tooltip rises this far above its anchor y
+
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
 const DRAW_STAGGER_MS = 120; // gap between successive cards dealt (leftmost first)
@@ -754,31 +780,31 @@ export class CardController {
 
   private buildSpellSidebar(): void {
     SPELL_DEFS.forEach((def, i) => {
-      const x = s(44);
-      const y = s(150) + i * s(84);
+      const x = s(SPELL_SIDEBAR_X);
+      const y = s(SPELL_FIRST_Y) + i * s(SPELL_SPACING_Y);
       const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
       // Grey backing disc; the art (if any) fills it, and a stroke-only border rings it on top (also the selection highlight).
-      const fill = this.scene.add.circle(0, 0, s(30), 0x394150);
+      const fill = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), SPELL_DISC_COLOR);
       const parts: Phaser.GameObjects.GameObject[] = [fill];
       // Per-spell art keyed def.art, clipped to the ring by a circular geometry mask so it fills the disc. The mask is
       // screen-fixed at the spell's pinned position (scrollFactor 0), mirroring PileOverlay's masked content.
       if (this.scene.textures.exists(def.art)) {
         const ad = resolveKey(def.art)?.descriptor;
-        const d = ad ? s(ad.size[0] * assetScale(ad)) : s(64);
+        const d = ad ? s(ad.size[0] * assetScale(ad)) : s(SPELL_ART_FALLBACK_SIZE);
         const art = this.scene.add.image(0, 0, def.art).setOrigin(0.5).setDisplaySize(d, d);
         const maskShape = this.scene.make.graphics({}, false);
-        maskShape.fillStyle(0xffffff).fillCircle(x, y, s(30));
+        maskShape.fillStyle(0xffffff).fillCircle(x, y, s(SPELL_DISC_RADIUS));
         maskShape.setScrollFactor(0);
         art.setMask(maskShape.createGeometryMask());
         parts.push(art);
       }
-      const border = this.scene.add.circle(0, 0, s(30), 0x000000, 0).setStrokeStyle(s(1), 0x6b7280);
+      const border = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), 0x000000, 0).setStrokeStyle(s(SPELL_RING_WIDTH_OFF), SPELL_RING_COLOR_OFF);
       parts.push(border);
       circle.add(parts);
       circle.setData('ring', border);
-      circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(30)), Phaser.Geom.Circle.Contains);
+      circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(SPELL_DISC_RADIUS)), Phaser.Geom.Circle.Contains);
       circle.on('pointerover', () => {
-        if (this.armed === null) this.showTooltip(def, x + s(44), y);
+        if (this.armed === null) this.showTooltip(def, x + s(SPELL_TOOLTIP_DX), y);
       });
       circle.on('pointerout', () => this.tooltip.setVisible(false));
       circle.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('spell', def, circle, p));
@@ -788,23 +814,23 @@ export class CardController {
 
   private setSpellSelected(circle: Phaser.GameObjects.Container, on: boolean): void {
     const ring = circle.getData('ring') as Phaser.GameObjects.Arc;
-    ring.setStrokeStyle(on ? s(2) : s(1), on ? 0xfacc15 : 0x6b7280);
+    ring.setStrokeStyle(on ? s(SPELL_RING_WIDTH_ON) : s(SPELL_RING_WIDTH_OFF), on ? SPELL_RING_COLOR_ON : SPELL_RING_COLOR_OFF);
   }
 
   private showTooltip(def: SpellDef, x: number, y: number): void {
     this.tooltip.removeAll(true);
     const text = `${def.name}  (M${def.cost})\n${def.effectText}`;
-    const label = this.scene.add.text(s(8), s(6), text, {
+    const label = this.scene.add.text(s(SPELL_TOOLTIP_PAD_X), s(SPELL_TOOLTIP_PAD_Y), text, {
       fontFamily: 'monospace',
-      fontSize: `${s(11)}px`,
-      color: '#e5e7eb',
-      wordWrap: { width: s(180) },
+      fontSize: `${s(SPELL_TOOLTIP_FONT_PX)}px`,
+      color: SPELL_TOOLTIP_COLOR,
+      wordWrap: { width: s(SPELL_TOOLTIP_WRAP_PX) },
     });
     const bg = this.scene.add
-      .rectangle(0, 0, label.width + s(16), label.height + s(12), 0x111418, 0.92)
-      .setStrokeStyle(s(1), 0x6b7280)
+      .rectangle(0, 0, label.width + s(SPELL_TOOLTIP_BG_PAD_X), label.height + s(SPELL_TOOLTIP_BG_PAD_Y), SPELL_TOOLTIP_BG_COLOR, SPELL_TOOLTIP_BG_ALPHA)
+      .setStrokeStyle(s(SPELL_TOOLTIP_BORDER_WIDTH), SPELL_TOOLTIP_BORDER_COLOR)
       .setOrigin(0, 0);
-    this.tooltip.setPosition(x, y - s(16));
+    this.tooltip.setPosition(x, y - s(SPELL_TOOLTIP_OFFSET_Y));
     this.tooltip.add([bg, label]);
     this.tooltip.setVisible(true);
   }
