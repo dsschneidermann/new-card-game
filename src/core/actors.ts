@@ -19,8 +19,9 @@ export const Player: ComponentType<PlayerData> = defineComponent<PlayerData>('Pl
  */
 export interface EnemyData {
   readonly isEnemy: true;
-  /** Roster art key base, e.g. 'orc_warrior_brown' (see assets/enemyRoster). The scene renders
-   *  `${art}.idle` and animates `${art}.<state>.right`. Persisted so resume restores each enemy's art. */
+  /** Roster art key base, e.g. 'enemy_orc_warrior_brown' (derived from the manifest's enemy_<name>.idle
+   *  keys: base = key minus '.idle'). The scene renders `${art}.idle` and animates `${art}.<state>.right`.
+   *  Persisted so resume restores each enemy's art. */
   readonly art: string;
 }
 

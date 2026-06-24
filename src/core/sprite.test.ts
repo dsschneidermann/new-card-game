@@ -54,7 +54,7 @@ describe('player spritesheets in the manifest', () => {
 describe('animation descriptors carry an fps marker', () => {
   const animatedKeys = [
     'player.idle', 'player.walk', 'player.ready', 'player.attack1', 'player.attack2',
-    'slime1.idle', 'slime1.walk', 'slime1.attack',
+    'enemy_slime1.idle', 'enemy_slime1.walk', 'enemy_slime1.attack',
   ];
   it('every animated character sheet declares a positive sprite.fps (its animation marker)', () => {
     for (const key of animatedKeys) {

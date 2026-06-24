@@ -16,7 +16,9 @@ export const SAVE_KEY = 'ncg.save.v1';
 // DeckState's shape (instance-id piles + per-instance components). v3: EnemyData gained `art`.
 // v4: the world grew to 52x42 with a new centered start + full-world enemy spread — discard pre-
 // enlargement saves so a resumed run starts in the new world (no shape change; clean reset).
-export const SAVE_VERSION = 4 as const;
+// v5: enemy sprite assets renamed to enemy_<name>.<state>, so the persisted EnemyData.art base is now
+// enemy_<name> (e.g. enemy_slime1) — discard old saves whose art base lacks the prefix (no migration).
+export const SAVE_VERSION = 5 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {
