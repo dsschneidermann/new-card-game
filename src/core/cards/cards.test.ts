@@ -207,7 +207,7 @@ describe('starter content', () => {
 
   it('spells carry per-id art and the right target specs', () => {
     expect(spellDef('blizzard')).toMatchObject({
-      art: 'spell.icon.blizzard',
+      art: 'spell_art_blizzard',
       cost: 3,
       target: { kind: 'areaOfEffect', radius: 1 },
     });

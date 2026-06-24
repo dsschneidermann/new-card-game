@@ -731,12 +731,25 @@ export class CardController {
       const x = s(44);
       const y = s(150) + i * s(84);
       const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
-      const ring = this.scene.add.circle(0, 0, s(30), 0x394150).setStrokeStyle(s(3), 0x6b7280);
-      const label = this.scene.add
-        .text(0, 0, def.name.slice(0, 4), { fontFamily: 'monospace', fontSize: `${s(12)}px`, color: '#e5e7eb' })
-        .setOrigin(0.5);
-      circle.add([ring, label]);
-      circle.setData('ring', ring);
+      // Grey backing disc; the art (if any) fills it, and a stroke-only border rings it on top (also the selection highlight).
+      const fill = this.scene.add.circle(0, 0, s(30), 0x394150);
+      const parts: Phaser.GameObjects.GameObject[] = [fill];
+      // Per-spell art keyed def.art, clipped to the ring by a circular geometry mask so it fills the disc. The mask is
+      // screen-fixed at the spell's pinned position (scrollFactor 0), mirroring PileOverlay's masked content.
+      if (this.scene.textures.exists(def.art)) {
+        const ad = resolveKey(def.art)?.descriptor;
+        const d = ad ? s(ad.size[0] * assetScale(ad)) : s(64);
+        const art = this.scene.add.image(0, 0, def.art).setOrigin(0.5).setDisplaySize(d, d);
+        const maskShape = this.scene.make.graphics({}, false);
+        maskShape.fillStyle(0xffffff).fillCircle(x, y, s(30));
+        maskShape.setScrollFactor(0);
+        art.setMask(maskShape.createGeometryMask());
+        parts.push(art);
+      }
+      const border = this.scene.add.circle(0, 0, s(30), 0x000000, 0).setStrokeStyle(s(1), 0x6b7280);
+      parts.push(border);
+      circle.add(parts);
+      circle.setData('ring', border);
       circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(30)), Phaser.Geom.Circle.Contains);
       circle.on('pointerover', () => {
         if (this.armed === null) this.showTooltip(def, x + s(44), y);
@@ -749,7 +762,7 @@ export class CardController {
 
   private setSpellSelected(circle: Phaser.GameObjects.Container, on: boolean): void {
     const ring = circle.getData('ring') as Phaser.GameObjects.Arc;
-    ring.setStrokeStyle(s(3), on ? 0xfacc15 : 0x6b7280);
+    ring.setStrokeStyle(on ? s(2) : s(1), on ? 0xfacc15 : 0x6b7280);
   }
 
   private showTooltip(def: SpellDef, x: number, y: number): void {

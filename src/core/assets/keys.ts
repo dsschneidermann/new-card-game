@@ -35,6 +35,11 @@ export const AssetKeys = {
   cardArtWhirlwind: 'card_art_whirlwind',
   cardArtRecall: 'card_art_recall',
 
+  // Spell sidebar art (one per spell; files are spell_art_<id>, and heal's art is selfheal).
+  spellArtBlizzard: 'spell_art_blizzard',
+  spellArtSelfheal: 'spell_art_selfheal',
+  spellArtTeleport: 'spell_art_teleport',
+
   // slime1
   slime1Idle: 'slime1.idle',
   slime1Walk: 'slime1.walk',

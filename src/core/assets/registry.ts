@@ -64,6 +64,11 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.cardArtWhirlwind, [256, 256, 0.35], 'card art (whirlwind)', 'Card art: whirlwind'),
   asset(AssetKeys.cardArtRecall, [256, 256, 0.35], 'card art (recall)', 'Card art: recall'),
 
+  // --- Spell sidebar art (per spell), shown as the icon inside each spell ring. Static, scale fills the ~60px ring ---
+  asset(AssetKeys.spellArtBlizzard, [128, 128, 0.46], 'spell art (blizzard)', 'Spell art: blizzard'),
+  asset(AssetKeys.spellArtSelfheal, [128, 128, 0.46], 'spell art (self heal)', 'Spell art: self heal'),
+  asset(AssetKeys.spellArtTeleport, [128, 128, 0.46], 'spell art (teleport)', 'Spell art: teleport'),
+
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
   asset(AssetKeys.slime1Idle, [64, 64, 0.5], 'slime1 idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 192, downPx: 10 }),

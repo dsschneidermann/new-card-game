@@ -5,7 +5,8 @@ import { AssetKeys } from '../assets/keys';
  * The static starter card & spell content (feature 09). No mechanical effects
  * yet (feature 12); costs and targeting are real. Each definition IS a type,
  * keyed by id; a card's `art` is the registered AssetKey of its per-card art
- * (read by makeCardFace); spell art is keyed by id (spell.icon.<id>).
+ * (read by makeCardFace) and a spell's `art` is the registered AssetKey of its
+ * sidebar icon (read by buildSpellSidebar).
  */
 export const CARD_DEFS: readonly CardDef[] = [
   {
@@ -107,7 +108,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     id: 'blizzard',
     name: 'Blizzard',
     cost: 3,
-    art: 'spell.icon.blizzard',
+    art: AssetKeys.spellArtBlizzard,
     effectText: 'Frost damage in a 3-hex area.',
     target: { kind: 'areaOfEffect', radius: 1 },
   },
@@ -115,7 +116,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     id: 'heal',
     name: 'Self Heal',
     cost: 2,
-    art: 'spell.icon.heal',
+    art: AssetKeys.spellArtSelfheal,
     effectText: 'Heal yourself.',
     target: { kind: 'self' },
   },
@@ -123,7 +124,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     id: 'teleport',
     name: 'Teleport',
     cost: 2,
-    art: 'spell.icon.teleport',
+    art: AssetKeys.spellArtTeleport,
     effectText: 'Teleport a target enemy to a chosen hex.',
     target: { kind: 'twoStep', first: { kind: 'singleHex' }, second: { kind: 'singleHex' } },
   },

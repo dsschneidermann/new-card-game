@@ -59,12 +59,12 @@ export interface CardDef {
   readonly pickFrom?: CardPick;
 }
 
-/** A spell definition. Each SpellDef IS a spell type, identified by id (spell.icon.<id>). */
+/** A spell definition. Each SpellDef IS a spell type, identified by id; `art` is the registered AssetKey of its sidebar icon. */
 export interface SpellDef {
   readonly id: string;
   readonly name: string;
   readonly cost: number; // mana
-  readonly art: string; // asset key, conventionally spell.icon.<id>
+  readonly art: AssetKey; // registered asset key of the spell's sidebar art (e.g. AssetKeys.spellArtBlizzard)
   readonly effectText: string;
   readonly target: TargetSpec;
 }
