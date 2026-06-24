@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { terrainTile, valueNoise, TERRAIN_VARIANTS } from '@core/index';
+import { terrainTile, terrainKind, terrainOverlay, overlayFor, valueNoise, TERRAIN_VARIANTS } from '@core/index';
 
 describe('valueNoise', () => {
   it('stays in [0,1) and is pure for a given point + seed', () => {
@@ -82,5 +82,85 @@ describe('terrainTile', () => {
     const frac = dirt / (SIZE * SIZE);
     expect(frac).toBeGreaterThan(0.02);
     expect(frac).toBeLessThan(0.5);
+  });
+});
+
+describe('overlayFor (edge-tile rule resolver)', () => {
+  const none = { n: false, e: false, s: false, w: false, nw: false, ne: false, se: false, sw: false };
+
+  it('no grass neighbours -> null', () => {
+    expect(overlayFor(none)).toBeNull();
+  });
+
+  it('a single cardinal -> the matching edge', () => {
+    expect(overlayFor({ ...none, n: true })).toBe('edgeN');
+    expect(overlayFor({ ...none, e: true })).toBe('edgeE');
+    expect(overlayFor({ ...none, s: true })).toBe('edgeS');
+    expect(overlayFor({ ...none, w: true })).toBe('edgeW');
+  });
+
+  it('two adjacent cardinals -> the matching pair, beating the single edges', () => {
+    expect(overlayFor({ ...none, w: true, n: true })).toBe('pairWN');
+    expect(overlayFor({ ...none, n: true, e: true })).toBe('pairNE');
+    expect(overlayFor({ ...none, e: true, s: true })).toBe('pairES');
+    expect(overlayFor({ ...none, s: true, w: true })).toBe('pairSW');
+  });
+
+  it('a single diagonal -> the matching corner', () => {
+    expect(overlayFor({ ...none, nw: true })).toBe('cornerNW');
+    expect(overlayFor({ ...none, ne: true })).toBe('cornerNE');
+    expect(overlayFor({ ...none, se: true })).toBe('cornerSE');
+    expect(overlayFor({ ...none, sw: true })).toBe('cornerSW');
+  });
+
+  it('priority: a cardinal beats a diagonal; a pair beats everything', () => {
+    expect(overlayFor({ ...none, n: true, nw: true })).toBe('edgeN'); // cardinal > diagonal
+    expect(overlayFor({ ...none, w: true, n: true, nw: true, ne: true })).toBe('pairWN'); // pair wins
+  });
+});
+
+describe('terrainOverlay + min-2-thickness dirt', () => {
+  const SEED = 4242;
+
+  it('overlays only on dirt: grass cells are null, and any overlay implies a dirt cell', () => {
+    for (let r = 0; r < 40; r += 1) {
+      for (let c = 0; c < 40; c += 1) {
+        if (terrainKind(c, r, SEED) === 'grass') expect(terrainOverlay(c, r, SEED)).toBeNull();
+        if (terrainOverlay(c, r, SEED) !== null) expect(terrainKind(c, r, SEED)).toBe('dirt');
+      }
+    }
+  });
+
+  it('every dirt cell is >=2 thick: never grass on both opposite cardinals (keeps the overlay rules complete)', () => {
+    const g = (c: number, r: number): boolean => terrainKind(c, r, SEED) === 'grass';
+    for (let r = -5; r < 45; r += 1) {
+      for (let c = -5; c < 45; c += 1) {
+        if (terrainKind(c, r, SEED) !== 'dirt') continue;
+        expect(g(c - 1, r) && g(c + 1, r)).toBe(false); // not 1-wide (grass on W and E)
+        expect(g(c, r - 1) && g(c, r + 1)).toBe(false); // not 1-high (grass on N and S)
+      }
+    }
+  });
+
+  it('is NOT 2x2-quantized: some even-aligned 2x2 block is mixed (boundaries keep per-cell resolution)', () => {
+    let mixed = false;
+    for (let bj = 0; bj < 40 && !mixed; bj += 1) {
+      for (let bi = 0; bi < 40 && !mixed; bi += 1) {
+        const k = terrainKind(2 * bi, 2 * bj, SEED);
+        if (
+          terrainKind(2 * bi + 1, 2 * bj, SEED) !== k ||
+          terrainKind(2 * bi, 2 * bj + 1, SEED) !== k ||
+          terrainKind(2 * bi + 1, 2 * bj + 1, SEED) !== k
+        ) {
+          mixed = true;
+        }
+      }
+    }
+    expect(mixed).toBe(true);
+  });
+
+  it('is deterministic for a given (col,row,seed)', () => {
+    expect(terrainOverlay(7, 3, SEED)).toBe(terrainOverlay(7, 3, SEED));
+    expect(terrainOverlay(8, 8, SEED)).toBe(terrainOverlay(8, 8, SEED));
   });
 });

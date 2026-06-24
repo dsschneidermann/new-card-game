@@ -32,10 +32,12 @@ import {
   hexDistance,
   worldPixelBounds,
   terrainTile,
+  terrainOverlay,
   s,
   type Hex,
   type HexLayout,
   type TerrainKind,
+  type TerrainOverlay,
   type EntityId,
   type World,
   type StorageAdapter,
@@ -83,8 +85,15 @@ const TERRAIN_SEED = 0x7e44a1; // fixed -> a consistent designed ground (could k
 // (kind, variant) -> frame index in the terrain.ground_grass 16x16 sheet. Curated PLAIN fill tiles: the only clean
 // GRASS fill is the flat green; the textured fills are the DIRT/rock tiles. Lengths match TERRAIN_VARIANTS. Tuned at review.
 const TERRAIN_FILL_FRAMES: Record<TerrainKind, readonly number[]> = {
-  grass: [181, 527],
+  grass: [527],
   dirt: [422]
+};
+const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
+// Grass-edge overlay descriptor -> Ground_grass frame: pairs (two adjacent cardinals) / edges / diagonal corners.
+const OVERLAY_FRAMES: Record<TerrainOverlay, number> = {
+  pairWN: 571, pairNE: 572, pairES: 593, pairSW: 592,
+  edgeW: 591, edgeN: 611, edgeE: 589, edgeS: 578,
+  cornerNW: 612, cornerNE: 610, cornerSE: 568, cornerSW: 570,
 };
 // Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
@@ -127,6 +136,8 @@ export class WorldScene extends Phaser.Scene {
   // Ground terrain: a world-sized TilemapLayer (tile indices, no baked texture — Phaser culls to the viewport)
   // MASKED to the visible hex frame, so terrain shows only under the hexes, not in the HUD margins.
   private terrainLayer!: Phaser.Tilemaps.TilemapLayer;
+  // The grass-edge OVERLAY layer drawn on top of the terrain fill (auto-tiling; dirt cells only).
+  private overlayLayer!: Phaser.Tilemaps.TilemapLayer;
   private terrainCols = 0;
   private terrainRows = 0;
   // The on-screen frame (the original 26x21 grid rect): only full hexes inside it are drawn and shown.
@@ -632,11 +643,18 @@ export class WorldScene extends Phaser.Scene {
       .createBlankLayer('terrain', tileset as Phaser.Tilemaps.Tileset, originCol * tilePx, originRow * tilePx)!
       .setScale(tilePx / 16)
       .setDepth(TERRAIN_DEPTH);
+    // Second layer (same map/tileset) for the grass-edge overlays, on top of the terrain fill.
+    this.overlayLayer = map
+      .createBlankLayer('overlay', tileset as Phaser.Tilemaps.Tileset, originCol * tilePx, originRow * tilePx)!
+      .setScale(tilePx / 16)
+      .setDepth(TERRAIN_OVERLAY_DEPTH);
     for (let ty = 0; ty < this.terrainRows; ty += 1) {
       for (let tx = 0; tx < this.terrainCols; tx += 1) {
         const { kind, variant } = terrainTile(originCol + tx, originRow + ty, TERRAIN_SEED);
         const frames = TERRAIN_FILL_FRAMES[kind];
         this.terrainLayer.putTileAt(frames[variant % frames.length] as number, tx, ty);
+        const overlay = terrainOverlay(originCol + tx, originRow + ty, TERRAIN_SEED);
+        if (overlay !== null) this.overlayLayer.putTileAt(OVERLAY_FRAMES[overlay], tx, ty);
       }
     }
     // Clip the world-sized layer to the visible hex FRAME so terrain shows only under the hexes, not in the HUD
@@ -655,7 +673,9 @@ export class WorldScene extends Phaser.Scene {
         this.frame.bottom - this.frame.top + topPad + bottomPad,
       );
     maskShape.setScrollFactor(0);
-    this.terrainLayer.setMask(maskShape.createGeometryMask());
+    const mask = maskShape.createGeometryMask();
+    this.terrainLayer.setMask(mask);
+    this.overlayLayer.setMask(mask);
     console.info(
       `[terrain] world layer: ${this.terrainCols} x ${this.terrainRows} = ${this.terrainCols * this.terrainRows} tiles (tile ${tilePx}px)`,
     );
