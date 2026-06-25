@@ -20,6 +20,8 @@ const HL_DEPTH = -1_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
 const OUTLINE_EXTEND_PX = 0.5; // range-outline segments overshoot each end so convex corners close fully
+const AIM_LINE_WIDTH = 2; // base px stroke width of the ranged aim line
+const AIM_LINE_ALPHA = 0.9; // ranged aim line opacity (drawn over the path tint)
 
 /** A pixel point — a hexagon vertex / edge endpoint. */
 type Pt = { x: number; y: number };
@@ -53,6 +55,11 @@ export class TargetingPainter {
    * (yellow) hexes, each clipped to the visible board window. selfAoe paints regardless of the pointer; every other
    * target needs an in-bounds hovered hex. isBlocked suppresses the tint on a forbidden hex (an
    * attack's own hex) — that rule is owned by CardController and passed in.
+   *
+   * For a lineOfSight (ranged single-target) card it ALSO draws a straight yellow aim line from the
+   * caster's hex centre to the hovered hex centre. That line is drawn even when the shot is BLOCKED
+   * (resolveTargeting returns no path hexes), so the player always sees where they are aiming — the
+   * absence of the yellow routed-path hexes is itself the "no clear line" cue.
    */
   redrawHighlight(
     spec: TargetSpec,
@@ -73,6 +80,17 @@ export class TargetingPainter {
     // off-frame margin; the hovered centre being in-bounds is not enough.
     for (const h of secondary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_SECONDARY);
     for (const h of primary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_PRIMARY);
+    // The straight aim line, on TOP of the tint. Independent of the resolved path, so it shows even when
+    // LoS is blocked (no path) or the hex is out of range — it is an aiming guide, not a validity check.
+    if (spec.kind === 'lineOfSight' && hovered !== null && this.isVisible(hovered)) this.drawAimLine(origin, hovered);
+  }
+
+  /** Straight yellow segment from the caster hex centre to the hovered hex centre (the ranged aim line). */
+  private drawAimLine(from: Hex, to: Hex): void {
+    const a = hexToPixel(this.layout, from);
+    const b = hexToPixel(this.layout, to);
+    this.highlight.lineStyle(s(AIM_LINE_WIDTH), TINT_SECONDARY, AIM_LINE_ALPHA);
+    this.highlight.lineBetween(a.x, a.y, b.x, b.y);
   }
 
   /**
