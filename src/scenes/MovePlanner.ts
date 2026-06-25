@@ -27,15 +27,17 @@ export interface MovePlannerContext {
   /** True when the player may start a move (player phase + not input-locked + nothing armed). */
   canStart(): boolean;
   /**
-   * True when a hex is on the VISIBLE board — in grid bounds AND fully inside the on-screen frame. The
-   * same predicate the card-targeting paint uses; with the larger world, in-bounds is no longer the same
-   * as on-screen, so the move preview must clip to this just like TargetingPainter does.
+   * True when a hex is on the VISIBLE board — in grid bounds AND fully inside the on-screen frame. Used for
+   * the ACTION gate only (onRelease cancels a move released off the visible board); the visual clipping of
+   * the overlay rides the shared effectMask, not this predicate.
    */
   isHexVisible(hex: Hex): boolean;
+  /** The shared visible-window mask (WorldScene): clips the reachable fill + route numbers to the board. */
+  readonly effectMask: Phaser.Display.Masks.GeometryMask;
 }
 
 const FILL_DEPTH = -1_000; // ground layer, below the character sprites (whose depth = screen-Y > 0)
-const NUM_DEPTH = 1_000; // path numbers above the sprites, below the HUD (2_000_000)
+const NUM_DEPTH = 1_500_000; // path numbers above the sprite band (sprite depth = screen Y), below HUD (2_000_000)
 const FILL_COLOR = 0x3b82f6; // blue reachable tint (distinct from the card-targeting red/yellow)
 const FILL_ALPHA = 0.22;
 
@@ -54,7 +56,7 @@ export class MovePlanner {
   private numbers: Phaser.GameObjects.Text[] = [];
 
   constructor(private readonly ctx: MovePlannerContext) {
-    this.fill = ctx.scene.add.graphics().setDepth(FILL_DEPTH);
+    this.fill = ctx.scene.add.graphics().setDepth(FILL_DEPTH).setMask(ctx.effectMask);
   }
 
   /** Begin a move preview from a board press (ignored unless the player may move and can reach a hex). */
@@ -66,17 +68,16 @@ export class MovePlanner {
     if (this.reachable.size === 0) return; // no budget left / nowhere to go
     this.pressing = true;
     this.lastRouteKey = null;
+    // Paint the whole reachable area once (persistent for the hold, like the card range outline); the shared
+    // window mask clips it to the board, so the press is never blocked and nothing bleeds into the margin.
     this.paintReachable();
-    // The press is NOT blocked off-board — like the card-targeting highlight, only the PAINT is suppressed:
-    // the overlay shows while the cursor is over the visible board and is hidden when it is off it. So a
-    // press that begins off-board paints nothing until the cursor moves onto the board.
-    this.syncOverlay(hex);
+    this.updateRoute(hex);
   }
 
   /** While held, redraw the numbered route to the hovered hex and show/hide the overlay by cursor position. */
   onMove(p: Phaser.Input.Pointer): void {
     if (!this.pressing) return;
-    this.syncOverlay(pixelToHex(this.ctx.layout, p.worldX, p.worldY));
+    this.updateRoute(pixelToHex(this.ctx.layout, p.worldX, p.worldY));
   }
 
   /** Release: move to the hex only if it's reachable AND on the visible board; otherwise cancel. */
@@ -101,25 +102,9 @@ export class MovePlanner {
   }
 
   /**
-   * Show the reachable overlay only while the cursor hex is on the VISIBLE board, mirroring the
-   * card-targeting highlight (which paints nothing while the cursor is off the visible grid). The fill is
-   * painted once on press and merely toggled here — the gesture is never blocked, only the paint suppressed.
-   */
-  private syncOverlay(hex: Hex): void {
-    const visible = this.onVisibleBoard(hex);
-    this.fill.setVisible(visible);
-    if (!visible) {
-      this.clearNumbers();
-      this.lastRouteKey = null; // force the route to redraw when the cursor returns to the board
-      return;
-    }
-    this.updateRoute(hex);
-  }
-
-  /**
-   * A hex is on the visible board when it is in grid bounds AND fully on-screen. The press paint and the
-   * release commit both gate on this same test (like the card-targeting paths) so they can never drift —
-   * with the larger world, in-bounds is no longer the same as on-screen.
+   * A hex is on the visible board when it is in grid bounds AND fully on-screen. The release commit gates on
+   * this (a move released off the visible board cancels); the overlay's visual clipping is the window mask,
+   * not this test. With the larger world, in-bounds is no longer the same as on-screen.
    */
   private onVisibleBoard(hex: Hex): boolean {
     return this.ctx.grid.inBounds(hex) && this.ctx.isHexVisible(hex);
@@ -136,13 +121,13 @@ export class MovePlanner {
     const path = findPath(this.ctx.grid, from, hex);
     for (let i = 1; i < path.length; i += 1) {
       const step = path[i] as Hex;
-      if (!this.ctx.isHexVisible(step)) continue; // don't draw route numbers into the off-board margin
       const { x, y } = hexToPixel(this.ctx.layout, step);
       this.numbers.push(
         this.ctx.scene.add
           .text(x, y, String(i), { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
           .setOrigin(0.5)
-          .setDepth(NUM_DEPTH),
+          .setDepth(NUM_DEPTH)
+          .setMask(this.ctx.effectMask), // clip route numbers to the visible window, like the fill
       );
     }
   }
@@ -150,9 +135,9 @@ export class MovePlanner {
   private paintReachable(): void {
     this.fill.clear();
     this.fill.fillStyle(FILL_COLOR, FILL_ALPHA);
-    // Clip the fill to the visible window (like TargetingPainter): with the camera clamped near a world
-    // edge the player can sit off-centre, so a reachable hex could otherwise paint into the off-board margin.
-    for (const hex of this.reachable.values()) if (this.ctx.isHexVisible(hex)) this.fillHex(hex);
+    // The shared window mask clips the fill to the visible board, so paint every reachable hex — with the
+    // camera clamped near a world edge the player can sit off-centre and reachable hexes run off-screen.
+    for (const hex of this.reachable.values()) this.fillHex(hex);
   }
 
   /** Fill one pointy-top hex (matching the grid geometry) into the ground-layer overlay. */

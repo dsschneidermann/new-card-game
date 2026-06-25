@@ -41,13 +41,15 @@ export class TargetingPainter {
     scene: Phaser.Scene,
     private readonly grid: HexGrid,
     private readonly layout: HexLayout,
-    // True when a hex is FULLY inside the visible board window (not just in grid bounds). With the
-    // larger world + camera follow, in-bounds is no longer the same as on-screen, so the paint is
-    // clipped to this too — otherwise a tint/outline near the frame edge bleeds into the off-board margin.
+    // KEPT as the cursor-over-board gate only (redrawHighlight early-return): clears the self/selfAoe tint,
+    // which sits on the always-visible player, when the cursor leaves the board — the mask cannot do that.
     private readonly isVisible: (hex: Hex) => boolean,
+    // The shared visible-window mask (WorldScene): clips every hex this painter draws to the on-screen frame,
+    // so a range outline / tint near a world edge never bleeds into the off-board margin (larger world).
+    private readonly mask: Phaser.Display.Masks.GeometryMask,
   ) {
-    this.highlight = scene.add.graphics().setDepth(HL_DEPTH);
-    this.rangeOutline = scene.add.graphics().setDepth(HL_DEPTH);
+    this.highlight = scene.add.graphics().setDepth(HL_DEPTH).setMask(mask);
+    this.rangeOutline = scene.add.graphics().setDepth(HL_DEPTH).setMask(mask);
   }
 
   /**
@@ -80,11 +82,11 @@ export class TargetingPainter {
     const { primary, secondary } = resolveTargeting(spec, origin, effectiveHovered, firstPick, (h) =>
       this.grid.blocksSight(h),
     );
-    // Clip each highlighted hex to the VISIBLE board window — in grid bounds AND fully on-screen — so a
-    // multi-hex target (e.g. an areaOfEffect disk near the frame edge) never paints off-grid or in the
-    // off-frame margin; the hovered centre being in-bounds is not enough.
-    for (const h of secondary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_SECONDARY);
-    for (const h of primary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_PRIMARY);
+    // Keep only in-bounds hexes (off-grid cells aren't real targets); the shared window mask clips a
+    // multi-hex target (e.g. an areaOfEffect disk near the frame edge) so it never paints in the off-frame
+    // margin. The hovered centre being on the visible board is gated by the early return above.
+    for (const h of secondary) if (this.grid.inBounds(h)) this.fillHex(h, TINT_SECONDARY);
+    for (const h of primary) if (this.grid.inBounds(h)) this.fillHex(h, TINT_PRIMARY);
     // The straight aim line, on TOP of the tint — but only toward an IN-RANGE hex (a potentially valid
     // target). It is independent of the resolved PATH, so it still shows for an in-range hex whose LoS is
     // BLOCKED (no routed path); the absence of the yellow path hexes is the "no clear line" cue. Beyond
@@ -105,11 +107,11 @@ export class TargetingPainter {
   }
 
   /**
-   * Draw the yellow max-range boundary for the armed card (a no-op if its target has no maxRange):
-   * the outer edges of the in-bounds hexes within range. An edge is stroked wherever its neighbour is
-   * OUT of range — on or off the board — so the outline closes along the board edge when the range
-   * lands exactly on it. In-range neighbours are skipped (in-bounds = internal edge; off-board = the
-   * range bleeds past the rim, draw nothing). Every stroked edge belongs to an in-bounds hex. Pure hex distance.
+   * Draw the yellow max-range boundary for the armed card (a no-op if its target has no maxRange): the
+   * outer edge of the range disk — every edge of an in-range hex whose neighbour is OUT of range. The
+   * max-range outline highlights a DISTANCE, not real hexes, so it is NOT clipped to the grid: it draws the
+   * full hexagonal ring even past the world edge, and the shared window mask clips it to the visible frame.
+   * In-range neighbours are skipped (internal edges). Pure hex distance.
    */
   drawRange(spec: TargetSpec, origin: Hex): void {
     this.rangeOutline.clear();
@@ -117,7 +119,8 @@ export class TargetingPainter {
     if (maxRange === undefined) return;
     this.rangeOutline.lineStyle(s(2), TINT_SECONDARY, 0.9);
     for (const hex of hexesWithinRange(origin, maxRange)) {
-      if (!this.grid.inBounds(hex) || !this.isVisible(hex)) continue; // clip to the visible window, like the tint
+      // No in-bounds check: the max-range outline highlights a DISTANCE, not real hexes, so it may extend
+      // past the grid edge — the window mask clips it. (The target tints keep inBounds; they mark real hexes.)
       const verts = this.hexVertices(hex);
       for (const n of neighbors(hex)) {
         if (hexDistance(origin, n) <= maxRange) continue;

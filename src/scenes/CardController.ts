@@ -48,6 +48,8 @@ export interface CardUiContext {
   notify(message: string): void;
   /** True when `hex` is FULLY inside the visible board window (not just within grid bounds). */
   isHexVisible(hex: Hex): boolean;
+  /** The shared visible-window mask (WorldScene): clips the targeting paint to the on-screen board. */
+  readonly effectMask: Phaser.Display.Masks.GeometryMask;
 }
 
 interface Armed {
@@ -182,7 +184,13 @@ export class CardController {
   }
 
   create(): void {
-    this.painter = new TargetingPainter(this.scene, this.ctx.grid, this.ctx.layout, (h) => this.ctx.isHexVisible(h));
+    this.painter = new TargetingPainter(
+      this.scene,
+      this.ctx.grid,
+      this.ctx.layout,
+      (h) => this.ctx.isHexVisible(h),
+      this.ctx.effectMask,
+    );
     this.tooltip = this.scene.add.container(0, 0).setDepth(HUD_DEPTH + 10).setVisible(false).setScrollFactor(0);
     this.buildSpellSidebar();
     this.buildDeckIcon();

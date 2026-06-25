@@ -141,6 +141,10 @@ export class WorldScene extends Phaser.Scene {
   private scrollBounds!: { minX: number; maxX: number; minY: number; maxY: number };
   // Screen pixel of the frame's centre cell — the camera scrolls so the reference hex lands here.
   private viewCenterPx!: { x: number; y: number };
+  // Tight visible-window geometry mask (the EXACT frame rect, no terrain sprite-feet pad), screen-pinned.
+  // Shared by the targeting + movement effect layers so their off-board visuals clip to the board edge, the
+  // same way the terrain layer is masked. Built once in create().
+  private effectMask!: Phaser.Display.Masks.GeometryMask;
   // The world hex the camera is currently anchored on; re-anchored only when the player drifts
   // CAMERA_STAGGER_HEXES from it (staggered pan). undefined until the first updateCamera().
   private camRefHex: Hex | undefined;
@@ -206,6 +210,21 @@ export class WorldScene extends Phaser.Scene {
     this.gridGfx = this.add.graphics().setDepth(-1_000_000); // world-space hex outline; drawn by redrawGrid()
     this.buildHud();
 
+    // Tight visible-window mask (the exact frame rect — no terrain sprite-feet pad), built like the terrain
+    // mask in createTerrain() and shared by the effect layers so off-board targeting/move visuals clip to the
+    // board edge. Screen-pinned (scrollFactor 0); the effect graphics are world-space, like the terrain layer.
+    const effectMaskShape = this.make.graphics({}, false);
+    effectMaskShape
+      .fillStyle(0xffffff)
+      .fillRect(
+        this.frame.left,
+        this.frame.top,
+        this.frame.right - this.frame.left,
+        this.frame.bottom - this.frame.top,
+      );
+    effectMaskShape.setScrollFactor(0);
+    this.effectMask = effectMaskShape.createGeometryMask();
+
     this.cards = new CardController({
       scene: this,
       grid: this.grid,
@@ -215,12 +234,14 @@ export class WorldScene extends Phaser.Scene {
       submit: (cmd) => this.submitPlayerCommand(cmd),
       canAct: () => !this.inputLocked && this.isPlayerPhase(),
       notify: (m) => this.flashRejected(m),
-      // Targeting paint is clipped to what's on-screen: only hexes fully inside the visible frame, so an
-      // AOE/range highlight near the frame edge doesn't bleed into the off-board margin (larger world).
+      // isHexVisible stays for the cursor-over-board gate (clears the self/selfAoe tint when the cursor
+      // leaves the board) and the commit-path action checks (onVisibleBoard / isValidTarget). The per-hex
+      // visual clipping of the targeting paint now rides the shared effectMask below.
       isHexVisible: (hex) => {
         const { x, y } = hexToPixel(this.layout, hex);
         return this.fullyInFrame(x, y);
       },
+      effectMask: this.effectMask,
     });
     this.cards.create();
 
@@ -239,14 +260,14 @@ export class WorldScene extends Phaser.Scene {
         this.isPlayerPhase() &&
         !this.cards.isArmed() &&
         this.time.now >= this.moveLockedUntilMs, // brief post-rejection lockout (see flashRejected)
-      // Same visible-window predicate the card-targeting paint uses (CardController.isHexVisible). The move
-      // overlay shows only while the cursor is over the visible board, reachable hexes / route numbers clip
-      // to the on-screen frame, and a release off the board cancels. With the larger world, in-bounds is no
-      // longer the same as on-screen.
+      // isHexVisible stays for the ACTION gate only: MovePlanner.onRelease cancels a move released off the
+      // visible board (onVisibleBoard). The visual clipping of the reachable fill + route numbers now rides
+      // the shared effectMask below, like the card-targeting paint.
       isHexVisible: (hex) => {
         const { x, y } = hexToPixel(this.layout, hex);
         return this.fullyInFrame(x, y);
       },
+      effectMask: this.effectMask,
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
