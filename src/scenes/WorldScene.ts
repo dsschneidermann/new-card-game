@@ -78,9 +78,11 @@ const VIEW_ROWS = 21;
 const VIEW_CENTER_COL = Math.floor(VIEW_COLS / 2); // the window cell the player is centred on (13)
 const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 
-// Ground terrain (Hex Ground Terrain): a SQUARE background tile grid, independent of the hexes, drawn as a
+// Ground terrain (Hex Ground Terrain): a background tile grid, independent of the hexes, drawn as a
 // world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
-const TERRAIN_TILE = 32; // Desktop base px of a square terrain tile: s(32)=32px on Desktop.
+// Tiles are drawn SKEWED (width != height) although the source art is a natural 16x16 square.
+const TERRAIN_TILE_W = 32; // Desktop base px tile WIDTH
+const TERRAIN_TILE_H = 16; // Desktop base px tile HEIGHT -> vertical squish vs the 16x16 source
 const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
 const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
 const LEAF_DEPTH = -1_025_000; // grass-leaf detail layer: above the grass-edge overlay, below the hex outline
@@ -733,7 +735,8 @@ export class WorldScene extends Phaser.Scene {
    * hexes, not in the HUD margins.
    */
   private createTerrain(): void {
-    const tilePx = s(TERRAIN_TILE);
+    const tileWpx = s(TERRAIN_TILE_W);
+    const tileHpx = s(TERRAIN_TILE_H);
     const key = this.theme.groundKey;
     const leafKey = this.theme.leafKey;
     const seed = this.level.terrainSeed;
@@ -747,13 +750,13 @@ export class WorldScene extends Phaser.Scene {
     this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
     this.textures.get(leafKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
     const wb = worldPixelBounds(this.layout, this.level.cols, this.level.rows);
-    const originCol = Math.floor(wb.minX / tilePx);
+    const originCol = Math.floor(wb.minX / tileWpx);
     // Extend the layer's TOP up by the mask's one-hex-height top-pad (layout.height) so real tiles fill it —
     // no empty sliver above the terrain when scrolled hard against the world's top edge.
-    const topPadRows = Math.ceil(this.layout.height / tilePx);
-    const originRow = Math.floor(wb.minY / tilePx) - topPadRows;
-    this.terrainCols = Math.ceil(wb.maxX / tilePx) - originCol + 1;
-    this.terrainRows = Math.ceil(wb.maxY / tilePx) - originRow + 1;
+    const topPadRows = Math.ceil(this.layout.height / tileHpx);
+    const originRow = Math.floor(wb.minY / tileHpx) - topPadRows;
+    this.terrainCols = Math.ceil(wb.maxX / tileWpx) - originCol + 1;
+    this.terrainRows = Math.ceil(wb.maxY / tileHpx) - originRow + 1;
     const map = this.make.tilemap({ tileWidth: 16, tileHeight: 16, width: this.terrainCols, height: this.terrainRows });
     const tileset = map.addTilesetImage('terrain', key, 16, 16) as Phaser.Tilemaps.Tileset;
     // Second tileset on the SAME map for the grass-leaf decals (the stairs_grass foliage sheet). Its firstgid sits
@@ -761,18 +764,18 @@ export class WorldScene extends Phaser.Scene {
     const leafFirstGid = tileset.firstgid + tileset.total;
     const leafTileset = map.addTilesetImage('stairs_grass', leafKey, 16, 16, 0, 0, leafFirstGid) as Phaser.Tilemaps.Tileset;
     this.terrainLayer = map
-      .createBlankLayer('terrain', tileset as Phaser.Tilemaps.Tileset, originCol * tilePx, originRow * tilePx)!
-      .setScale(tilePx / 16)
+      .createBlankLayer('terrain', tileset as Phaser.Tilemaps.Tileset, originCol * tileWpx, originRow * tileHpx)!
+      .setScale(tileWpx / 16, tileHpx / 16)
       .setDepth(TERRAIN_DEPTH);
     // Second layer (same map/tileset) for the grass-edge overlays, on top of the terrain fill.
     this.overlayLayer = map
-      .createBlankLayer('overlay', tileset as Phaser.Tilemaps.Tileset, originCol * tilePx, originRow * tilePx)!
-      .setScale(tilePx / 16)
+      .createBlankLayer('overlay', tileset as Phaser.Tilemaps.Tileset, originCol * tileWpx, originRow * tileHpx)!
+      .setScale(tileWpx / 16, tileHpx / 16)
       .setDepth(TERRAIN_OVERLAY_DEPTH);
     // Third layer for the grass-leaf decals, drawn from the stairs_grass tileset, on top of the grass-edge overlays.
     this.leafLayer = map
-      .createBlankLayer('leaf', [tileset, leafTileset], originCol * tilePx, originRow * tilePx)!
-      .setScale(tilePx / 16)
+      .createBlankLayer('leaf', [tileset, leafTileset], originCol * tileWpx, originRow * tileHpx)!
+      .setScale(tileWpx / 16, tileHpx / 16)
       .setDepth(LEAF_DEPTH);
     for (let ty = 0; ty < this.terrainRows; ty += 1) {
       for (let tx = 0; tx < this.terrainCols; tx += 1) {
@@ -806,7 +809,7 @@ export class WorldScene extends Phaser.Scene {
     this.overlayLayer.setMask(mask);
     this.leafLayer.setMask(mask);
     console.info(
-      `[terrain] world layer: ${this.terrainCols} x ${this.terrainRows} = ${this.terrainCols * this.terrainRows} tiles (tile ${tilePx}px)`,
+      `[terrain] world layer: ${this.terrainCols} x ${this.terrainRows} = ${this.terrainCols * this.terrainRows} tiles (tile ${tileWpx}x${tileHpx}px)`,
     );
   }
 
