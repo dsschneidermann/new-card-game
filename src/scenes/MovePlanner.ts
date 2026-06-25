@@ -60,7 +60,7 @@ export class MovePlanner {
   }
 
   /** Begin a move preview from a board press (ignored unless the player may move and can reach a hex). */
-  onPress(hex: Hex, p: Phaser.Input.Pointer): void {
+  onPointerDown(hex: Hex, p: Phaser.Input.Pointer): void {
     if (this.pressing || p.rightButtonDown() || !this.ctx.canStart()) return;
     const from = this.playerHex();
     if (from === null) return;
@@ -68,20 +68,21 @@ export class MovePlanner {
     if (this.reachable.size === 0) return; // no budget left / nowhere to go
     this.pressing = true;
     this.lastRouteKey = null;
-    // Paint the whole reachable area once (persistent for the hold, like the card range outline); the shared
-    // window mask clips it to the board, so the press is never blocked and nothing bleeds into the margin.
     this.paintReachable();
-    this.updateRoute(hex);
+    // The press is NOT blocked off-board — like the card-targeting highlight, only the PAINT is suppressed:
+    // the overlay shows while the cursor is over the visible board and is hidden when it is off it. So a
+    // press that begins off-board paints nothing until the cursor moves onto the board.
+    this.redrawReachable(hex);
   }
 
   /** While held, redraw the numbered route to the hovered hex and show/hide the overlay by cursor position. */
-  onMove(p: Phaser.Input.Pointer): void {
+  onPointerMove(p: Phaser.Input.Pointer): void {
     if (!this.pressing) return;
-    this.updateRoute(pixelToHex(this.ctx.layout, p.worldX, p.worldY));
+    this.redrawReachable(pixelToHex(this.ctx.layout, p.worldX, p.worldY));
   }
 
-  /** Release: move to the hex only if it's reachable AND on the visible board; otherwise cancel. */
-  onRelease(p: Phaser.Input.Pointer): void {
+  /** Pointer released: move to the hex only if it's reachable AND on the visible board; otherwise cancel. */
+  onPointerUp(p: Phaser.Input.Pointer): void {
     if (!this.pressing) return;
     const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
     // A release outside the visible board cancels — same as an armed card released off-board. With a large
@@ -99,6 +100,22 @@ export class MovePlanner {
   /** True while a press-and-hold move preview is active (so Esc can abort it before opening Pause). */
   isPreviewing(): boolean {
     return this.pressing;
+  }
+
+  /**
+   * Show the reachable overlay only while the cursor hex is on the VISIBLE board, mirroring the
+   * targeting highlight redrawHighlight (which paints nothing while the cursor is off the visible grid). The fill
+   * is painted once on press and merely toggled here — the gesture is never blocked, only the paint suppressed.
+   */
+  private redrawReachable(hex: Hex): void {
+    const visible = this.onVisibleBoard(hex);
+    this.fill.setVisible(visible);
+    if (!visible) {
+      this.clearNumbers();
+      this.lastRouteKey = null; // force the route to redraw when the cursor returns to the board
+      return;
+    }
+    this.updateRoute(hex);
   }
 
   /**

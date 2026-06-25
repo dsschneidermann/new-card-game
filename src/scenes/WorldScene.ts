@@ -284,7 +284,7 @@ export class WorldScene extends Phaser.Scene {
           this.cards.onWorldDown(); // arm a click-mode target; it COMMITS on the pointer-up (touch-settled position)
         } else {
           const hex = pixelToHex(this.layout, p.worldX, p.worldY);
-          this.move.onPress(hex, p); // begin the press-hold reachable-range move preview
+          this.move.onPointerDown(hex, p); // begin the press-hold reachable-range move preview
         }
       });
 
@@ -299,11 +299,11 @@ export class WorldScene extends Phaser.Scene {
 
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       this.cards.onPointerMove(p);
-      this.move.onMove(p);
+      this.move.onPointerMove(p);
     });
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
       this.cards.onPointerUp(p);
-      this.move.onRelease(p);
+      this.move.onPointerUp(p);
     });
 
     this.input.keyboard?.on('keydown-SPACE', () => {
