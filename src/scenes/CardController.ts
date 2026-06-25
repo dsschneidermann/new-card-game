@@ -61,10 +61,9 @@ const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
 const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
-// While a card is ARMED it lifts this far above its fan slot — the persistent "armed" affordance. When
-// the pointer is over the LOWER band of that raised card (where it overlaps the bottom board hexes), the
-// card drops back to its slot AND goes click-through, so the covered hex can be targeted (see
-// updateArmedCardLift). TUNABLE (matches the hover-lift today): raise amount + the lower-band split.
+// While a card is ARMED it lifts this far above its fan slot — the persistent "armed" affordance. Once
+// the pointer drops back down over the raised card, it returns to its slot AND goes click-through, so the
+// covered hex can be targeted (see updateArmedCardLift). TUNABLE (matches the hover-lift today).
 const ARMED_CARD_RAISE_PX = 28;
 
 // Card face layout (presentation; tunable in one place, reviewed live). makeCardFace / setCardSelected /
@@ -157,6 +156,14 @@ export class CardController {
   private pressDown: { x: number; y: number } | null = null;
   /** True between a click-mode world target PRESS and its release — the target commits on release (touch). */
   private worldPressArmed = false;
+  /**
+   * False until the pointer has moved off the just-armed card UP into the grid; the armed-card
+   * lower-toggle (updateArmedCardLift) only drops the card once it is true. This keeps the card RAISED
+   * through the arming press and the start of a drag — when the pointer is still on the card and would
+   * otherwise read as "over a covered hex" and lower it instantly. Matches the owner's gesture: arm,
+   * move into the centre, THEN back down onto the covered hex.
+   */
+  private armedLiftEngaged = false;
   private hovered: Hex | null = null;
 
   private handCards: Phaser.GameObjects.Container[] = [];
@@ -193,33 +200,34 @@ export class CardController {
     if (this.armed === null) return;
     this.hovered = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
     this.redrawHighlight();
-    this.updateArmedCardLift(p.x, p.y); // p.x/p.y are SCREEN coords (the card is screen-pinned)
+    this.updateArmedCardLift(p.y); // p.y is the SCREEN Y (the card is screen-pinned)
   }
 
   /**
    * Keep an armed CARD raised as the armed affordance, but drop it to its fan slot — and let clicks pass
-   * THROUGH it — whenever the pointer is over the bottom band of the raised card, where it would cover and
+   * THROUGH it — once the pointer comes back down over the card, where it would otherwise cover and
    * intercept the board hex the player is aiming at. Driven by pointer-move (mouse hover, mouse drag, and
    * touch drag; touch taps produce no move, so that path is unaffected — see bug-report touch targeting).
    *
-   * The trigger region is the raised card's footprint, lower half only: its X column AND below its centre.
-   * Pressing the card's art (upper half) to arm therefore leaves it RAISED; moving the pointer DOWN onto a
-   * covered hex lowers it; moving back UP into the grid raises it again. The region is anchored to the
-   * raised position (homeY - raise), not the card's live Y, so the toggle can't oscillate. Lowering also
-   * disables the card's hit-testing so the click reaches the hex underneath — the card at homeY can still
-   * visually overlap that hex, so click-through (not geometry alone) is what guarantees it stays targetable.
-   * Spells are untouched (no board overlap from the sidebar).
+   * Both halves of the toggle key off ONE value: the screen Y of the raised card's TOP edge.
+   *  - Pointer ABOVE it (up in the grid): engage the toggle (armedLiftEngaged) and keep the card RAISED.
+   *  - Pointer at/below it once engaged (back over the card): LOWER to the fan slot and disable the card's
+   *    hit-testing, so the click reaches the hex underneath. The lowered card can still visually overlap
+   *    that hex, so the click-through — not geometry — is what keeps it targetable.
+   * The gate keeps the card raised through the arming press and the first frames of a drag, when the
+   * pointer is still on the card (per the owner's gesture: arm, move into the centre, THEN back down onto
+   * the covered hex). Spells are untouched (no board overlap from the sidebar).
    */
-  private updateArmedCardLift(screenX: number, screenY: number): void {
+  private updateArmedCardLift(screenY: number): void {
     if (this.armed === null || this.armed.kind !== 'card') return;
     const card = this.armed.obj;
     const homeY = card.getData('homeY') as number;
     const raisedY = homeY - s(ARMED_CARD_RAISE_PX);
-    const halfWidth = s(this.cardFaceBase().w) / 2;
-    const overColumn = screenX >= card.x - halfWidth && screenX <= card.x + halfWidth;
-    const overLowerBand = overColumn && screenY >= raisedY; // the part of the raised card that covers hexes
-    card.setY(overLowerBand ? homeY : raisedY);
-    if (card.input) card.input.enabled = !overLowerBand; // click-through while lowered; re-press cancels while raised
+    const raisedTopY = raisedY - s(this.cardFaceBase().h) / 2; // screen Y of the raised card's top edge
+    if (screenY < raisedTopY) this.armedLiftEngaged = true; // pointer rose above the card, up into the grid
+    const lowered = this.armedLiftEngaged && screenY >= raisedTopY;
+    card.setY(lowered ? homeY : raisedY);
+    if (card.input) card.input.enabled = !lowered; // click-through while lowered; re-press cancels while raised
   }
 
   /**
@@ -582,8 +590,8 @@ export class CardController {
     this.pressDown = { x: p.x, y: p.y };
     // An armed card RAISES above its fan slot and shows a yellow selected border (the armed affordance);
     // a spell lights up its ring — the same "selected" affordance. The raise begins NOW and is held for
-    // the arm; updateArmedCardLift (driven by pointer-move) later drops it back to its slot whenever the
-    // pointer is over a bottom hex the raised card covers, so that hex stays targetable.
+    // the arm; updateArmedCardLift (driven by pointer-move) later drops it back to its slot once the
+    // pointer comes back down over it, so the hex it covers stays targetable.
     if (kind === 'card') {
       this.setCardSelected(obj, true);
       obj.setY((obj.getData('homeY') as number) - s(ARMED_CARD_RAISE_PX));
@@ -750,6 +758,7 @@ export class CardController {
     this.armed = null;
     this.pressDown = null;
     this.worldPressArmed = false;
+    this.armedLiftEngaged = false;
     this.hovered = null;
     this.painter.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
