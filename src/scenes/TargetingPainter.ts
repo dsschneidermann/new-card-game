@@ -52,8 +52,8 @@ export class TargetingPainter {
 
   /**
    * Repaint the target tint for the armed card: the resolveTargeting primary (red) / secondary
-   * (yellow) hexes, each clipped to the visible board window. selfAoe paints regardless of the pointer; every other
-   * target needs an in-bounds hovered hex. isBlocked suppresses the tint on a forbidden hex (an
+   * (yellow) hexes, each clipped to the visible board window. The tint shows only while the pointer is
+   * over a hex on the visible board (selfAoe included). isBlocked suppresses the tint on a forbidden hex (an
    * attack's own hex) — that rule is owned by CardController and passed in.
    *
    * For a lineOfSight (ranged single-target) card it ALSO draws a straight yellow aim line from the
@@ -69,7 +69,11 @@ export class TargetingPainter {
     isBlocked: (hex: Hex) => boolean,
   ): void {
     this.highlight.clear();
-    if (spec.kind !== 'selfAoe' && (hovered === null || !this.grid.inBounds(hovered))) return;
+    // Tint only while the pointer is over a hex on the VISIBLE board — for EVERY target, selfAoe
+    // included. Off the grid, or in the in-bounds-but-off-screen margin (the world is larger than the
+    // view), there is no tint; otherwise self / selfAoe (whose hexes sit on the always-visible player)
+    // would stay painted with the cursor off the board.
+    if (hovered === null || !this.grid.inBounds(hovered) || !this.isVisible(hovered)) return;
     const effectiveHovered = hovered ?? origin; // selfAoe ignores it; origin is a harmless default
     if (isBlocked(effectiveHovered)) return;
     const { primary, secondary } = resolveTargeting(spec, origin, effectiveHovered, firstPick, (h) =>
