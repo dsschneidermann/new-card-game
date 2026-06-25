@@ -16,7 +16,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Backdrop + wordmark from the Asset Preload system (placeholder art for now).
     this.add.image(width / 2, height / 2, AssetKeys.uiMenuBackground).setDisplaySize(width, height);
-    this.add.image(width / 2, height * 0.26, AssetKeys.brandLogo).setDisplaySize(s(320), s(160));
+    this.add.image(width / 2, height * 0.26, AssetKeys.brandLogo).setDisplaySize(s(640), s(320));
 
     const canResume = router.hasSave();
     makeButton(this, width / 2, height * 0.52, 'New Game', () => router.dispatch('NewGame'));

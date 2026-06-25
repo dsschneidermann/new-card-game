@@ -19,8 +19,8 @@ import {
 const HL_DEPTH = -1_000;
 const TINT_PRIMARY = 0xef4444; // red
 const TINT_SECONDARY = 0xeab308; // yellow
-const OUTLINE_EXTEND_PX = 0.5; // range-outline segments overshoot each end so convex corners close fully
-const AIM_LINE_WIDTH = 2; // base px stroke width of the ranged aim line
+const OUTLINE_EXTEND_PX = 1; // range-outline segments overshoot each end so convex corners close fully
+const AIM_LINE_WIDTH = 4; // base px stroke width of the ranged aim line
 const AIM_LINE_ALPHA = 0.9; // ranged aim line opacity (drawn over the path tint)
 
 /** A pixel point — a hexagon vertex / edge endpoint. */
@@ -117,7 +117,7 @@ export class TargetingPainter {
     this.rangeOutline.clear();
     const maxRange = targetMaxRange(spec);
     if (maxRange === undefined) return;
-    this.rangeOutline.lineStyle(s(2), TINT_SECONDARY, 0.9);
+    this.rangeOutline.lineStyle(s(4), TINT_SECONDARY, 0.9);
     for (const hex of hexesWithinRange(origin, maxRange)) {
       // No in-bounds check: the max-range outline highlights a DISTANCE, not real hexes, so it may extend
       // past the grid edge — the window mask clips it. (The target tints keep inBounds; they mark real hexes.)

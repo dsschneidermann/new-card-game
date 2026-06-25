@@ -58,17 +58,29 @@ export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeig
   return { frameWidth: d.size[0], frameHeight: d.size[1], frameCount: d.sprite?.frameCount ?? 1 };
 }
 
-/** The asset's chosen display scale (the optional 3rd size element); 1 = render at native frame size. */
+/**
+ * The asset's chosen display scale (the optional 3rd size element), in the DESKTOP base.
+ * The base re-base (Desktop = scale 1.0, iPad = 0.5) is absorbed here as the constant x2,
+ * NOT in size[0]/size[1]: size is the texture FRAME size, pinned to the source sheet for
+ * slicing (frameConfig) and placeholder generation, so it can't move. Putting the x2 in the
+ * display scale keeps every s(frame * assetScale) display size pixel-identical at both tiers
+ * (a descriptor that declared 0.5 now renders at native frame size on Desktop). 1 = native.
+ */
 export function assetScale(d: AssetDescriptor): number {
-  return d.size[2] ?? 1;
+  return (d.size[2] ?? 1) * 2;
 }
 
 /**
- * The sheet's drawn-figure alignment nudge in base px: forward (in the facing direction)
- * and down. Defaults to 0/0 for sheets that don't declare it. Read by SceneSync.
+ * The sheet's drawn-figure alignment nudge in DESKTOP base px: forward (in the facing direction)
+ * and down. Defaults to 0/0 for sheets that don't declare it. SceneSync applies it as a static
+ * draw-origin shift whose net on-screen effect is s(forwardPx)/s(downPx) — a plain base-px offset
+ * scaled by resolution (the frame size it divides by cancels against the display size it multiplies
+ * back, so the nudge is NOT relative to the asset's size). The descriptors author these in the
+ * original (iPad) base, so the x2 here re-bases them to the Desktop base — same as doubling any
+ * pixel literal in code.
  */
 export function spriteOffset(d: AssetDescriptor): { forwardPx: number; downPx: number } {
-  return { forwardPx: d.sprite?.forwardPx ?? 0, downPx: d.sprite?.downPx ?? 0 };
+  return { forwardPx: (d.sprite?.forwardPx ?? 0) * 2, downPx: (d.sprite?.downPx ?? 0) * 2 };
 }
 
 /**

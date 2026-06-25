@@ -55,9 +55,11 @@ export class SceneSync {
       sprite.setDisplaySize(s(sprite.frame.width * scale), s(sprite.frame.height * scale));
       // Per-sheet art nudge from the asset definition, applied as a STATIC draw-origin shift
       // (never the movement tween): forward = px in the facing direction (mirrored by flipX),
-      // down = px downward. Normalised to the frame so it scales with resolution; the sprite's
-      // position and depth stay on the true stand-point, so the figure is drawn offset rather
-      // than sliding into place when the animation changes.
+      // down = px downward. setOrigin wants a fraction of the sprite, so we divide the base-px
+      // nudge by the frame footprint to get that fraction — which the display size (s(frameW))
+      // multiplies straight back out, leaving a net shift of s(forwardPx)/s(downPx): a plain base-px
+      // offset scaled by resolution, independent of the asset's size. The sprite's position and depth
+      // stay on the true stand-point, so the figure is drawn offset rather than sliding into place.
       const { forwardPx, downPx } = art ? spriteOffset(art) : { forwardPx: 0, downPx: 0 };
       const frameW = sprite.frame.width * scale;
       const frameH = sprite.frame.height * scale;

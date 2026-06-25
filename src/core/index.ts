@@ -146,7 +146,7 @@ export type { ViewportMode, ResolutionTier, DisplaySettings } from './display';
 export {
   DEFAULT_DISPLAY_SETTINGS,
   DISPLAY_SETTINGS_KEY,
-  DESKTOP_SCALE,
+  IPAD_SCALE,
   BASE_WIDTH,
   BASE_HEIGHT,
   scaleFactorFor,

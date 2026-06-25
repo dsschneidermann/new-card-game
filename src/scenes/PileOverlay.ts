@@ -3,20 +3,20 @@ import { s, AssetKeys, resolveKey, assetScale, type EntityId } from '@core/index
 
 // Layout (base px, scaled by s()). The grid scrolls within a viewport from OVERLAY_TOP (below the
 // title) down to OVERLAY_BOTTOM_MARGIN above the screen bottom. Faces are centred at OVERLAY_FACE_SCALE.
-const OVERLAY_TOP = 90;
-const OVERLAY_BOTTOM_MARGIN = 24;
-const OVERLAY_PAD = 70; // top pad inside the scroll content so the first row clears the viewport edge
+const OVERLAY_TOP = 180;
+const OVERLAY_BOTTOM_MARGIN = 48;
+const OVERLAY_PAD = 140; // top pad inside the scroll content so the first row clears the viewport edge
 const OVERLAY_COLS = 5;
-const OVERLAY_COL_W = 110;
-const OVERLAY_ROW_H = 140;
+const OVERLAY_COL_W = 220;
+const OVERLAY_ROW_H = 280;
 export const OVERLAY_FACE_SCALE = 0.9; // shared with CardController.makeCardFace so the hit-test matches the art
 // Card face footprint (base px, pre-scale) for the tap hit-test — the background art's native size at its
 // display scale (assetScale), matching CardController.makeCardFace exactly so the hit-test tracks the art.
 const CARD_FACE_DESC = resolveKey(AssetKeys.cardSkill)?.descriptor;
-const FACE_W = CARD_FACE_DESC ? CARD_FACE_DESC.size[0] * assetScale(CARD_FACE_DESC) : 195 / 2;
-const FACE_H = CARD_FACE_DESC ? CARD_FACE_DESC.size[1] * assetScale(CARD_FACE_DESC) : 284 / 2;
+const FACE_W = CARD_FACE_DESC ? CARD_FACE_DESC.size[0] * assetScale(CARD_FACE_DESC) : 195;
+const FACE_H = CARD_FACE_DESC ? CARD_FACE_DESC.size[1] * assetScale(CARD_FACE_DESC) : 284;
 const OVERLAY_DEPTH = 2_000_000 + 100; // above the HUD
-const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a tap
+const DRAG_THRESHOLD = 16; // px of pointer travel that distinguishes a drag from a tap
 
 /** One overlay row: the card-instance id (returned when picked) + its prebuilt face container. */
 export interface OverlayItem {
@@ -52,7 +52,7 @@ export class PileOverlay {
     // A press on the backdrop starts a potential scroll-drag; a release WITHOUT a drag (a tap) resolves.
     dim.on('pointerdown', (p: Phaser.Input.Pointer) => this.beginDrag(p));
     this.title = scene.add
-      .text(width / 2, s(40), '', { fontFamily: 'monospace', fontSize: `${s(24)}px`, color: '#e5e7eb' })
+      .text(width / 2, s(80), '', { fontFamily: 'monospace', fontSize: `${s(48)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     this.content = scene.add.container(0, s(OVERLAY_TOP)); // scrolled by moving its y
     // Clip the grid to the viewport so a long list scrolls inside a window instead of off the screen.

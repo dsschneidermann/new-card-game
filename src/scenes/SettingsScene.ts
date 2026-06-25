@@ -26,13 +26,13 @@ export class SettingsScene extends Phaser.Scene {
     this.add.image(width / 2, height / 2, AssetKeys.uiMenuBackground).setDisplaySize(width, height);
 
     this.add
-      .text(width / 2, height * 0.14, 'Settings', { fontFamily: 'monospace', fontSize: `${s(32)}px`, color: '#e0e0e0' })
+      .text(width / 2, height * 0.14, 'Settings', { fontFamily: 'monospace', fontSize: `${s(64)}px`, color: '#e0e0e0' })
       .setOrigin(0.5);
 
     this.add
       .text(width / 2, height * 0.28, 'Audio   master / music / SFX   (placeholder)', {
         fontFamily: 'monospace',
-        fontSize: `${s(16)}px`,
+        fontSize: `${s(32)}px`,
         color: '#9aa0aa',
       })
       .setOrigin(0.5);

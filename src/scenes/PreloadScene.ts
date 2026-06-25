@@ -23,16 +23,16 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     const { width, height } = this.scale;
     this.add
-      .text(width / 2, height / 2 - s(30), 'loading…', {
+      .text(width / 2, height / 2 - s(60), 'loading…', {
         fontFamily: 'monospace',
-        fontSize: `${s(18)}px`,
+        fontSize: `${s(36)}px`,
         color: '#9aa0aa',
       })
       .setOrigin(0.5);
-    this.add.rectangle(width / 2, height / 2, s(322), s(22), 0x1a1c24).setStrokeStyle(s(1), 0x3a3f4b);
-    const fill = this.add.rectangle(width / 2 - s(159), height / 2, 1, s(16), 0x4fd1c5).setOrigin(0, 0.5);
+    this.add.rectangle(width / 2, height / 2, s(644), s(44), 0x1a1c24).setStrokeStyle(s(2), 0x3a3f4b);
+    const fill = this.add.rectangle(width / 2 - s(318), height / 2, 1, s(32), 0x4fd1c5).setOrigin(0, 0.5);
     this.load.on('progress', (p: number) => {
-      fill.width = Math.max(1, s(318) * p);
+      fill.width = Math.max(1, s(636) * p);
     });
 
     // A key flagged 'real' whose file is missing: warn (visible in the 404 list)

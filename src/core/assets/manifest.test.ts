@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   AssetManifest,
+  assetScale,
+  spriteOffset,
   frameConfig,
   GAME_ASSETS,
   manifest,
@@ -61,6 +63,38 @@ describe('frameConfig', () => {
 
   it('falls back to a single frame at the descriptor size', () => {
     expect(frameConfig(desc('a'))).toEqual({ frameWidth: 16, frameHeight: 16, frameCount: 1 });
+  });
+});
+
+// The base re-base (Desktop = scale 1.0, iPad = 0.5x) is absorbed into the DISPLAY scale, not into
+// size (which stays pinned to the source frame for slicing/generation): assetScale and the sprite
+// nudge each carry the constant x2 so on-screen sizes stay pixel-identical at both tiers.
+describe('assetScale (x2 for the Desktop re-base)', () => {
+  it('doubles the declared display scale: a 0.5-scale asset renders at its native frame size', () => {
+    const half: AssetDescriptor = { key: 'h', path: 'assets/h.png', size: [195, 284, 0.5], style: 's', description: 'd' };
+    expect(assetScale(half)).toBe(1);
+  });
+
+  it('defaults a scale-less descriptor to 2 (native frame at the Desktop base)', () => {
+    expect(assetScale(desc('a'))).toBe(2);
+  });
+});
+
+describe('spriteOffset (x2 for the Desktop re-base)', () => {
+  it('doubles the declared forward/down nudge (a base-px offset) for the Desktop re-base', () => {
+    const nudged: AssetDescriptor = {
+      key: 'n',
+      path: 'assets/n.png',
+      size: [128, 128],
+      sprite: { frameCount: 6, forwardPx: 5, downPx: 3 },
+      style: 's',
+      description: 'd',
+    };
+    expect(spriteOffset(nudged)).toEqual({ forwardPx: 10, downPx: 6 });
+  });
+
+  it('defaults to no nudge when the sheet declares none', () => {
+    expect(spriteOffset(desc('a'))).toEqual({ forwardPx: 0, downPx: 0 });
   });
 });
 

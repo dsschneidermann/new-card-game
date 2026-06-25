@@ -61,74 +61,73 @@ interface Armed {
 
 const HUD_DEPTH = 2_000_000;
 const CARD_FRONT_DEPTH = HUD_DEPTH + 50; // a hovered or selected hand card draws above its neighbours
-const DRAG_THRESHOLD = 8; // px of pointer travel that distinguishes a drag from a click
+const DRAG_THRESHOLD = 16; // px of pointer travel that distinguishes a drag from a click
 const CARD_FAN_ROTATION = 2; // each hand position away from center is rotated
 // While a card is ARMED it lifts this far above its fan slot — the persistent "armed" affordance. Once
 // the pointer drops back down over the raised card, it returns to its slot AND goes click-through, so the
 // covered hex can be targeted (see updateArmedCardLift). TUNABLE (matches the hover-lift today).
-const ARMED_CARD_RAISE_PX = 28;
+const ARMED_CARD_RAISE_PX = 56;
 
 // Card face layout (presentation; tunable in one place, reviewed live). makeCardFace / setCardSelected /
 // frameColor / cardFaceBase read these. Lengths are "base px" (before s() scaling); colours are hex.
-const CARD_FACE_ART_W = 195; // the card-background art's native width; the face base is this at 0.5 display scale
+const CARD_FACE_ART_W = 195; // the card-background art's native (source) width; the face base is this at the art's display scale
 const CARD_FACE_ART_H = 284; // ...native height
-const CARD_COST_OFFSET_X = 6; // cost text inset from the face's LEFT edge
-const CARD_COST_OFFSET_Y = 22; // cost text inset from the face's TOP edge
-const CARD_COST_FONT_PX = 14; // cost text font size
+const CARD_COST_OFFSET_X = 12; // cost text inset from the face's LEFT edge
+const CARD_COST_OFFSET_Y = 44; // cost text inset from the face's TOP edge
+const CARD_COST_FONT_PX = 28; // cost text font size
 const CARD_COST_COLOR_FREE = '#22c55e'; // cost GREEN when temporarily free this hand
 const CARD_COST_COLOR_BASE = '#facc15'; // cost YELLOW for base/permanent cost
-const CARD_NAME_OFFSET_Y_ATTACK = 8.5; // name inset from the TOP (attack faces)
-const CARD_NAME_OFFSET_Y_SKILL = 5.5; // name inset from the TOP (skill faces)
-const CARD_NAME_FONT_PX = 9; // name font size
+const CARD_NAME_OFFSET_Y_ATTACK = 17; // name inset from the TOP (attack faces)
+const CARD_NAME_OFFSET_Y_SKILL = 11; // name inset from the TOP (skill faces)
+const CARD_NAME_FONT_PX = 18; // name font size
 const CARD_NAME_COLOR = '#e5e7eb'; // name text colour
-const CARD_EFFECT_OFFSET_Y_ATTACK = 38; // effect text inset from the BOTTOM (attack faces)
-const CARD_EFFECT_OFFSET_Y_SKILL = 39; // effect text inset from the BOTTOM (skill faces)
-const CARD_EFFECT_FONT_PX = 8; // effect text font size
+const CARD_EFFECT_OFFSET_Y_ATTACK = 76; // effect text inset from the BOTTOM (attack faces)
+const CARD_EFFECT_OFFSET_Y_SKILL = 78; // effect text inset from the BOTTOM (skill faces)
+const CARD_EFFECT_FONT_PX = 16; // effect text font size
 const CARD_EFFECT_COLOR = '#020202'; // effect text colour
-const CARD_EFFECT_WRAP_INSET = 24; // total horizontal inset for the effect text word-wrap width
+const CARD_EFFECT_WRAP_INSET = 48; // total horizontal inset for the effect text word-wrap width
 const CARD_BORDER_WIDTH_OFF = 0; // border stroke width when unselected (invisible)
-const CARD_BORDER_WIDTH_ON = 2; // border stroke width when selected/armed
+const CARD_BORDER_WIDTH_ON = 4; // border stroke width when selected/armed
 const CARD_BORDER_COLOR_SELECTED = 0xfacc15; // selected/armed border colour (yellow)
 const CARD_FRAME_COLOR_ATTACK = 0xb91c1c; // unselected border colour, attack (red)
 const CARD_FRAME_COLOR_SKILL = 0x2563eb; // unselected border colour, skill (blue)
-const CARD_ART_OFFSET_Y_ATTACK = -15; // base px: per-card art centre in the frame's top-half window (reviewed live)
-const CARD_ART_OFFSET_Y_SKILL = -15; // base px: per-card art centre in the frame's top-half window (reviewed live)
+const CARD_ART_OFFSET_Y_ATTACK = -30; // base px: per-card art centre in the frame's top-half window (reviewed live)
+const CARD_ART_OFFSET_Y_SKILL = -30; // base px: per-card art centre in the frame's top-half window (reviewed live)
 const CARD_ART_FALLBACK_SIZE = 256; // per-card art size used when the asset descriptor is missing
-const CARD_ART_FALLBACK_SCALE = 0.5; // per-card art display scale used when the descriptor is missing
 
 // Spell sidebar layout (presentation; tunable in one place, reviewed live). buildSpellSidebar /
 // setSpellSelected / showTooltip read these. Lengths are "base px" (before s() scaling); colours are hex.
-const SPELL_SIDEBAR_X = 44; // spell column inset from the LEFT edge
-const SPELL_FIRST_Y = 150; // y of the first spell disc
-const SPELL_SPACING_Y = 84; // vertical gap between successive spell discs
-const SPELL_DISC_RADIUS = 30; // backing-disc / ring / hit-area radius
+const SPELL_SIDEBAR_X = 88; // spell column inset from the LEFT edge
+const SPELL_FIRST_Y = 300; // y of the first spell disc
+const SPELL_SPACING_Y = 168; // vertical gap between successive spell discs
+const SPELL_DISC_RADIUS = 60; // backing-disc / ring / hit-area radius
 const SPELL_DISC_COLOR = 0x394150; // grey backing-disc fill
-const SPELL_ART_FALLBACK_SIZE = 64; // spell art size when the asset descriptor is missing
-const SPELL_RING_WIDTH_OFF = 1; // ring stroke width, unselected
-const SPELL_RING_WIDTH_ON = 2; // ring stroke width, selected/armed
+const SPELL_ART_FALLBACK_SIZE = 128; // spell art size when the asset descriptor is missing
+const SPELL_RING_WIDTH_OFF = 2; // ring stroke width, unselected
+const SPELL_RING_WIDTH_ON = 4; // ring stroke width, selected/armed
 const SPELL_RING_COLOR_OFF = 0x6b7280; // ring colour, unselected (grey)
 const SPELL_RING_COLOR_ON = 0xfacc15; // ring colour, selected/armed (yellow)
-const SPELL_TOOLTIP_DX = 44; // tooltip x offset from the spell disc
-const SPELL_TOOLTIP_PAD_X = 8; // tooltip label inset from the bg LEFT
-const SPELL_TOOLTIP_PAD_Y = 6; // tooltip label inset from the bg TOP
-const SPELL_TOOLTIP_FONT_PX = 11; // tooltip text font size
+const SPELL_TOOLTIP_DX = 88; // tooltip x offset from the spell disc
+const SPELL_TOOLTIP_PAD_X = 16; // tooltip label inset from the bg LEFT
+const SPELL_TOOLTIP_PAD_Y = 12; // tooltip label inset from the bg TOP
+const SPELL_TOOLTIP_FONT_PX = 22; // tooltip text font size
 const SPELL_TOOLTIP_COLOR = '#e5e7eb'; // tooltip text colour
-const SPELL_TOOLTIP_WRAP_PX = 180; // tooltip text word-wrap width
-const SPELL_TOOLTIP_BG_PAD_X = 16; // horizontal padding added around the label for the bg
-const SPELL_TOOLTIP_BG_PAD_Y = 12; // vertical padding added around the label for the bg
+const SPELL_TOOLTIP_WRAP_PX = 360; // tooltip text word-wrap width
+const SPELL_TOOLTIP_BG_PAD_X = 32; // horizontal padding added around the label for the bg
+const SPELL_TOOLTIP_BG_PAD_Y = 24; // vertical padding added around the label for the bg
 const SPELL_TOOLTIP_BG_COLOR = 0x111418; // tooltip background fill
 const SPELL_TOOLTIP_BG_ALPHA = 0.92; // tooltip background fill alpha
-const SPELL_TOOLTIP_BORDER_WIDTH = 1; // tooltip background border width
+const SPELL_TOOLTIP_BORDER_WIDTH = 2; // tooltip background border width
 const SPELL_TOOLTIP_BORDER_COLOR = 0x6b7280; // tooltip background border colour (grey)
-const SPELL_TOOLTIP_OFFSET_Y = 16; // tooltip rises this far above its anchor y
+const SPELL_TOOLTIP_OFFSET_Y = 32; // tooltip rises this far above its anchor y
 
 // Hand entry/exit animation (presentation-only; tunable, reviewed live).
 const DRAW_FADE_MS = 150; // per-card fade-in when dealt into the hand
 const DRAW_STAGGER_MS = 120; // gap between successive cards dealt (leftmost first)
-const DRAW_SLIDE_PX = 36; // cards enter from this far to the RIGHT of their slot, settling left
+const DRAW_SLIDE_PX = 72; // cards enter from this far to the RIGHT of their slot, settling left
 const DISCARD_FADE_MS = 90; // per-card fade-out at end of turn (faster than the deal)
 const DISCARD_STAGGER_MS = 60; // gap between successive cards discarded (rightmost first)
-const DISCARD_SLIDE_PX = 12; // cards exit this far to the RIGHT as they fade
+const DISCARD_SLIDE_PX = 24; // cards exit this far to the RIGHT as they fade
 const DRAW_AFTER_DISCARD_MS = 100; // beat between the discard sweep finishing and the deal-in starting
 /** Total time the end-of-turn discard sweep of `n` cards takes; the deal-in waits this long so the two sweeps don't overlap. */
 const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DISCARD_FADE_MS;
@@ -138,7 +137,7 @@ const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DIS
 const FLASH_IN_MS = 80; // the white frame ramps to full fast
 const FLASH_OUT_MS = 1200; // then fades away
 const FLASH_COLOR = 0xffffff;
-const FLASH_THICKNESS = 3;
+const FLASH_THICKNESS = 6;
 
 /**
  * The card / deck / spell UI (feature 09): a hand fan, a spell sidebar, a deck
@@ -347,7 +346,7 @@ export class CardController {
    */
   private flashCard(card: Phaser.GameObjects.Container): void {
     const frame = this.scene.add
-      .rectangle(0, 0, s(96), s(144), FLASH_COLOR, 0) // white, fill-transparent: only the stroke shows
+      .rectangle(0, 0, s(192), s(288), FLASH_COLOR, 0) // white, fill-transparent: only the stroke shows
       .setStrokeStyle(s(FLASH_THICKNESS), FLASH_COLOR)
       .setAlpha(0);
     card.add(frame);
@@ -428,11 +427,11 @@ export class CardController {
     card.setData('faceSig', this.cardFaceSignature(def, cost, tempFree));
     this.placeCard(card, i, count, layout, false);
     const { w: hitW, h: hitH } = this.cardFaceBase(); // hit area tracks the face size (matches the art)
-    const hitBot = s(20); // hit area extends off the bottom of the card so hover stays while the mouse is there
+    const hitBot = s(40); // hit area extends off the bottom of the card so hover stays while the mouse is there
     card.setInteractive(new Phaser.Geom.Rectangle(-s(hitW) / 2, -s(hitH) / 2, s(hitW), s(hitH) + hitBot), Phaser.Geom.Rectangle.Contains);
     card.on('pointerover', () => {
       if (this.armed === null) {
-        card.setY((card.getData('homeY') as number) - s(28));
+        card.setY((card.getData('homeY') as number) - s(56));
         card.setDepth(CARD_FRONT_DEPTH); // lift the hovered card above its neighbours
       }
     });
@@ -461,16 +460,16 @@ export class CardController {
   }
 
   /**
-   * Fan geometry for a hand of `count` cards. Spacing is the base s(104) but shrinks
+   * Fan geometry for a hand of `count` cards. Spacing is the base s(208) but shrinks
    * for larger hands so the whole fan stays within the screen width (half-card margins
    * each side); cards are centred horizontally and tucked near the bottom edge.
    */
   private fanLayout(count: number): { spacing: number; baseX: number; baseY: number } {
     const { width, height } = this.scene.scale;
-    const maxSpan = width - s(250); // outermost card centres stay inside the screen
-    const spacing = count > 1 ? Math.min(s(104), maxSpan / (count - 1)) : 0;
+    const maxSpan = width - s(500); // outermost card centres stay inside the screen
+    const spacing = count > 1 ? Math.min(s(208), maxSpan / (count - 1)) : 0;
     const baseX = width / 2 - ((count - 1) * spacing) / 2;
-    const baseY = height - s(52); // tucked: most of each card shows above the bottom edge
+    const baseY = height - s(104); // tucked: most of each card shows above the bottom edge
     return { spacing, baseX, baseY };
   }
 
@@ -517,7 +516,7 @@ export class CardController {
     this.scene.tweens.killTweensOf(card); // drop any in-flight deal-in/reflow tween so it can't fight this fade or destroy the card early
     this.scene.tweens.add({
       targets: card,
-      y: card.y - s(60),
+      y: card.y - s(120),
       alpha: 0,
       scale: 0.6,
       duration: 160,
@@ -819,13 +818,13 @@ export class CardController {
   }
 
   /**
-   * The card face's base size (px before s()): the card-background art (195x284) at its 0.5 display
-   * scale, so the face matches the art's aspect EXACTLY (no squish) and renders natively at the desktop
-   * 2x scale. Attack and skill backgrounds share one size.
+   * The card face's base size (px before s()): the card-background art (195x284) at its declared display
+   * scale, so the face matches the art's aspect EXACTLY (no squish) and renders natively at each
+   * resolution tier. Attack and skill backgrounds share one size.
    */
   private cardFaceBase(): { w: number; h: number } {
     const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
-    if (d === undefined) return { w: CARD_FACE_ART_W / 2, h: CARD_FACE_ART_H / 2 }; // unreachable (the key is registered) — safe fallback
+    if (d === undefined) return { w: CARD_FACE_ART_W, h: CARD_FACE_ART_H }; // unreachable (the key is registered) — safe fallback
     return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
   }
 
@@ -873,7 +872,7 @@ export class CardController {
     const artKey = def.art;
     if (this.scene.textures.exists(artKey)) {
       const ad = resolveKey(artKey)?.descriptor;
-      const artScale = ad ? assetScale(ad) : CARD_ART_FALLBACK_SCALE;
+      const artScale = ad ? assetScale(ad) : 1; // native (1) when there's no descriptor to declare a scale
       const cardArt = this.scene.add
         .image(0, isAttackCard(def.id) ? s(CARD_ART_OFFSET_Y_ATTACK) : s(CARD_ART_OFFSET_Y_SKILL), artKey)
         .setOrigin(0.5)
@@ -957,35 +956,35 @@ export class CardController {
 
   private buildDeckIcon(): void {
     const { height } = this.scene.scale;
-    const icon = this.scene.add.container(s(44), height - s(40)).setDepth(HUD_DEPTH).setScrollFactor(0);
-    const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
-    const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
+    const icon = this.scene.add.container(s(88), height - s(80)).setDepth(HUD_DEPTH).setScrollFactor(0);
+    const r1 = this.scene.add.rectangle(s(8), -s(8), s(56), s(76), 0x394150).setStrokeStyle(s(4), 0x9ca3af);
+    const r2 = this.scene.add.rectangle(-s(4), s(4), s(56), s(76), 0x4b5563).setStrokeStyle(s(4), 0x9ca3af);
     // Cards still in the draw pile, shown over the stack (kept current by refreshPileCounts).
     this.deckCount = this.scene.add
-      .text(-s(2), -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .text(-s(4), -s(4), '0', { fontFamily: 'monospace', fontSize: `${s(32)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     const label = this.scene.add
-      .text(0, s(26), 'Deck', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
+      .text(0, s(52), 'Deck', { fontFamily: 'monospace', fontSize: `${s(22)}px`, color: '#9ca3af' })
       .setOrigin(0.5, 0);
     icon.add([r1, r2, this.deckCount, label]);
-    icon.setInteractive(new Phaser.Geom.Rectangle(-s(22), -s(28), s(44), s(64)), Phaser.Geom.Rectangle.Contains);
+    icon.setInteractive(new Phaser.Geom.Rectangle(-s(44), -s(56), s(88), s(128)), Phaser.Geom.Rectangle.Contains);
     icon.on('pointerdown', () => this.toggleOverlay('deck'));
   }
 
   /** A discard-pile icon mirroring the deck icon at the lower-right, showing the discard count. */
   private buildDiscardIcon(): void {
     const { width, height } = this.scene.scale;
-    const icon = this.scene.add.container(width - s(44), height - s(40)).setDepth(HUD_DEPTH).setScrollFactor(0);
-    const r1 = this.scene.add.rectangle(s(4), -s(4), s(28), s(38), 0x394150).setStrokeStyle(s(2), 0x9ca3af);
-    const r2 = this.scene.add.rectangle(-s(2), s(2), s(28), s(38), 0x4b5563).setStrokeStyle(s(2), 0x9ca3af);
+    const icon = this.scene.add.container(width - s(88), height - s(80)).setDepth(HUD_DEPTH).setScrollFactor(0);
+    const r1 = this.scene.add.rectangle(s(8), -s(8), s(56), s(76), 0x394150).setStrokeStyle(s(4), 0x9ca3af);
+    const r2 = this.scene.add.rectangle(-s(4), s(4), s(56), s(76), 0x4b5563).setStrokeStyle(s(4), 0x9ca3af);
     this.discardCount = this.scene.add
-      .text(-s(2), -s(2), '0', { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+      .text(-s(4), -s(4), '0', { fontFamily: 'monospace', fontSize: `${s(32)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
     const label = this.scene.add
-      .text(0, s(26), 'Discard', { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#9ca3af' })
+      .text(0, s(52), 'Discard', { fontFamily: 'monospace', fontSize: `${s(22)}px`, color: '#9ca3af' })
       .setOrigin(0.5, 0);
     icon.add([r1, r2, this.discardCount, label]);
-    icon.setInteractive(new Phaser.Geom.Rectangle(-s(22), -s(28), s(44), s(64)), Phaser.Geom.Rectangle.Contains);
+    icon.setInteractive(new Phaser.Geom.Rectangle(-s(44), -s(56), s(88), s(128)), Phaser.Geom.Rectangle.Contains);
     icon.on('pointerdown', () => this.toggleOverlay('discard'));
   }
 

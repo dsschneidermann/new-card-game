@@ -141,7 +141,7 @@ export class MovePlanner {
       const { x, y } = hexToPixel(this.ctx.layout, step);
       this.numbers.push(
         this.ctx.scene.add
-          .text(x, y, String(i), { fontFamily: 'monospace', fontSize: `${s(16)}px`, color: '#e5e7eb' })
+          .text(x, y, String(i), { fontFamily: 'monospace', fontSize: `${s(32)}px`, color: '#e5e7eb' })
           .setOrigin(0.5)
           .setDepth(NUM_DEPTH)
           .setMask(this.ctx.effectMask), // clip route numbers to the visible window, like the fill

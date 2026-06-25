@@ -14,22 +14,24 @@ import {
 
 describe('scale helper', () => {
   it('s(n) multiplies by the current factor (rounded)', () => {
-    setScaleFactor(1);
+    setScaleFactor(1); // Desktop (base): every pixel literal renders 1:1
     expect(s(10)).toBe(10);
     expect(s(0)).toBe(0);
-
-    setScaleFactor(2);
-    expect(s(10)).toBe(20);
-    expect(s(33)).toBe(66);
     expect(s(BASE_WIDTH)).toBe(1920);
     expect(s(BASE_HEIGHT)).toBe(1080);
+
+    setScaleFactor(0.5); // iPad: half the base, rounded to a whole pixel
+    expect(s(10)).toBe(5);
+    expect(s(BASE_WIDTH)).toBe(960);
+    expect(s(BASE_HEIGHT)).toBe(540);
+    expect(s(15)).toBe(8); // an odd base value rounds to the nearest pixel (7.5 -> 8)
 
     setScaleFactor(1); // reset so the shared module state stays at the default
   });
 
   it('scaleFactorFor maps the resolution to a factor', () => {
-    expect(scaleFactorFor('ipad')).toBe(1);
-    expect(scaleFactorFor('desktop')).toBe(2);
+    expect(scaleFactorFor('desktop')).toBe(1);
+    expect(scaleFactorFor('ipad')).toBe(0.5);
   });
 
   it('viewportScaleMode maps the viewport to the renderer mode', () => {

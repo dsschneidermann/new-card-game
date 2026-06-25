@@ -80,7 +80,7 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 
 // Ground terrain (Hex Ground Terrain): a SQUARE background tile grid, independent of the hexes, drawn as a
 // world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
-const TERRAIN_TILE = 16; // base px of a square terrain tile; at desktop 2x this is s(16)=32px = twice the source's native 16px.
+const TERRAIN_TILE = 32; // Desktop base px of a square terrain tile: s(32)=32px on Desktop.
 const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
 const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
 const LEAF_DEPTH = -1_025_000; // grass-leaf detail layer: above the grass-edge overlay, below the hex outline
@@ -182,7 +182,7 @@ export class WorldScene extends Phaser.Scene {
     applyObstacles(this.grid, this.level.obstacles); // walls/rocks block movement; walls also block line of sight
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
-    this.layout = { width: s(32), height: s(24), rowPitch: s(18), originX: s(96), originY: s(38) };
+    this.layout = { width: s(64), height: s(48), rowPitch: s(36), originX: s(192), originY: s(76) };
     // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
     // reference hex sits at the frame's centre-cell screen position so the player is where it was
     // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
@@ -566,11 +566,11 @@ export class WorldScene extends Phaser.Scene {
     // the top hex row — cosmetic, since the HUD draws above the board. Dimensions are s()-wrapped and tuned
     // at visual-QA. The status line (and the toast) are shifted right of the row (textX) so the buttons
     // never cover them.
-    const margin = s(10); // slight inset from the screen's left edge
-    const gap = s(6); // gap between boxes, and after the row before the text column
-    const btnW = s(28); // box width (short labels)
-    const stripTop = s(4); // strip top inset
-    const btnH = s(28); // box height — square box (matches btnW); dips ~s(6) below frame.top (s(26))
+    const margin = s(20); // slight inset from the screen's left edge
+    const gap = s(12); // gap between boxes, and after the row before the text column
+    const btnW = s(56); // box width (short labels)
+    const stripTop = s(8); // strip top inset
+    const btnH = s(56); // box height — square box (matches btnW); dips ~s(12) below frame.top (s(52))
     const buttons: ReadonlyArray<{ label: string; onClick: () => void }> = [
       { label: 'Esc', onClick: () => this.openPauseLikeEsc() },
       {
@@ -587,11 +587,11 @@ export class WorldScene extends Phaser.Scene {
     const textX = x; // the left text column starts just right of the button row
 
     this.hud = this.add
-      .text(textX, s(8), '', { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#cbd5e1' })
+      .text(textX, s(16), '', { fontFamily: 'monospace', fontSize: `${s(28)}px`, color: '#cbd5e1' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
     this.toast = this.add
-      .text(textX, s(48), '', { fontFamily: 'monospace', fontSize: `${s(13)}px`, color: '#f0a0a0' })
+      .text(textX, s(96), '', { fontFamily: 'monospace', fontSize: `${s(26)}px`, color: '#f0a0a0' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
     this.refreshHud();
@@ -637,7 +637,7 @@ export class WorldScene extends Phaser.Scene {
       onClick();
     });
     this.add
-      .text(x + w / 2, y + h / 2, label, { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#cbd5e1' })
+      .text(x + w / 2, y + h / 2, label, { fontFamily: 'monospace', fontSize: `${s(22)}px`, color: '#cbd5e1' })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(1_000_001); // label sits just above the art
@@ -823,7 +823,7 @@ export class WorldScene extends Phaser.Scene {
     const q2 = this.layout.height / 2;
     const g = this.gridGfx;
     g.clear();
-    g.lineStyle(s(1), gridLine, 0.18);
+    g.lineStyle(s(2), gridLine, 0.18);
     for (let row = 0; row < this.level.rows; row += 1) {
       for (let col = 0; col < this.level.cols; col += 1) {
         const { x, y } = hexToPixel(this.layout, offsetToAxial({ col, row }));

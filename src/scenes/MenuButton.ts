@@ -10,8 +10,8 @@ export interface Button {
   setLabel(label: string): void;
 }
 
-const WIDTH = 280;
-const HEIGHT = 48;
+const WIDTH = 560;
+const HEIGHT = 96;
 
 // `ui.button` is a 3-frame strip: 0 = normal, 1 = hover, 2 = disabled. Real
 // 3-state art drops in behind the same key; on a flat placeholder (all frames
@@ -45,7 +45,7 @@ export function makeButton(
   const text = scene.add
     .text(x, y, label, {
       fontFamily: 'monospace',
-      fontSize: `${s(20)}px`,
+      fontSize: `${s(40)}px`,
       color: enabled ? '#e0e0e0' : '#6b7280',
     })
     .setOrigin(0.5);

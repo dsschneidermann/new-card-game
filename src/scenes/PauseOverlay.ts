@@ -27,7 +27,7 @@ export class PauseOverlay extends Phaser.Scene {
     this.add
       .text(width / 2, height * 0.22, 'Paused', {
         fontFamily: 'monospace',
-        fontSize: `${s(32)}px`,
+        fontSize: `${s(64)}px`,
         color: '#e0e0e0',
       })
       .setOrigin(0.5);
@@ -44,7 +44,7 @@ export class PauseOverlay extends Phaser.Scene {
     this.confirmLabel = this.add
       .text(width / 2, height * 0.4, 'Abandon the run? Progress will be lost.', {
         fontFamily: 'monospace',
-        fontSize: `${s(18)}px`,
+        fontSize: `${s(36)}px`,
         color: '#f0a0a0',
       })
       .setOrigin(0.5);
