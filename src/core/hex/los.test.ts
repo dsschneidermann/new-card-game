@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasLineOfSight } from './los';
+import { hasLineOfSight, lineOfSightPath } from './los';
 import { HexGrid } from './grid';
 import { offsetToAxial } from './layout';
 import type { Hex } from './hex';
@@ -29,6 +29,31 @@ describe('hasLineOfSight', () => {
   it('is always clear for adjacent hexes (no hex in between)', () => {
     // Even if the predicate blocks everything, adjacency has no intermediate hex.
     expect(hasLineOfSight(() => true, { q: 0, r: 0 }, { q: 1, r: 0 })).toBe(true);
+  });
+
+  it('finds an equal-distance MIRROR path when the canonical one is blocked', () => {
+    const from = { q: 0, r: 0 };
+    const to = { q: 1, r: 1 }; // distance 2; the two straight paths straddle (1,0) and (0,1)
+    expect(hasLineOfSight(walls({ q: 1, r: 0 }), from, to)).toBe(true); // mirror via (0,1)
+    expect(hasLineOfSight(walls({ q: 0, r: 1 }), from, to)).toBe(true); // mirror via (1,0)
+    expect(hasLineOfSight(walls({ q: 1, r: 0 }, { q: 0, r: 1 }), from, to)).toBe(false); // both straddles blocked
+  });
+});
+
+describe('lineOfSightPath', () => {
+  it('returns a connected clear ray that routes around the blocker', () => {
+    const from = { q: 0, r: 0 };
+    const to = { q: 1, r: 1 };
+    const path = lineOfSightPath(walls({ q: 1, r: 0 }), from, to);
+    expect(path).not.toBeNull();
+    expect(path!.some((h) => h.q === 1 && h.r === 0)).toBe(false); // avoids the blocked hex
+    expect(path!.some((h) => h.q === 0 && h.r === 1)).toBe(true); // uses its mirror
+    expect(path![0]).toEqual(from);
+    expect(path![path!.length - 1]).toEqual(to);
+  });
+
+  it('is null when every straight line is blocked', () => {
+    expect(lineOfSightPath(walls({ q: 1, r: 0 }, { q: 0, r: 1 }), { q: 0, r: 0 }, { q: 1, r: 1 })).toBeNull();
   });
 });
 

@@ -54,4 +54,22 @@ describe('resolveTargeting line-of-sight gating', () => {
     // Default predicate = nothing blocks, so a target with a (would-be) wall still resolves.
     expect(resolveTargeting(spec, origin, target).primary).toEqual([target]);
   });
+
+  it('lineOfSight stays valid via the mirror path and draws a ray that avoids the blocker', () => {
+    const spec: TargetSpec = { kind: 'lineOfSight', maxRange: 5 };
+    const target: Hex = { q: 1, r: 1 }; // two straight paths straddle (1,0) and (0,1)
+    const res = resolveTargeting(spec, origin, target, undefined, walls({ q: 1, r: 0 }));
+    expect(res.primary).toEqual([target]); // still targetable
+    expect(has(res.secondary, { q: 1, r: 0 })).toBe(false); // drawn ray avoids the wall
+    expect(has(res.secondary, { q: 0, r: 1 })).toBe(true); // routes via the mirror
+  });
+
+  it('selfAoe highlight includes a hex reachable only via a mirror path', () => {
+    const spec: TargetSpec = { kind: 'selfAoe', radius: 2 };
+    const behind: Hex = { q: 1, r: 1 };
+    const oneWall = resolveTargeting(spec, origin, origin, undefined, walls({ q: 1, r: 0 })).primary;
+    expect(has(oneWall, behind)).toBe(true); // a mirror straight line still reaches it
+    const bothWalls = resolveTargeting(spec, origin, origin, undefined, walls({ q: 1, r: 0 }, { q: 0, r: 1 })).primary;
+    expect(has(bothWalls, behind)).toBe(false); // both straddles blocked -> shielded
+  });
 });

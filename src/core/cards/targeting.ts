@@ -1,6 +1,6 @@
 import { type Hex, hexDistance, hexEquals } from '../hex/hex';
-import { hexLine, hexesWithinRange } from '../hex/range';
-import { hasLineOfSight } from '../hex/los';
+import { hexesWithinRange } from '../hex/range';
+import { hasLineOfSight, lineOfSightPath } from '../hex/los';
 import type { TargetSpec, Highlight } from './types';
 
 /** The max targeting range of a spec (singleHex/lineOfSight maxRange), or undefined if unranged. */
@@ -44,10 +44,11 @@ export function resolveTargeting(
       return { primary: [hovered], secondary: [] };
     case 'lineOfSight': {
       if (outOfRange(spec.maxRange, origin, hovered)) return empty;
-      if (!hasLineOfSight(blocksSight, origin, hovered)) return empty;
-      const line = hexLine(origin, hovered);
-      // primary = the target; secondary = the ray between (exclude both endpoints).
-      return { primary: [hovered], secondary: line.slice(1, -1) };
+      // The CLEAR straight path (walking the line and trying each blocked hex's mirror), or null if every
+      // straight line is blocked. secondary = that path's ray, so the drawn line routes around a blocker.
+      const path = lineOfSightPath(blocksSight, origin, hovered);
+      if (path === null) return empty;
+      return { primary: [hovered], secondary: path.slice(1, -1) };
     }
     case 'areaOfEffect':
       return { primary: hexesWithinRange(hovered, spec.radius), secondary: [] };

@@ -50,7 +50,7 @@ export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds 
 export { HexGrid } from './hex/grid';
 export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
-export { hasLineOfSight } from './hex/los';
+export { hasLineOfSight, lineOfSightPath } from './hex/los';
 export type { HexPositionData, FacingData } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 

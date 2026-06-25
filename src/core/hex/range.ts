@@ -18,6 +18,21 @@ function cubeRound(q: number, r: number, s: number): Hex {
   return { q: rq, r: rr };
 }
 
+const LINE_EPS = 1e-6;
+
+/**
+ * The rounded hex at fraction i/n along a->b. The tie-break nudge's SIGN picks the side of an
+ * exact-midpoint crossing: +LINE_EPS reproduces the canonical hexLine, -LINE_EPS gives the mirror hex.
+ */
+function lineHexAt(a: Hex, b: Hex, n: number, i: number, eps: number): Hex {
+  const aq = a.q + eps;
+  const ar = a.r + eps;
+  const as = -aq - ar;
+  const bs = -b.q - b.r;
+  const t = i / n;
+  return cubeRound(aq + (b.q - aq) * t, ar + (b.r - ar) * t, as + (bs - as) * t);
+}
+
 /**
  * The contiguous line of hexes from `a` to `b`, inclusive of both endpoints
  * (length = hexDistance(a,b) + 1). A tiny epsilon nudge breaks exact-midpoint
@@ -26,17 +41,23 @@ function cubeRound(q: number, r: number, s: number): Hex {
 export function hexLine(a: Hex, b: Hex): Hex[] {
   const n = hexDistance(a, b);
   if (n === 0) return [{ q: a.q, r: a.r }];
-  const eps = 1e-6;
-  const aq = a.q + eps;
-  const ar = a.r + eps;
-  const as = -a.q - a.r - 2 * eps;
-  const bq = b.q;
-  const br = b.r;
-  const bs = -b.q - b.r;
   const out: Hex[] = [];
+  for (let i = 0; i <= n; i += 1) out.push(lineHexAt(a, b, n, i, LINE_EPS));
+  return out;
+}
+
+/**
+ * Per-step candidates of the straight line a->b: at each step the PRIMARY hex (the canonical +eps
+ * tie-break, identical to hexLine) and the MIRROR hex (the -eps tie-break). They are equal except where
+ * the line grazes a hex boundary — there they are the two equal-distance hexes straddling the line.
+ * Line of sight walks these and tries the mirror when the primary is blocked.
+ */
+export function hexLineCandidates(a: Hex, b: Hex): { primary: Hex; mirror: Hex }[] {
+  const n = hexDistance(a, b);
+  if (n === 0) return [{ primary: { q: a.q, r: a.r }, mirror: { q: a.q, r: a.r } }];
+  const out: { primary: Hex; mirror: Hex }[] = [];
   for (let i = 0; i <= n; i += 1) {
-    const t = i / n;
-    out.push(cubeRound(aq + (bq - aq) * t, ar + (br - ar) * t, as + (bs - as) * t));
+    out.push({ primary: lineHexAt(a, b, n, i, LINE_EPS), mirror: lineHexAt(a, b, n, i, -LINE_EPS) });
   }
   return out;
 }
