@@ -57,9 +57,10 @@ export class TargetingPainter {
    * attack's own hex) — that rule is owned by CardController and passed in.
    *
    * For a lineOfSight (ranged single-target) card it ALSO draws a straight yellow aim line from the
-   * caster's hex centre to the hovered hex centre. That line is drawn even when the shot is BLOCKED
-   * (resolveTargeting returns no path hexes), so the player always sees where they are aiming — the
-   * absence of the yellow routed-path hexes is itself the "no clear line" cue.
+   * caster's hex centre to the hovered hex centre, for any IN-RANGE hovered hex — including when the shot
+   * is BLOCKED (resolveTargeting returns no path hexes), so the player still sees where they are aiming and
+   * the absence of the yellow routed-path hexes is itself the "no clear line" cue. Beyond the card's max
+   * range the line is suppressed (that hex can't be shot), matching the tint and the play.
    */
   redrawHighlight(
     spec: TargetSpec,
@@ -84,9 +85,15 @@ export class TargetingPainter {
     // off-frame margin; the hovered centre being in-bounds is not enough.
     for (const h of secondary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_SECONDARY);
     for (const h of primary) if (this.grid.inBounds(h) && this.isVisible(h)) this.fillHex(h, TINT_PRIMARY);
-    // The straight aim line, on TOP of the tint. Independent of the resolved path, so it shows even when
-    // LoS is blocked (no path) or the hex is out of range — it is an aiming guide, not a validity check.
-    if (spec.kind === 'lineOfSight' && hovered !== null && this.isVisible(hovered)) this.drawAimLine(origin, hovered);
+    // The straight aim line, on TOP of the tint — but only toward an IN-RANGE hex (a potentially valid
+    // target). It is independent of the resolved PATH, so it still shows for an in-range hex whose LoS is
+    // BLOCKED (no routed path); the absence of the yellow path hexes is the "no clear line" cue. Beyond
+    // maxRange it is suppressed: that hex can't be shot, so the line would misread as a valid aim — the
+    // tint and the play already honour range, and the line now matches them. (No maxRange = no cap.)
+    if (spec.kind === 'lineOfSight' && hovered !== null && this.isVisible(hovered)) {
+      const maxRange = targetMaxRange(spec);
+      if (maxRange === undefined || hexDistance(origin, hovered) <= maxRange) this.drawAimLine(origin, hovered);
+    }
   }
 
   /** Straight yellow segment from the caster hex centre to the hovered hex centre (the ranged aim line). */
