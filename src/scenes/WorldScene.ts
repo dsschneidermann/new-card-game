@@ -239,6 +239,14 @@ export class WorldScene extends Phaser.Scene {
         this.isPlayerPhase() &&
         !this.cards.isArmed() &&
         this.time.now >= this.moveLockedUntilMs, // brief post-rejection lockout (see flashRejected)
+      // Same visible-window predicate the card-targeting paint uses (CardController.isHexVisible). The move
+      // overlay shows only while the cursor is over the visible board, reachable hexes / route numbers clip
+      // to the on-screen frame, and a release off the board cancels. With the larger world, in-bounds is no
+      // longer the same as on-screen.
+      isHexVisible: (hex) => {
+        const { x, y } = hexToPixel(this.layout, hex);
+        return this.fullyInFrame(x, y);
+      },
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
