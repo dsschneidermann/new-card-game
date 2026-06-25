@@ -8,7 +8,7 @@ import type { AssetKey } from '../assets/keys';
 export type TargetSpec =
   | { kind: 'self' } // any hex; the target is ignored / not stored (resolves on the caster)
   // maxRange (optional): the target hex must be within this many hexes of the caster;
-  // omitted = unrestricted. Purely hex distance — no walls / line-of-sight blocking.
+  // omitted = unrestricted. Purely hex distance — no tall obstacles / line-of-sight blocking.
   | { kind: 'singleHex'; maxRange?: number }
   | { kind: 'lineOfSight'; maxRange?: number }
   | { kind: 'areaOfEffect'; radius: number }

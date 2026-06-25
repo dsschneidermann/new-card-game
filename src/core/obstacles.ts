@@ -3,11 +3,11 @@ import { type Hex } from './hex/hex';
 import { HexGrid } from './hex/grid';
 
 /**
- * A kind of map obstacle (ADR-006). A WALL blocks movement AND line of sight; a low ROCK blocks
+ * A kind of map obstacle (ADR-006). A TALL obstacle blocks movement AND line of sight; a LOW obstacle blocks
  * movement only, so ranged attacks fire over it. New kinds (e.g. a sight-only bush) are one entry here
  * plus its rule below.
  */
-export type ObstacleKind = 'wall' | 'rock';
+export type ObstacleKind = 'tall' | 'low';
 
 /** What an obstacle kind blocks. Pure rules — shared by the grid-flag application (and any AI later). */
 export interface ObstacleRule {
@@ -16,8 +16,8 @@ export interface ObstacleRule {
 }
 
 export const OBSTACLE_RULES: Record<ObstacleKind, ObstacleRule> = {
-  wall: { blocksMove: true, blocksSight: true },
-  rock: { blocksMove: true, blocksSight: false },
+  tall: { blocksMove: true, blocksSight: true },
+  low: { blocksMove: true, blocksSight: false },
 };
 
 /**

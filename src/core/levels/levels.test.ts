@@ -31,7 +31,7 @@ describe('FOREST_LEVEL', () => {
     applyObstacles(grid, FOREST_LEVEL.obstacles);
     for (const o of FOREST_LEVEL.obstacles) {
       expect(grid.isWalkable(o.hex)).toBe(false); // every obstacle blocks movement
-      expect(grid.blocksSight(o.hex)).toBe(o.kind === 'wall'); // only walls block line of sight
+      expect(grid.blocksSight(o.hex)).toBe(o.kind === 'tall'); // only tall obstacles block line of sight
     }
     expect(grid.isWalkable(FOREST_LEVEL.startHex)).toBe(true); // the start hex stays clear
   });

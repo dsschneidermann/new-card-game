@@ -82,7 +82,7 @@ export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
 /**
  * Every walkable hex reachable from `from` within `maxSteps` steps, keyed by hexKey (for membership)
  * to the Hex itself (so the overlay can paint it). Breadth-first over walkable neighbours; the origin
- * is excluded and walls / out-of-bounds hexes never appear. Drives the movement reachable-range
+ * is excluded and obstacles / out-of-bounds hexes never appear. Drives the movement reachable-range
  * overlay and validates a release target (reachable iff its hexKey is present in the result).
  */
 export function hexesReachable(grid: HexGrid, from: Hex, maxSteps: number): Map<string, Hex> {

@@ -19,14 +19,14 @@ export const FOREST_LEVEL: LevelDef = {
   rows: ROWS,
   startHex: offsetToAxial({ col: Math.floor(COLS / 2), row: Math.floor(ROWS / 2) }),
   enemySpawns: [],
-  // A small hand-authored set near the centred start (col 26, row 21): a short WALL a couple hexes east
-  // (blocks movement + line of sight) and a low ROCK to the west (blocks movement, ranged fires over it).
+  // A small hand-authored set near the centred start (col 26, row 21): a tall obstacle a couple hexes east
+  // (blocks movement + line of sight) and a low obstacle to the west (blocks movement, ranged fires over it).
   // Just enough to exercise obstacles + LoS; procedural placement is a later feature.
   obstacles: [
-    { kind: 'wall', hex: offsetToAxial({ col: 28, row: 20 }) },
-    { kind: 'wall', hex: offsetToAxial({ col: 28, row: 21 }) },
-    { kind: 'wall', hex: offsetToAxial({ col: 28, row: 22 }) },
-    { kind: 'rock', hex: offsetToAxial({ col: 24, row: 21 }) },
+    { kind: 'tall', hex: offsetToAxial({ col: 28, row: 20 }) },
+    { kind: 'tall', hex: offsetToAxial({ col: 28, row: 21 }) },
+    { kind: 'tall', hex: offsetToAxial({ col: 28, row: 22 }) },
+    { kind: 'low', hex: offsetToAxial({ col: 24, row: 21 }) },
   ],
   terrainSeed: 0x7e44a1, // fixed -> a consistent designed ground (could key off the world seed later)
 };

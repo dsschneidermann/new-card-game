@@ -19,8 +19,11 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v5: enemy sprite assets renamed to enemy_<name>.<state>, so the persisted EnemyData.art base is now
 // enemy_<name> (e.g. enemy_slime1) — discard old saves whose art base lacks the prefix (no migration).
 // v6: obstacles are persisted entities (the new Obstacle component), so the saved world shape changed —
-// discard pre-obstacle saves so a resumed run has the level's walls/rocks.
-export const SAVE_VERSION = 6 as const;
+// discard pre-obstacle saves so a resumed run has the level's obstacles.
+// v7: obstacle kinds renamed wall/rock -> tall/low (persisted in ObstacleData.kind), so a v6 save carries
+// now-invalid kinds — its obstacle art (TerrainTheme.obstacleArt[kind]) resolves to undefined on resume.
+// Discard pre-rename saves (no migration), mirroring the v5 enemy-asset rename.
+export const SAVE_VERSION = 7 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

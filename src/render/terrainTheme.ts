@@ -96,8 +96,8 @@ export const FOREST_THEME: TerrainTheme = {
     [{ dx: 0, dy: 0, frame: 329 }], // 1x1
   ],
   obstacleArt: {
-    wall: AssetKeys.obstacleWall,
-    rock: AssetKeys.obstacleRock,
+    tall: AssetKeys.obstacleTreeGrass1,
+    low: AssetKeys.obstacleRockGrass1,
   },
 };
 

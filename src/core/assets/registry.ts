@@ -45,8 +45,6 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.uiMenuBackground, [1280, 720], 'moody low-detail worldmap vista', 'Main menu backdrop'),
   asset(AssetKeys.uiButton, [200, 56], 'rounded slab + accent border', 'Generic UI button', { frameCount: 3 }),
   asset(AssetKeys.uiPanel, [64, 64], 'semi-transparent dark parchment', 'Dialog/HUD panel'),
-  asset(AssetKeys.world1Floor, [32, 32], 'top-down stone/grass', 'Walkable floor tile'),
-  asset(AssetKeys.world1Wall, [32, 32], 'solid rock, dark outline', 'Non-walkable obstacle'),
   asset(AssetKeys.playerIdle, [128, 128, 0.5], 'anime fox-girl, right-facing', 'Player idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.playerWalk, [128, 128, 0.5], 'same character, right-facing', 'Player walk', { frameCount: 8, fps: 10, downPx: -6 }),
   asset(AssetKeys.playerReady, [128, 128, 0.5], 'same character, card-ready stance, right-facing', 'Player ready/card stance', { frameCount: 2, fps: 6, downPx: -6, forwardPx: 8 }),
@@ -81,8 +79,9 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.terrainStairsGrass, [16, 16], 'grass-leaf foliage tiles', 'Terrain: grass-leaf foliage tileset', { frameCount: 357 }),
 
   // --- Obstacle props (per kind): bottom-anchored sprites standing on a hex. Placeholders until real art drops in. ---
-  asset(AssetKeys.obstacleWall, [64, 64, 0.5], 'stone wall block, opaque, dark outline', 'Obstacle: wall (blocks movement + line of sight)'),
-  asset(AssetKeys.obstacleRock, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)'),
+  asset(AssetKeys.obstacleTreeGrass1, [64, 64, 0.75], 'big tree', 'Obstacle: tree (blocks movement + line of sight)', { frameCount: 1, downPx: 0, forwardPx: -1 }),
+  asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
+  asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
@@ -314,10 +313,6 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
-  AssetKeys.world1Floor,
-  AssetKeys.world1Wall,
-  AssetKeys.obstacleWall,
-  AssetKeys.obstacleRock,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

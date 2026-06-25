@@ -12,7 +12,7 @@ export interface EnemySpawn {
 }
 
 /**
- * A single obstacle placed on the level: its kind (wall/rock — see OBSTACLE_RULES for what each blocks)
+ * A single obstacle placed on the level: its kind (tall/low — see OBSTACLE_RULES for what each blocks)
  * and the hex it occupies. Pure data; WorldScene turns each into an Obstacle entity, applies its
  * walkability/sight flags to the grid, and renders it via the TerrainTheme's art for its kind.
  */

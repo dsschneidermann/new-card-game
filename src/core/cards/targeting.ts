@@ -46,7 +46,7 @@ export function resolveTargeting(
       if (outOfRange(spec.maxRange, origin, hovered)) return empty;
       // Walk the straight line (trying each blocked hex's mirror). When CLEAR, the target is the red
       // primary and the routed ray minus the endpoints is the yellow secondary. When BLOCKED, there is
-      // NO red target — instead the attempted hexes up to and including the wall (minus the caster's own
+      // NO red target — instead the attempted hexes up to and including the tall obstacle (minus the caster's own
       // hex) are the yellow secondary, so the ray still reads as a line of sight that stops at the blocker.
       const { hexes, clear } = lineOfSightPath(blocksSight, origin, hovered);
       return clear
@@ -57,7 +57,7 @@ export function resolveTargeting(
       return { primary: hexesWithinRange(hovered, spec.radius), secondary: [] };
     case 'selfAoe':
       // A fixed, self-centered burst: every hex within radius of the caster except its own hex and
-      // except hexes it has no line of sight to (a wall shields what is behind it). The hovered hex is
+      // except hexes it has no line of sight to (a tall obstacle shields what is behind it). The hovered hex is
       // ignored — you cannot aim it.
       return {
         primary: hexesWithinRange(origin, spec.radius)

@@ -181,7 +181,7 @@ export class WorldScene extends Phaser.Scene {
     this.level = FOREST_LEVEL;
     this.theme = terrainThemeForLevel(this.level.id);
     this.grid = new HexGrid(this.level.cols, this.level.rows);
-    applyObstacles(this.grid, this.level.obstacles); // walls/rocks block movement; walls also block line of sight
+    applyObstacles(this.grid, this.level.obstacles); // obstacles block movement; tall obstacles also block line of sight
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(64), height: s(48), rowPitch: s(36), originX: s(192), originY: s(76) };

@@ -7,7 +7,7 @@ export interface LineOfSightResult {
    * The hexes the straight line walked, starting at `from`. When `clear`, the full path through to `to`
    * (inclusive of both endpoints). When NOT clear, the prefix actually reached followed by the blocking
    * hex(es) at the first step where every candidate was a sight-blocker — so the ray can still be drawn
-   * up to and including the wall it ran into.
+   * up to and including the obstacle it ran into.
    */
   readonly hexes: Hex[];
   /** True when an unblocked straight line reaches `to`. */
@@ -28,7 +28,7 @@ export interface LineOfSightResult {
  *
  * Returns `{ clear: true }` with the full path when an unblocked straight line reaches `to`; otherwise
  * `{ clear: false }` with the prefix reached plus the blocking hex(es) at the step that stopped it (so a
- * caller can still draw the ray up to the wall). Use hasLineOfSight when only the yes/no is needed.
+ * caller can still draw the ray up to the obstacle). Use hasLineOfSight when only the yes/no is needed.
  *
  * Pure and Phaser-free (ADR-002): `blocksSight` is supplied by the caller (e.g. grid.blocksSight).
  */
@@ -49,7 +49,7 @@ export function lineOfSightPath(blocksSight: (hex: Hex) => boolean, from: Hex, t
     } else {
       // Both candidates of this step are sight-blockers, so this straight line — and every equal-distance
       // straight line — is blocked here. Record the blocking hex(es) so the ray can be drawn up to the
-      // wall, then report not-clear. (At a non-graze step primary === mirror, so it is recorded once.)
+      // obstacle, then report not-clear. (At a non-graze step primary === mirror, so it is recorded once.)
       hexes.push({ q: primary.q, r: primary.r });
       if (mirror.q !== primary.q || mirror.r !== primary.r) hexes.push({ q: mirror.q, r: mirror.r });
       return { hexes, clear: false };

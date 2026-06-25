@@ -9,7 +9,7 @@ import { axialToOffset, offsetToAxial } from './layout';
  */
 export class HexGrid {
   private readonly blocked = new Set<string>();
-  // Hexes that block line of sight (opaque obstacles like walls). Independent of `blocked`: a low rock
+  // Hexes that block line of sight (opaque obstacles). Independent of `blocked`: a low obstacle
   // blocks movement but not sight, and a future sight-only obstacle would block sight but not movement.
   private readonly sightBlocked = new Set<string>();
 

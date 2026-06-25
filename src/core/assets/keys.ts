@@ -11,8 +11,6 @@ export const AssetKeys = {
   uiMenuBackground: 'ui.menuBackground',
   uiButton: 'ui.button',
   uiPanel: 'ui.panel',
-  world1Floor: 'world1.tile.floor',
-  world1Wall: 'world1.tile.wall',
   playerIdle: 'player.idle',
   playerWalk: 'player.walk',
   playerReady: 'player.ready',
@@ -41,13 +39,14 @@ export const AssetKeys = {
   spellArtTeleport: 'spell_art_teleport',
 
   // Ground terrain tileset (16x16 frame-indexed spritesheet) for the square terrain background.
-  terrainGroundGrass: 'terrain.ground_grass',
+  terrainGroundGrass: 'terrain_ground_grass',
   // Grass-leaf foliage tileset (16x16 frame-indexed spritesheet) — the leaf detail layer reads its decal frames from it.
-  terrainStairsGrass: 'terrain.stairs_grass',
+  terrainStairsGrass: 'terrain_stairs_grass',
 
   // Obstacle props (per kind): rendered as bottom-anchored sprites standing on their hex.
-  obstacleWall: 'obstacle.wall',
-  obstacleRock: 'obstacle.rock',
+  obstacleTreeGrass1: 'obstacle_tree_grass_1',
+  obstacleRockGrass1: 'obstacle_rock_grass_1',
+  obstacleRockGrass2: 'obstacle_rock_grass_2',
 
   // slime1
   enemySlime1Idle: 'enemy_slime1.idle',

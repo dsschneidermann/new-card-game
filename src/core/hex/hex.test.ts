@@ -126,11 +126,11 @@ describe('findPath (BFS)', () => {
     }
   });
 
-  it('reroutes around a wall — a longer path is still found, never through blocked hexes', () => {
+  it('reroutes around a tall obstacle — a longer path is still found, never through blocked hexes', () => {
     const grid = new HexGrid(12, 12);
     const from = offsetToAxial({ col: 2, row: 6 });
     const to = offsetToAxial({ col: 9, row: 6 });
-    // A wall down column 5 with a single gap at row 0 forces a detour over the top.
+    // A tall obstacle down column 5 with a single gap at row 0 forces a detour over the top.
     for (let row = 1; row < 12; row += 1) grid.setWalkable(offsetToAxial({ col: 5, row }), false);
     const path = findPath(grid, from, to);
     expect(path.length).toBeGreaterThan(0); // reachable via the gap
@@ -138,7 +138,7 @@ describe('findPath (BFS)', () => {
     expect(path[0]).toEqual(from);
     expect(path[path.length - 1]).toEqual(to);
     for (let i = 0; i < path.length; i += 1) {
-      expect(grid.isWalkable(path[i] as Hex)).toBe(true); // never routes through the wall
+      expect(grid.isWalkable(path[i] as Hex)).toBe(true); // never routes through the tall obstacle
       if (i > 0) expect(hexDistance(path[i - 1] as Hex, path[i] as Hex)).toBe(1); // contiguous
     }
   });
@@ -156,12 +156,12 @@ describe('hexesReachable', () => {
     for (const [k, hex] of reach) expect(hexKey(hex)).toBe(k); // value is the keyed Hex (for painting)
   });
 
-  it('excludes walls/out-of-bounds; a blocked neighbour is unreachable; maxSteps 0 yields nothing', () => {
+  it('excludes obstacles/out-of-bounds; a blocked neighbour is unreachable; maxSteps 0 yields nothing', () => {
     const grid = new HexGrid(8, 8);
     const from = offsetToAxial({ col: 3, row: 3 });
-    const wall = grid.walkableNeighbors(from)[0] as Hex;
-    grid.setWalkable(wall, false);
-    expect(hexesReachable(grid, from, 2).has(hexKey(wall))).toBe(false);
+    const obstacle = grid.walkableNeighbors(from)[0] as Hex;
+    grid.setWalkable(obstacle, false);
+    expect(hexesReachable(grid, from, 2).has(hexKey(obstacle))).toBe(false);
     expect(hexesReachable(grid, from, 0).size).toBe(0);
   });
 });
