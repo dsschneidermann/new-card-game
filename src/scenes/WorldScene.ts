@@ -531,23 +531,102 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
+    // Top-left button strip (see makeHudButton), laid out left-to-right. Each button is backed by the
+    // ui.button art texture, so real 3-state button art drops in behind the same asset key later. The
+    // boxes are square art slabs in the top strip; at this height they dip a few px below frame.top, over
+    // the top hex row — cosmetic, since the HUD draws above the board. Dimensions are s()-wrapped and tuned
+    // at visual-QA. The status line (and the toast) are shifted right of the row (textX) so the buttons
+    // never cover them.
+    const margin = s(10); // slight inset from the screen's left edge
+    const gap = s(6); // gap between boxes, and after the row before the text column
+    const btnW = s(28); // box width (short labels)
+    const stripTop = s(4); // strip top inset
+    const btnH = s(28); // box height — square box (matches btnW); dips ~s(6) below frame.top (s(26))
+    const buttons: ReadonlyArray<{ label: string; onClick: () => void }> = [
+      { label: 'Esc', onClick: () => this.openPauseLikeEsc() },
+      {
+        label: 'Full',
+        onClick: () => (this.scale.isFullscreen ? this.scale.stopFullscreen() : this.scale.startFullscreen()),
+      },
+      { label: 'Turn', onClick: () => this.endTurnLikeSpace() },
+    ];
+    let x = margin;
+    for (const b of buttons) {
+      this.makeHudButton(x, stripTop, btnW, btnH, b.label, b.onClick);
+      x += btnW + gap;
+    }
+    const textX = x; // the left text column starts just right of the button row
+
     this.hud = this.add
-      .text(s(8), s(8), '', { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#cbd5e1' })
-      .setDepth(1_000_000)
-      .setScrollFactor(0);
-    this.add
-      .text(s(8), s(28), 'click: move  ·  Space: end turn  ·  R: restart turn  ·  Esc: pause', {
-        fontFamily: 'monospace',
-        fontSize: `${s(12)}px`,
-        color: '#6b7280',
-      })
+      .text(textX, s(8), '', { fontFamily: 'monospace', fontSize: `${s(14)}px`, color: '#cbd5e1' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
     this.toast = this.add
-      .text(s(8), s(48), '', { fontFamily: 'monospace', fontSize: `${s(13)}px`, color: '#f0a0a0' })
+      .text(textX, s(48), '', { fontFamily: 'monospace', fontSize: `${s(13)}px`, color: '#f0a0a0' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
     this.refreshHud();
+  }
+
+  /**
+   * A top-left HUD button: the ui.button art slab with a centred label, screen-fixed at HUD depth.
+   * Backed by the same `ui.button` texture as the menu buttons (3 frames: 0 normal, 1 hover, 2 disabled),
+   * so real button art drops in behind the same asset key without touching this code. It is interactive and
+   * sits at HUD depth above the transparent world input zone, so Phaser's top-only hit test routes the press
+   * here and it never leaks to the board move/target handler; the action fires on pointerdown (before the
+   * global pointer-up), mirroring its matching key. (x, y) is the top-left corner, in already-scaled px.
+   */
+  private makeHudButton(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    label: string,
+    onClick: () => void,
+  ): void {
+    const FRAME_NORMAL = '0';
+    const FRAME_HOVER = '1';
+    // A flat (single-frame) placeholder texture has only frame 0; degrade to an alpha-only hover then.
+    const hasHover = this.textures.get(AssetKeys.uiButton).has(FRAME_HOVER);
+    const bg = this.add
+      .image(x, y, AssetKeys.uiButton, FRAME_NORMAL)
+      .setOrigin(0, 0)
+      .setDisplaySize(w, h)
+      .setScrollFactor(0)
+      .setDepth(1_000_000)
+      .setInteractive({ useHandCursor: true });
+    bg.on('pointerover', () => {
+      if (hasHover) bg.setFrame(FRAME_HOVER, false); // keep the display size when swapping frames
+      bg.setAlpha(0.85);
+    });
+    bg.on('pointerout', () => {
+      if (hasHover) bg.setFrame(FRAME_NORMAL, false);
+      bg.setAlpha(1);
+    });
+    bg.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (p.rightButtonDown()) return; // leave right-click to the global cancel path
+      onClick();
+    });
+    this.add
+      .text(x + w / 2, y + h / 2, label, { fontFamily: 'monospace', fontSize: `${s(11)}px`, color: '#cbd5e1' })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1_000_001); // label sits just above the art
+  }
+
+  /** 'Esc to menu' button — mirrors keydown-ESC in create(): cancel an active move-preview / armed card first, else open Pause. */
+  private openPauseLikeEsc(): void {
+    if (this.move.isPreviewing()) this.move.cancel();
+    else if (this.cards.isArmed()) this.cards.cancel();
+    else (this.registry.get('router') as ScreenRouter).dispatch('Pause');
+  }
+
+  /** 'End turn' button — mirrors keydown-SPACE in create(): no-op while input is locked, else cancel move + cards and submit EndTurn. */
+  private endTurnLikeSpace(): void {
+    if (this.inputLocked) return;
+    this.move.cancel();
+    this.cards.cancel();
+    this.world.submit({ kind: 'EndTurn', entity: this.player });
   }
 
   private refreshHud(): void {
