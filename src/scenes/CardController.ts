@@ -199,15 +199,18 @@ export class CardController {
     this.pressDown = null;
     if (!moved) return; // click-activation: await a hex click
     const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
-    if (this.ctx.grid.inBounds(hex) && !this.blocksOwnHex(hex)) this.advanceTarget(hex);
-    else this.disarm(); // dragged off the grid, or onto the caster's own hex (attacks): cancel
+    if (this.isValidTarget(hex)) this.advanceTarget(hex);
+    else this.disarm(); // dragged off the visible board, out of range / no LoS, or onto own hex: cancel
   }
 
   /** A click on the world while armed: a click-mode first target, or a two-step second. */
   onWorldDown(hex: Hex): void {
     if (this.armed === null || this.pressDown !== null) return;
-    if (this.ctx.grid.inBounds(hex)) this.advanceTarget(hex);
-    else this.disarm(); // clicked off the grid: cancel
+    // On the visible board: hand it to advanceTarget (which ignores an out-of-range / no-LoS / own-hex
+    // pick and stays armed so the player can re-aim). Off the visible board: cancel, per the rule that
+    // an off-board click drops the armed action (in-bounds alone is too lax now the world is larger).
+    if (this.onVisibleBoard(hex)) this.advanceTarget(hex);
+    else this.disarm();
   }
 
   /**
@@ -544,28 +547,62 @@ export class CardController {
   /** Apply one target selection; play if the spec is satisfied, else await the next. */
   private advanceTarget(hex: Hex): void {
     if (this.armed === null) return;
+    // An invalid pick (out of range, no line of sight, or an attack's own hex) is IGNORED here so a
+    // CLICK stays armed and the player can re-aim — the range outline stays up. (A drag-RELEASE on an
+    // invalid hex dearms instead; that split lives in onPointerUp, which gates on isValidTarget. Both
+    // share isSelectableTarget so the click and drag paths judge "valid pick" by the SAME rule.)
+    if (!this.isSelectableTarget(hex)) return;
     const spec = this.armed.def.target;
-    // Out-of-range (but in-bounds) click: ignore it and stay armed so the player can pick a
-    // valid hex (the range outline stays up). Decision flagged for review.
-    const maxRange = targetMaxRange(spec);
-    const origin = this.originHex();
-    if (maxRange !== undefined && origin !== null && hexDistance(origin, hex) > maxRange) return;
-    // Line of sight: a ranged (lineOfSight) or reach (singleHex WITH a maxRange) attack can't reach a hex
-    // it has no clear line to — ignore the click and stay armed, exactly like an out-of-range click.
-    if (
-      origin !== null &&
-      (spec.kind === 'lineOfSight' || (spec.kind === 'singleHex' && spec.maxRange !== undefined)) &&
-      !hasLineOfSight((h) => this.ctx.grid.blocksSight(h), origin, hex)
-    ) {
-      return;
-    }
-    if (this.blocksOwnHex(hex)) return; // attacks can't target the caster's own hex: ignore (stay armed)
     if (spec.kind === 'twoStep' && this.armed.firstPick === null) {
       this.armed.firstPick = hex; // lock the first; the next click is the second
       this.redrawHighlight();
       return;
     }
     this.play(hex);
+  }
+
+  /**
+   * True when `hex` is a SELECTABLE pick for the armed spec: within the card's max range, with a clear
+   * line of sight (ranged / reach attacks), and not the caster's own hex (attacks). Independent of the
+   * board-bounds / on-screen check (callers do that) — it answers only "is this a legal pick for the
+   * spec". Single-sourced so the click path (advanceTarget — ignore on false, stay armed) and the
+   * drag-release path (onPointerUp via isValidTarget — dearm on false) apply the SAME rule.
+   */
+  private isSelectableTarget(hex: Hex): boolean {
+    if (this.armed === null) return false;
+    const spec = this.armed.def.target;
+    const maxRange = targetMaxRange(spec);
+    const origin = this.originHex();
+    if (maxRange !== undefined && origin !== null && hexDistance(origin, hex) > maxRange) return false;
+    if (
+      origin !== null &&
+      (spec.kind === 'lineOfSight' || (spec.kind === 'singleHex' && spec.maxRange !== undefined)) &&
+      !hasLineOfSight((h) => this.ctx.grid.blocksSight(h), origin, hex)
+    ) {
+      return false;
+    }
+    if (this.blocksOwnHex(hex)) return false;
+    return true;
+  }
+
+  /**
+   * True when `hex` is on the VISIBLE board: within grid bounds AND inside the on-screen window. After
+   * the larger world (52x42) with a 26x21 camera window, in-bounds != visible, so the input cancel
+   * rule must test visibility (not just grid bounds) or a release/click in the off-board margin lands
+   * on an in-bounds-but-off-screen hex and never cancels. Mirrors the painter's grid.inBounds && isVisible.
+   */
+  private onVisibleBoard(hex: Hex): boolean {
+    return this.ctx.grid.inBounds(hex) && this.ctx.isHexVisible(hex);
+  }
+
+  /**
+   * True when a drag-RELEASE on `hex` should commit the play: the hex is on the visible board AND a
+   * selectable pick for the armed spec. A release anywhere else — off the visible board, out of range,
+   * no line of sight, or an attack's own hex — dearms instead, because a drag-release is a committed
+   * gesture that cancels when it misses (unlike a click, which stays armed so the player can re-aim).
+   */
+  private isValidTarget(hex: Hex): boolean {
+    return this.onVisibleBoard(hex) && this.isSelectableTarget(hex);
   }
 
   private play(finalHex: Hex): void {
