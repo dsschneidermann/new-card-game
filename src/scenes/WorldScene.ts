@@ -251,10 +251,10 @@ export class WorldScene extends Phaser.Scene {
       .setInteractive()
       .on('pointerdown', (p: Phaser.Input.Pointer) => {
         if (p.rightButtonDown()) return; // right-click is handled globally (cancel), never a move/target
-        const hex = pixelToHex(this.layout, p.worldX, p.worldY);
         if (this.cards.isArmed()) {
-          this.cards.onWorldDown(hex); // click-mode first target / two-step second
+          this.cards.onWorldDown(); // arm a click-mode target; it COMMITS on the pointer-up (touch-settled position)
         } else {
+          const hex = pixelToHex(this.layout, p.worldX, p.worldY);
           this.move.onPress(hex, p); // begin the press-hold reachable-range move preview
         }
       });

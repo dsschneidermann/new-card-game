@@ -150,6 +150,8 @@ export class CardController {
   private armed: Armed | null = null;
   /** Set while the activating press is held — its release decides drag vs click. */
   private pressDown: { x: number; y: number } | null = null;
+  /** True between a click-mode world target PRESS and its release — the target commits on release (touch). */
+  private worldPressArmed = false;
   private hovered: Hex | null = null;
 
   private handCards: Phaser.GameObjects.Container[] = [];
@@ -189,28 +191,43 @@ export class CardController {
   }
 
   /**
-   * Pointer released: if it ended the activating press AND travelled like a drag,
-   * the release IS the first target (drag-to-cast). A near-stationary release is
-   * a click-activation: stay armed and wait for a click on a hex.
+   * Pointer released. Two cases:
+   * 1. It ended the ACTIVATING press: a travelled release is drag-to-cast (commit the target), a
+   *    near-stationary one is click-activation (stay armed, await a target tap).
+   * 2. It ended a click-mode world TARGET tap that onWorldDown deferred here (so the target commits on
+   *    release, not press — required for touch, where a fresh touch's pointerdown position is unsettled).
    */
   onPointerUp(p: Phaser.Input.Pointer): void {
-    if (this.armed === null || this.pressDown === null) return;
-    const moved = Phaser.Math.Distance.Between(this.pressDown.x, this.pressDown.y, p.x, p.y) > s(DRAG_THRESHOLD);
-    this.pressDown = null;
-    if (!moved) return; // click-activation: await a hex click
-    const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
-    if (this.isValidTarget(hex)) this.advanceTarget(hex);
-    else this.disarm(); // dragged off the visible board, out of range / no LoS, or onto own hex: cancel
+    if (this.armed === null) return;
+    if (this.pressDown !== null) {
+      const moved = Phaser.Math.Distance.Between(this.pressDown.x, this.pressDown.y, p.x, p.y) > s(DRAG_THRESHOLD);
+      this.pressDown = null;
+      if (!moved) return; // click-activation: await a hex tap
+      const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
+      if (this.isValidTarget(hex)) this.advanceTarget(hex);
+      else this.disarm(); // dragged off the visible board, out of range / no LoS, or onto own hex: cancel
+      return;
+    }
+    if (this.worldPressArmed) {
+      // Resolve the deferred click-mode target at the SETTLED release position. On the visible board,
+      // advanceTarget handles it (and ignores an out-of-range / no-LoS / own-hex pick, staying armed so
+      // the player can re-aim); off the visible board, cancel — same rule the press path used to apply.
+      this.worldPressArmed = false;
+      const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
+      if (this.onVisibleBoard(hex)) this.advanceTarget(hex);
+      else this.disarm();
+    }
   }
 
-  /** A click on the world while armed: a click-mode first target, or a two-step second. */
-  onWorldDown(hex: Hex): void {
+  /**
+   * A world press while armed: the click-mode first target (or a two-step second). The selection is
+   * DEFERRED to the pointer-up — see onPointerUp case 2 — so it commits on release. On touch a fresh
+   * tap's pointerdown position can be stale/unsettled; resolving on release (the settled position) is
+   * what makes tap-to-target work. Mouse clicks (press+release at one spot) are unaffected.
+   */
+  onWorldDown(): void {
     if (this.armed === null || this.pressDown !== null) return;
-    // On the visible board: hand it to advanceTarget (which ignores an out-of-range / no-LoS / own-hex
-    // pick and stays armed so the player can re-aim). Off the visible board: cancel, per the rule that
-    // an off-board click drops the armed action (in-bounds alone is too lax now the world is larger).
-    if (this.onVisibleBoard(hex)) this.advanceTarget(hex);
-    else this.disarm();
+    this.worldPressArmed = true;
   }
 
   /**
@@ -697,6 +714,7 @@ export class CardController {
   private disarm(): void {
     this.armed = null;
     this.pressDown = null;
+    this.worldPressArmed = false;
     this.hovered = null;
     this.painter.clear();
     for (const c of this.spellCircles) this.setSpellSelected(c, false);
