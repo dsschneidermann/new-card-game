@@ -44,16 +44,31 @@ describe('lineOfSightPath', () => {
   it('returns a connected clear ray that routes around the blocker', () => {
     const from = { q: 0, r: 0 };
     const to = { q: 1, r: 1 };
-    const path = lineOfSightPath(walls({ q: 1, r: 0 }), from, to);
-    expect(path).not.toBeNull();
-    expect(path!.some((h) => h.q === 1 && h.r === 0)).toBe(false); // avoids the blocked hex
-    expect(path!.some((h) => h.q === 0 && h.r === 1)).toBe(true); // uses its mirror
-    expect(path![0]).toEqual(from);
-    expect(path![path!.length - 1]).toEqual(to);
+    const { hexes, clear } = lineOfSightPath(walls({ q: 1, r: 0 }), from, to);
+    expect(clear).toBe(true);
+    expect(hexes.some((h) => h.q === 1 && h.r === 0)).toBe(false); // avoids the blocked hex
+    expect(hexes.some((h) => h.q === 0 && h.r === 1)).toBe(true); // uses its mirror
+    expect(hexes[0]).toEqual(from);
+    expect(hexes[hexes.length - 1]).toEqual(to);
   });
 
-  it('is null when every straight line is blocked', () => {
-    expect(lineOfSightPath(walls({ q: 1, r: 0 }, { q: 0, r: 1 }), { q: 0, r: 0 }, { q: 1, r: 1 })).toBeNull();
+  it('reports not-clear and returns the attempted hexes up to and including the blocker(s)', () => {
+    const from = { q: 0, r: 0 };
+    const to = { q: 1, r: 1 }; // the two straight paths straddle (1,0) and (0,1); block BOTH
+    const { hexes, clear } = lineOfSightPath(walls({ q: 1, r: 0 }, { q: 0, r: 1 }), from, to);
+    expect(clear).toBe(false);
+    expect(hexes[0]).toEqual(from); // the ray still starts at the caster
+    // the single interior step grazes (1,0)/(0,1); both block, so both are recorded as the blockers
+    expect(hexes.some((h) => h.q === 1 && h.r === 0)).toBe(true);
+    expect(hexes.some((h) => h.q === 0 && h.r === 1)).toBe(true);
+    expect(hexes.some((h) => h.q === 1 && h.r === 1)).toBe(false); // never reaches the target
+  });
+
+  it('stops the attempted ray at a wall squarely on a clean (no-mirror) line', () => {
+    // 0,0 -> 4,0 is cardinal (no grazes): a wall on 2,0 blocks it outright, no mirror to try.
+    const { hexes, clear } = lineOfSightPath(walls({ q: 2, r: 0 }), { q: 0, r: 0 }, { q: 4, r: 0 });
+    expect(clear).toBe(false);
+    expect(hexes).toEqual([{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }]); // up to and including the wall
   });
 });
 

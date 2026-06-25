@@ -14,11 +14,14 @@ const walls =
 const has = (hexes: readonly Hex[], h: Hex): boolean => hexes.some((p) => p.q === h.q && p.r === h.r);
 
 describe('resolveTargeting line-of-sight gating', () => {
-  it('lineOfSight: blocked between -> empty; clear -> the target plus the ray', () => {
+  it('lineOfSight: blocked -> no red target but the attempted ray; clear -> the target plus the ray', () => {
     const spec: TargetSpec = { kind: 'lineOfSight', maxRange: 5 };
     const target: Hex = { q: 4, r: 0 };
     const blocked = resolveTargeting(spec, origin, target, undefined, walls({ q: 2, r: 0 }));
-    expect(blocked.primary).toEqual([]);
+    expect(blocked.primary).toEqual([]); // no red target square when the shot is blocked
+    expect(has(blocked.secondary, { q: 1, r: 0 })).toBe(true); // ray drawn up to...
+    expect(has(blocked.secondary, { q: 2, r: 0 })).toBe(true); // ...and including the wall
+    expect(has(blocked.secondary, target)).toBe(false); // but never reaching the target
     const clear = resolveTargeting(spec, origin, target, undefined, () => false);
     expect(clear.primary).toEqual([target]);
     expect(clear.secondary.length).toBeGreaterThan(0); // the ray between the endpoints

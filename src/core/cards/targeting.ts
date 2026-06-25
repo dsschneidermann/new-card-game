@@ -44,11 +44,14 @@ export function resolveTargeting(
       return { primary: [hovered], secondary: [] };
     case 'lineOfSight': {
       if (outOfRange(spec.maxRange, origin, hovered)) return empty;
-      // The CLEAR straight path (walking the line and trying each blocked hex's mirror), or null if every
-      // straight line is blocked. secondary = that path's ray, so the drawn line routes around a blocker.
-      const path = lineOfSightPath(blocksSight, origin, hovered);
-      if (path === null) return empty;
-      return { primary: [hovered], secondary: path.slice(1, -1) };
+      // Walk the straight line (trying each blocked hex's mirror). When CLEAR, the target is the red
+      // primary and the routed ray minus the endpoints is the yellow secondary. When BLOCKED, there is
+      // NO red target — instead the attempted hexes up to and including the wall (minus the caster's own
+      // hex) are the yellow secondary, so the ray still reads as a line of sight that stops at the blocker.
+      const { hexes, clear } = lineOfSightPath(blocksSight, origin, hovered);
+      return clear
+        ? { primary: [hovered], secondary: hexes.slice(1, -1) }
+        : { primary: [], secondary: hexes.slice(1) };
     }
     case 'areaOfEffect':
       return { primary: hexesWithinRange(hovered, spec.radius), secondary: [] };
