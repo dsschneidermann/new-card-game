@@ -61,7 +61,7 @@ export { hash01, valueNoise, warpedNoise, opened2x2, overlayFor, scatterDecal } 
 
 // Levels: shared content-placement types + the pure level seam — the active-level component, the level ids
 // + selection, and each level's pure terrain + procedural generators. The renderer pairs these with frames/art.
-export type { EnemySpawn, ObstacleSpawn, ChestSpawn, LevelStateData, TerrainKind, TerrainTile, TerrainOverlay } from './levels';
+export type { EnemySpawn, ObstacleSpawn, ChestSpawn, LevelStateData, ForestTerrainKind, ForestTerrainTile, ForestTerrainOverlay } from './levels';
 export {
   LevelState,
   FOREST_ID,

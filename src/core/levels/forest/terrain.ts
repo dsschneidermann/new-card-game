@@ -19,16 +19,16 @@ import {
 } from '../../terrain/terrain';
 
 /** The forest ground kinds. */
-export type TerrainKind = 'grass' | 'dirt';
+export type ForestTerrainKind = 'grass' | 'dirt';
 
 /** A chosen ground tile: its kind and which variant within that kind (0-based). */
-export interface TerrainTile {
-  readonly kind: TerrainKind;
+export interface ForestTerrainTile {
+  readonly kind: ForestTerrainKind;
   readonly variant: number;
 }
 
 /** The forest's grass-edge overlay descriptor (the generic auto-tile transition, under a forest name). */
-export type TerrainOverlay = OverlayTile;
+export type ForestTerrainOverlay = OverlayTile;
 
 // Patch shaping (tunable). LOWER PATCH_SCALE = larger, smoother dirt/grass regions. DIRT_THRESHOLD below
 // 0.5 keeps dirt the minority. The domain warp bends the boundaries into organic curves.
@@ -44,7 +44,7 @@ const isRawDirt = (col: number, row: number, seed: number): boolean =>
  * OPENING so every dirt feature is at least 2x2 (which keeps the edge-overlay rule set complete) without
  * quantizing the grid. Grass is unconstrained.
  */
-export function forestTerrainKind(col: number, row: number, seed: number): TerrainKind {
+export function forestTerrainKind(col: number, row: number, seed: number): ForestTerrainKind {
   return opened2x2((c, r) => isRawDirt(c, r, seed), col, row) ? 'dirt' : 'grass';
 }
 
@@ -57,8 +57,8 @@ export function forestTerrainTile(
   col: number,
   row: number,
   seed: number,
-  variantCounts: Record<TerrainKind, number>,
-): TerrainTile {
+  variantCounts: Record<ForestTerrainKind, number>,
+): ForestTerrainTile {
   const kind = forestTerrainKind(col, row, seed);
   const variant = Math.floor(hash01(col, row, seed ^ 0x5bd1e995) * variantCounts[kind]);
   return { kind, variant };
@@ -69,7 +69,7 @@ export function forestTerrainTile(
  * cells only (a grass cell returns null). Reads the 8 neighbours' kinds and resolves via the generic
  * overlayFor (grass = the "other" kind around a dirt cell).
  */
-export function forestOverlay(col: number, row: number, seed: number): TerrainOverlay | null {
+export function forestOverlay(col: number, row: number, seed: number): ForestTerrainOverlay | null {
   if (forestTerrainKind(col, row, seed) !== 'dirt') return null;
   const grass = (c: number, r: number): boolean => forestTerrainKind(c, r, seed) === 'grass';
   return overlayFor({

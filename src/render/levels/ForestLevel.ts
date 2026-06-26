@@ -21,8 +21,8 @@ import {
   type World,
   type Hex,
   type ObstacleKind,
-  type TerrainKind,
-  type TerrainOverlay,
+  type ForestTerrainKind,
+  type ForestTerrainOverlay,
   type DecalShape,
 } from '@core/index';
 import { Renderable } from '@render/characterViews';
@@ -38,13 +38,13 @@ const LEAF_KEY = AssetKeys.terrainStairsGrass;
 
 // Curated PLAIN fill tiles: the only clean GRASS fill is the flat green; the textured fills are the DIRT
 // tiles. The list LENGTH is each kind's variant count, passed into forestTerrainTile.
-const FILL_FRAMES: Record<TerrainKind, readonly number[]> = {
+const FILL_FRAMES: Record<ForestTerrainKind, readonly number[]> = {
   grass: [527],
   dirt: [422],
 };
 
 // Grass-edge overlay descriptor -> Ground_grass frame (pairs / edges / diagonal corners).
-const OVERLAY_FRAMES: Record<TerrainOverlay, number> = {
+const OVERLAY_FRAMES: Record<ForestTerrainOverlay, number> = {
   pairWN: 571, pairNE: 572, pairES: 593, pairSW: 592,
   edgeW: 591, edgeN: 611, edgeE: 589, edgeS: 578,
   cornerNW: 612, cornerNE: 610, cornerSE: 568, cornerSW: 570,
