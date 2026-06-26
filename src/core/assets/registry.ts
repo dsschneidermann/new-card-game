@@ -236,16 +236,18 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.enemyLavaGolemDeath, [128, 128, 0.5], 'lava_golem death', 'Enemy lava_golem death'),
 
   // mimic_1
-  asset(AssetKeys.enemyMimic1Idle, [128, 128, 0.5], 'mimic_1 idle', 'Enemy mimic_1 idle', { frameCount: 1, fps: 6, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.enemyMimic1Idle, [128, 128, 0.5], 'mimic_1 idle', 'Enemy mimic_1 idle', { frameCount: 10, fps: 10, downPx: -6, forwardPx: -2 }),
   asset(AssetKeys.enemyMimic1Walk, [128, 128, 0.5], 'mimic_1 walk', 'Enemy mimic_1 walk', { frameCount: 11, fps: 10, downPx: -6 }),
   asset(AssetKeys.enemyMimic1Attack, [128, 128, 0.5], 'mimic_1 attack', 'Enemy mimic_1 attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.enemyMimic1Unopened, [128, 128, 0.5], 'mimic_1 unopened', 'Enemy mimic_1 unopened', { frameCount: 1, downPx: -6, forwardPx: -2 }),
   asset(AssetKeys.enemyMimic1Hurt, [128, 128, 0.5], 'mimic_1 hurt', 'Enemy mimic_1 hurt'),
   asset(AssetKeys.enemyMimic1Death, [128, 128, 0.5], 'mimic_1 death', 'Enemy mimic_1 death'),
 
   // mimic_2
-  asset(AssetKeys.enemyMimic2Idle, [128, 128, 0.5], 'mimic_2 idle', 'Enemy mimic_2 idle', { frameCount: 1, fps: 6, downPx: -6 }),
+  asset(AssetKeys.enemyMimic2Idle, [128, 128, 0.5], 'mimic_2 idle', 'Enemy mimic_2 idle', { frameCount: 6, fps: 6, downPx: -6 }),
   asset(AssetKeys.enemyMimic2Walk, [128, 128, 0.5], 'mimic_2 walk', 'Enemy mimic_2 walk', { frameCount: 9, fps: 10, downPx: -6 }),
   asset(AssetKeys.enemyMimic2Attack, [128, 128, 0.5], 'mimic_2 attack', 'Enemy mimic_2 attack', { frameCount: 4, fps: 8, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.enemyMimic2Unopened, [128, 128, 0.5], 'mimic_2 unopened', 'Enemy mimic_2 unopened', { frameCount: 1, fps: 6, downPx: -6 }),
   asset(AssetKeys.enemyMimic2Hurt, [128, 128, 0.5], 'mimic_2 hurt', 'Enemy mimic_2 hurt'),
   asset(AssetKeys.enemyMimic2Death, [128, 128, 0.5], 'mimic_2 death', 'Enemy mimic_2 death'),
 
@@ -253,6 +255,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.enemyMimic3Idle, [128, 128, 0.5], 'mimic_3 idle', 'Enemy mimic_3 idle', { frameCount: 1, fps: 6, downPx: -6 }),
   asset(AssetKeys.enemyMimic3Walk, [128, 128, 0.5], 'mimic_3 walk', 'Enemy mimic_3 walk', { frameCount: 6, fps: 10, downPx: -6 }),
   asset(AssetKeys.enemyMimic3Attack, [128, 128, 0.5], 'mimic_3 attack', 'Enemy mimic_3 attack', { frameCount: 7, fps: 12, downPx: -6, forwardPx: 4 }),
+  asset(AssetKeys.enemyMimic3Unopened, [128, 128, 0.5], 'mimic_3 unopened', 'Enemy mimic_3 unopened', { frameCount: 5, fps: 6, downPx: -6 }),
   asset(AssetKeys.enemyMimic3Hurt, [128, 128, 0.5], 'mimic_3 hurt', 'Enemy mimic_3 hurt'),
   asset(AssetKeys.enemyMimic3Death, [128, 128, 0.5], 'mimic_3 death', 'Enemy mimic_3 death'),
 

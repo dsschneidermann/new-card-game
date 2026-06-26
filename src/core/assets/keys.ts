@@ -204,6 +204,7 @@ export const AssetKeys = {
   enemyMimic1Idle: 'enemy_mimic_1.idle',
   enemyMimic1Walk: 'enemy_mimic_1.walk',
   enemyMimic1Attack: 'enemy_mimic_1.attack',
+  enemyMimic1Unopened: 'enemy_mimic_1.unopened',
   enemyMimic1Hurt: 'enemy_mimic_1.hurt',
   enemyMimic1Death: 'enemy_mimic_1.death',
 
@@ -211,6 +212,7 @@ export const AssetKeys = {
   enemyMimic2Idle: 'enemy_mimic_2.idle',
   enemyMimic2Walk: 'enemy_mimic_2.walk',
   enemyMimic2Attack: 'enemy_mimic_2.attack',
+  enemyMimic2Unopened: 'enemy_mimic_2.unopened',
   enemyMimic2Hurt: 'enemy_mimic_2.hurt',
   enemyMimic2Death: 'enemy_mimic_2.death',
 
@@ -218,6 +220,7 @@ export const AssetKeys = {
   enemyMimic3Idle: 'enemy_mimic_3.idle',
   enemyMimic3Walk: 'enemy_mimic_3.walk',
   enemyMimic3Attack: 'enemy_mimic_3.attack',
+  enemyMimic3Unopened: 'enemy_mimic_3.unopened',
   enemyMimic3Hurt: 'enemy_mimic_3.hurt',
   enemyMimic3Death: 'enemy_mimic_3.death',
 
