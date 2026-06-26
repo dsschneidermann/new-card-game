@@ -71,8 +71,8 @@ export class MovePlanner {
     if (this.pressing || p.rightButtonDown() || !this.ctx.canStart()) return;
     const from = this.playerHex();
     if (from === null) return;
-    this.reachable = hexesReachable(this.ctx.grid, from, this.budget());
-    if (this.reachable.size === 0) return; // no budget left / nowhere to go
+    this.reachable = this.computeReachable(from);
+    if (this.reachable.size === 0) return; // no budget left and no in-reach chest / nowhere to go
     this.pressing = true;
     this.lastRouteKey = null;
     this.paintReachable();
@@ -148,7 +148,10 @@ export class MovePlanner {
     const from = this.playerHex();
     if (from === null) return;
     const path = findPath(this.ctx.grid, from, hex);
-    for (let i = 1; i < path.length; i += 1) {
+    // A chest is a zero-cost interact: the move stops on the hex BEFORE it (the chest's last step is free),
+    // so number the route only up to that preceding hex — the chest tile itself carries no step number.
+    const numberedSteps = this.ctx.chestInteractAt(hex) !== null ? path.length - 1 : path.length;
+    for (let i = 1; i < numberedSteps; i += 1) {
       const step = path[i] as Hex;
       const { x, y } = hexToPixel(this.ctx.layout, step);
       this.numbers.push(
@@ -197,6 +200,23 @@ export class MovePlanner {
   private clearNumbers(): void {
     for (const t of this.numbers) t.destroy();
     this.numbers = [];
+  }
+
+  /**
+   * Hexes the player can act on this press: every hex reachable within the movement budget, PLUS unopened
+   * chests exactly ONE step beyond it. A chest is a zero-cost interact — the move stops on the hex preceding
+   * it (its own last step is free) — so a chest whose preceding hex is reachable (i.e. the chest sits at
+   * budget+1) is a valid target even though a normal move could not end there. We expand the BFS by one ring
+   * and keep only the chests it adds; every other budget+1 hex stays OUT, so non-chest tiles never become
+   * stand-on destinations. (With 0 budget the +1 ring is the neighbours, so an adjacent chest is still openable.)
+   */
+  private computeReachable(from: Hex): Map<string, Hex> {
+    const reachable = hexesReachable(this.ctx.grid, from, this.budget());
+    const expanded = hexesReachable(this.ctx.grid, from, this.budget() + 1);
+    for (const [key, hex] of expanded) {
+      if (!reachable.has(key) && this.ctx.chestInteractAt(hex) !== null) reachable.set(key, hex);
+    }
+    return reachable;
   }
 
   private playerHex(): Hex | null {
