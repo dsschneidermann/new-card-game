@@ -16,6 +16,7 @@ import {
   makeMovementSystem,
   makeTurnSystem,
   makeCardSystem,
+  makeChestSystem,
   DeckState,
   reshuffle,
   drawUpTo,
@@ -23,7 +24,6 @@ import {
   equipStartingItems,
   Chest,
   unopenedChestAt,
-  takeChestCard,
   isAttackCard,
   isHeavyAttack,
   facingToward,
@@ -31,7 +31,6 @@ import {
   pixelToHex,
   offsetToAxial,
   hexDistance,
-  findPath,
   worldPixelBounds,
   LevelState,
   selectLevelId,
@@ -151,8 +150,8 @@ export class WorldScene extends Phaser.Scene {
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
-  // A chest the player TARGETED to interact with, queued to open once the move to the preceding hex settles
-  // (see requestChestInteract / maybeOpenChest). Set only by an explicit chest target, never by adjacency.
+  // A chest the core chest system reported ready (ChestInteractReady), queued to open once the move to the
+  // preceding hex settles (see maybeOpenChest). Set only from that event, never by adjacency at move-end.
   private pendingChest: EntityId | null = null;
 
   constructor() {
@@ -269,9 +268,9 @@ export class WorldScene extends Phaser.Scene {
         return this.fullyInFrame(x, y);
       },
       effectMask: this.effectMask,
-      // Targeting an unopened chest is a zero-cost interact rather than a stand-on move (see requestChestInteract).
+      // Targeting an unopened chest is a zero-cost interact rather than a stand-on move: MovePlanner submits a
+      // RequestChestInteract and the core chest system drives the stop-before-it move + opening.
       chestInteractAt: (hex) => unopenedChestAt(this.world, hex) ?? null,
-      requestChestInteract: (chest) => this.requestChestInteract(chest),
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
@@ -359,38 +358,21 @@ export class WorldScene extends Phaser.Scene {
         this.cards.cancel();
         this.autosave();
       }
+      // The core chest system says the reward picker can open (the player reached the chest's stop hex, or was
+      // already adjacent): queue it. maybeOpenChest defers the actual open until the move animation settles.
+      else if (e.kind === 'ChestInteractReady' && e.entity === this.player) this.pendingChest = e.chest;
+      // A chest was looted in the sim: swap it to the opened-chest sprite, refresh pile counts, checkpoint.
+      else if (e.kind === 'ChestOpened') this.onChestOpened(e.chest);
     }
     this.maybeOpenChest();
   }
 
   /**
-   * Resolve a chest INTERACT: the player TARGETED an unopened chest, a zero movement-point action. Walk the
-   * planner's path to the chest MINUS its last step — stop on the hex immediately preceding the chest, paying
-   * only for that travel — then open it once the move settles (maybeOpenChest). If the player is already
-   * adjacent to (or standing on) the chest, no move is issued and the picker opens on the next tick. Activation
-   * happens ONLY here, never automatically by ending a move near a chest.
-   */
-  private requestChestInteract(chest: EntityId): void {
-    const chestHex = this.world.store(HexPosition).get(chest)?.hex;
-    const from = this.world.store(HexPosition).get(this.player)?.hex;
-    if (chestHex === undefined || from === undefined) return;
-    const path = findPath(this.grid, from, chestHex);
-    if (path.length === 0) return; // unreachable (defensive — the planner already gated on reachability)
-    this.pendingChest = chest;
-    if (path.length > 2) {
-      // path = [from, ..., penultimate, chest]; move to the penultimate so the chest's own last step is free.
-      const penultimate = path[path.length - 2] as Hex;
-      this.submitPlayerCommand({ kind: 'RequestMove', entity: this.player, q: penultimate.q, r: penultimate.r });
-    }
-    // path.length 1 (standing on the chest) or 2 (already adjacent): no travel — maybeOpenChest opens it next tick.
-  }
-
-  /**
    * Open the chest reward picker once the player's move has visually settled on the hex preceding the chest
-   * (or immediately, when no move was needed). Deferred to here (not a move event) so the dim modal appears
-   * after the sprite arrives, not mid-slide. Opens once: pendingChest is cleared when the picker opens; the
-   * pick is applied in the callback — the chosen card goes to the player's discard pile and the chest becomes
-   * a purely-visual opened chest (its sprite is swapped to the opened-chest art); a cancel leaves it closed.
+   * (or immediately, when no move was needed). pendingChest is set from the core ChestInteractReady event;
+   * the open is deferred to here so the dim modal appears after the sprite arrives, not mid-slide. Opens once:
+   * pendingChest is cleared when the picker opens. The pick is submitted as a TakeChestCard command — the core
+   * chest system applies it and emits ChestOpened (handled in onChestOpened); a cancel leaves the chest closed.
    */
   private maybeOpenChest(): void {
     if (this.pendingChest === null) return;
@@ -402,12 +384,19 @@ export class WorldScene extends Phaser.Scene {
     if (data === undefined) return; // chest already gone (defensive)
     this.cards.openChestChoice(data.offered, (chosen) => {
       if (chosen === null) return; // cancelled — the chest stays closed for a later visit
-      takeChestCard(this.world, this.player, chest, chosen);
-      // The chest is now looted: swap its Renderable to the opened-chest sprite (purely visual).
-      this.world.store(Renderable).add(chest, { texture: AssetKeys.chestOpen });
-      this.cards.refreshPiles();
-      this.autosave();
+      this.world.submit({ kind: 'TakeChestCard', owner: this.player, chest, chosen });
     });
+  }
+
+  /**
+   * A chest was looted in the sim (the core chest system applied the pick and emitted ChestOpened): swap its
+   * Renderable to the opened-chest sprite (purely visual), refresh the pile counts now the chosen card is in
+   * the discard pile, and checkpoint. Driven by the event, not the pick callback, so the mutation stays core-owned.
+   */
+  private onChestOpened(chest: EntityId): void {
+    this.world.store(Renderable).add(chest, { texture: AssetKeys.chestOpen });
+    this.cards.refreshPiles();
+    this.autosave();
   }
 
   /**
@@ -495,15 +484,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Register the turn, movement & card systems and re-attach the PLAYER's transient Renderable + AnimState.
-   * The level's content (enemy/obstacle/chest) Renderables and grid flags are (re)attached by the active
-   * level — this.level.populate (fresh) / reinstall (resume/restart) — not here, so WorldScene holds no
-   * per-kind art or content loops.
+   * Register the chest, turn, movement & card systems and re-attach the PLAYER's transient Renderable +
+   * AnimState. The level's content (enemy/obstacle/chest) Renderables and grid flags are (re)attached by the
+   * active level — this.level.populate (fresh) / reinstall (resume/restart) — not here, so WorldScene holds
+   * no per-kind art or content loops.
    */
   private installSystems(): void {
-    // Order: turn -> movement -> card. The turn engine validates actions and emits CardPlayed /
-    // TurnStarted; the movement system executes a same-step MoveTo; the card system (last) reacts
-    // to those events to draw/discard cards and resolve effects.
+    // Order: chest -> turn -> movement -> card. The chest system runs FIRST so the RequestMove it submits for
+    // a chest interact is validated + executed by the turn/movement systems the SAME step (a command submitted
+    // by a later system is dropped at step end); it also resolves a prior step's arrival, emitting
+    // ChestInteractReady. The turn engine validates actions and emits CardPlayed / TurnStarted; the movement
+    // system executes a same-step MoveTo; the card system (last) reacts to draw/discard cards and resolve effects.
+    this.world.addSystem(makeChestSystem(this.grid));
     this.world.addSystem(makeTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.addSystem(makeCardSystem(HAND_SIZE));

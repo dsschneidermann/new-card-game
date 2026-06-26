@@ -36,4 +36,10 @@ export type GameEvent =
   | { kind: 'TurnStarted'; phase: 'player' | 'enemy'; actor?: EntityId }
   | { kind: 'TurnEnded'; phase: 'player' | 'enemy' }
   | { kind: 'ResourceChanged'; entity: EntityId }
-  | { kind: 'ActionRejected'; reason: string };
+  | { kind: 'ActionRejected'; reason: string }
+  // Chest Interaction Core System. ChestInteractReady: the player has reached the chest's stop hex (or was
+  // already adjacent) and the reward picker should open — the scene defers the actual open until the move
+  // animation settles (presentation timing). ChestOpened: a pick was applied (chosen card discarded, chest
+  // marked opened) — the scene swaps the chest sprite to the opened art and refreshes pile counts.
+  | { kind: 'ChestInteractReady'; entity: EntityId; chest: EntityId }
+  | { kind: 'ChestOpened'; chest: EntityId };

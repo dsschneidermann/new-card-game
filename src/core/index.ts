@@ -167,8 +167,9 @@ export {
   equipStartingItems,
 } from './items';
 
-// Chests: reward pickups placed on the map (the Chest component, the card pool, roll/spawn/query/take)
-export type { ChestData } from './chest';
+// Chests: reward pickups placed on the map (the Chest component, the card pool, roll/spawn/query/take) and
+// the Chest Interaction Core System (makeChestSystem) + its pending marker and stop-hex / target helpers.
+export type { ChestData, PendingChestInteractionData } from './chest';
 export {
   Chest,
   CHEST_CARD_POOL,
@@ -178,6 +179,10 @@ export {
   chestAt,
   unopenedChestAt,
   takeChestCard,
+  PendingChestInteraction,
+  chestStopHex,
+  chestInteractTargets,
+  makeChestSystem,
 } from './chest';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)
