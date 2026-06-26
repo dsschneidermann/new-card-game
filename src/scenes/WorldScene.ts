@@ -20,10 +20,14 @@ import {
   makeTurnSystem,
   makeCardSystem,
   DeckState,
-  buildCardInstances,
   reshuffle,
   drawUpTo,
-  STARTER_COLLECTION,
+  Equipment,
+  equipStartingItems,
+  Chest,
+  spawnChest,
+  chestAt,
+  takeChestCard,
   isAttackCard,
   isHeavyAttack,
   facingToward,
@@ -158,6 +162,8 @@ export class WorldScene extends Phaser.Scene {
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
+  // A chest the player just moved onto, queued to open once the move animation settles (see maybeOpenChest).
+  private pendingChest: EntityId | null = null;
 
   constructor() {
     super('WorldScene');
@@ -174,6 +180,7 @@ export class WorldScene extends Phaser.Scene {
     this.lastGridScrollX = NaN;
     this.lastGridScrollY = NaN;
     this.camRefHex = undefined;
+    this.pendingChest = null; // no chest pickup is queued at the start of a fresh/resumed run
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     // Resolve the active level + its terrain theme. For now the game is the single Forest level; level
@@ -357,7 +364,35 @@ export class WorldScene extends Phaser.Scene {
         this.cards.cancel();
         this.autosave();
       }
+      // The player ENDED a move on a chest's hex: queue it to open once the move animation settles.
+      else if (e.kind === 'MovementEnded' && e.entity === this.player) {
+        const chest = chestAt(this.world, e.at);
+        if (chest !== undefined) this.pendingChest = chest;
+      }
     }
+    this.maybeOpenChest();
+  }
+
+  /**
+   * Open the chest reward picker once the player's move has visually settled on the chest. Deferred to
+   * here (not the MovementEnded event) so the dim modal appears after the sprite arrives, not mid-slide.
+   * Opens once: pendingChest is cleared when the picker opens; the pick is applied in the callback — the
+   * chosen card goes to the player's discard pile and the chest is consumed; a cancel leaves it to revisit.
+   */
+  private maybeOpenChest(): void {
+    if (this.pendingChest === null) return;
+    if (this.moveAnimator.isMoving(this.player)) return; // wait for the move slide to finish
+    if (this.cards.isOverlayOpen()) return; // don't stack over an already-open overlay
+    const chest = this.pendingChest;
+    this.pendingChest = null;
+    const data = this.world.store(Chest).get(chest);
+    if (data === undefined) return; // chest already gone (defensive)
+    this.cards.openChestChoice(data.offered, (chosen) => {
+      if (chosen === null) return; // cancelled — the chest stays for a later visit
+      takeChestCard(this.world, this.player, chest, chosen);
+      this.cards.refreshPiles();
+      this.autosave();
+    });
   }
 
   /**
@@ -469,6 +504,10 @@ export class WorldScene extends Phaser.Scene {
     for (const [obstacle, { kind }] of this.world.store(Obstacle).entries()) {
       this.world.store(Renderable).add(obstacle, { texture: this.theme.obstacleArt[kind] });
     }
+    // Chests render as a STATIC sprite too (no animBase), re-attached here on Resume/Restart Turn.
+    for (const [chest] of this.world.store(Chest).entries()) {
+      this.world.store(Renderable).add(chest, { texture: AssetKeys.chest });
+    }
   }
 
   /** A brand-new run: a clock-seeded world with the player and its turn state. */
@@ -490,16 +529,15 @@ export class WorldScene extends Phaser.Scene {
       manaRegen: MANA_REGEN,
     });
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
-    // Build the deck as card-instance entities, shuffle them into the draw pile, then draw the
-    // opening hand (later turns draw via the card system on TurnStarted).
-    const deck: DeckStateData = {
-      drawPile: buildCardInstances(world, STARTER_COLLECTION),
-      hand: [],
-      discardPile: [],
-    };
+    // The deck is DERIVED from the player's starting equipment: equipping each basic item instantiates
+    // its granted cards into the draw pile (sword -> 2 Melee Strike, shield -> 2 Defend, bow -> 2 Ranged
+    // Shot, boots -> 2 Jump). There is no static starter collection any more.
+    const deck: DeckStateData = { drawPile: [], hand: [], discardPile: [] };
     world.store(DeckState).add(this.player, deck);
+    world.store(Equipment).add(this.player, { slots: {} });
+    equipStartingItems(world, this.player); // populates the draw pile with the basics' granted cards
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
-    drawUpTo(deck, HAND_SIZE, world.rng); // opening hand
+    drawUpTo(deck, HAND_SIZE, world.rng); // opening hand (later turns draw via the card system on TurnStarted)
     // Enemies are spawned from the active level definition. The forest has none for now — the temporary
     // "one of every enemy" showcase was removed; curated per-level rosters arrive with the enemy features.
     for (const spawn of this.level.enemySpawns) {
@@ -513,6 +551,11 @@ export class WorldScene extends Phaser.Scene {
       const obstacle = world.createEntity();
       world.store(Obstacle).add(obstacle, { kind: spawn.kind });
       world.store(HexPosition).add(obstacle, { hex: spawn.hex });
+    }
+    // Chests are entities too (Chest{offered} + HexPosition) on WALKABLE tiles. Each rolls its three
+    // offered cards from world.rng at build (persisted); installSystems attaches the chest art Renderable.
+    for (const spawn of this.level.chests) {
+      spawnChest(world, spawn.hex);
     }
     return world;
   }
@@ -548,6 +591,7 @@ export class WorldScene extends Phaser.Scene {
     restored.rng.setState(liveRng);
     this.world = restored;
     this.player = player;
+    this.pendingChest = null; // a queued chest pickup from the abandoned turn is dropped on restart
     this.installSystems();
     this.cards.cancel();
     this.cards.refreshHand();

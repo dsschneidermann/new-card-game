@@ -130,33 +130,6 @@ export const SPELL_DEFS: readonly SpellDef[] = [
   },
 ];
 
-/**
- * The static starter deck: a multiset of card ids. At deck-build each id becomes its own
- * card-instance entity (duplicates are distinct instances that can carry different modifiers).
- */
-export const STARTER_COLLECTION: readonly string[] = [
-  'melee',
-  'melee',
-  'melee',
-  'longstrike',
-  'longstrike',
-  'rangedshot',
-  'rangedshot',
-  'rangedshot',
-  'defend',
-  'defend',
-  'jump',
-  'jump',
-  'quickdraw',
-  'quickdraw',
-  'sharpen',
-  'sharpen',
-  'whirlwind',
-  'whirlwind',
-  'recall',
-  'recall',
-];
-
 const CARD_BY_ID = new Map<string, CardDef>(CARD_DEFS.map((c) => [c.id, c]));
 const SPELL_BY_ID = new Map<string, SpellDef>(SPELL_DEFS.map((s) => [s.id, s]));
 

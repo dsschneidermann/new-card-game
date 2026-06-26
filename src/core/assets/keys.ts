@@ -48,6 +48,9 @@ export const AssetKeys = {
   obstacleRockGrass1: 'obstacle_rock_grass_1',
   obstacleRockGrass2: 'obstacle_rock_grass_2',
 
+  // Chest prop: a reward chest standing on a hex (bottom-anchored static sprite); opened by walking onto it.
+  chest: 'chest',
+
   // slime1
   enemySlime1Idle: 'enemy_slime1.idle',
   enemySlime1Walk: 'enemy_slime1.walk',

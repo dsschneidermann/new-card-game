@@ -22,6 +22,15 @@ export interface ObstacleSpawn {
 }
 
 /**
+ * A single treasure chest placed on the level: the (walkable) hex it stands on. Pure data; WorldScene
+ * turns each into a Chest entity (carrying three rolled card rewards) + HexPosition — like an obstacle,
+ * but on a WALKABLE tile, since the player moves ONTO it to open it.
+ */
+export interface ChestSpawn {
+  readonly hex: Hex;
+}
+
+/**
  * A level's pure, engine-agnostic definition (ADR-002): world size, the player's start
  * hex, the enemy spawns, and the terrain seed that feeds the shared pure terrain functions
  * (terrainTile / terrainOverlay / terrainLeaf). Phaser-free and unit-testable.
@@ -38,5 +47,6 @@ export interface LevelDef {
   readonly startHex: Hex;
   readonly enemySpawns: readonly EnemySpawn[];
   readonly obstacles: readonly ObstacleSpawn[];
+  readonly chests: readonly ChestSpawn[];
   readonly terrainSeed: number;
 }

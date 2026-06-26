@@ -9,7 +9,6 @@ import {
   spellDef,
   isAttackCard,
   isHeavyAttack,
-  STARTER_COLLECTION,
   type Hex,
 } from '@core/index';
 
@@ -140,22 +139,6 @@ describe('targetMaxRange', () => {
 });
 
 describe('starter content', () => {
-  it('the starter collection is the expected 20-card multiset of defined cards', () => {
-    expect(STARTER_COLLECTION).toEqual([
-      'melee', 'melee', 'melee',
-      'longstrike', 'longstrike',
-      'rangedshot', 'rangedshot', 'rangedshot',
-      'defend', 'defend',
-      'jump', 'jump',
-      'quickdraw', 'quickdraw',
-      'sharpen', 'sharpen',
-      'whirlwind', 'whirlwind',
-      'recall', 'recall',
-    ]);
-    expect(STARTER_COLLECTION).toHaveLength(20);
-    for (const id of STARTER_COLLECTION) expect(cardDef(id)).toBeDefined();
-  });
-
   it('isAttackCard is true for attack cards, false for skills, spells and unknown ids', () => {
     expect(isAttackCard('melee')).toBe(true);
     expect(isAttackCard('longstrike')).toBe(true);

@@ -35,4 +35,14 @@ describe('FOREST_LEVEL', () => {
     }
     expect(grid.isWalkable(FOREST_LEVEL.startHex)).toBe(true); // the start hex stays clear
   });
+
+  it('places reward chests on in-bounds, walkable tiles (the player moves ONTO a chest)', () => {
+    expect(FOREST_LEVEL.chests.length).toBeGreaterThan(0);
+    const grid = new HexGrid(FOREST_LEVEL.cols, FOREST_LEVEL.rows);
+    applyObstacles(grid, FOREST_LEVEL.obstacles);
+    for (const c of FOREST_LEVEL.chests) {
+      expect(grid.inBounds(c.hex)).toBe(true);
+      expect(grid.isWalkable(c.hex)).toBe(true);
+    }
+  });
 });

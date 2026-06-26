@@ -127,7 +127,6 @@ export {
   drawUpTo,
   CARD_DEFS,
   SPELL_DEFS,
-  STARTER_COLLECTION,
   cardDef,
   spellDef,
   isAttackCard,
@@ -140,6 +139,31 @@ export {
   sortPileForDisplay,
   pickCandidates,
 } from './cards';
+
+// Items & equipment: ItemDef/EquipKind, the content registry, the Equipment component + equip ops
+export type { EquipKind, ItemDef, EquippedItem, EquipmentData } from './items';
+export {
+  EQUIP_KINDS,
+  ITEM_DEFS,
+  STARTER_EQUIPMENT,
+  itemDef,
+  Equipment,
+  equipItem,
+  unequipItem,
+  equipStartingItems,
+} from './items';
+
+// Chests: reward pickups placed on the map (the Chest component, the card pool, roll/spawn/query/take)
+export type { ChestData } from './chest';
+export {
+  Chest,
+  CHEST_CARD_POOL,
+  CHEST_OFFER_SIZE,
+  rollChestOffer,
+  spawnChest,
+  chestAt,
+  takeChestCard,
+} from './chest';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)
 export type { ViewportMode, ResolutionTier, DisplaySettings } from './display';

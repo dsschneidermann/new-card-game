@@ -23,7 +23,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v7: obstacle kinds renamed wall/rock -> tall/low (persisted in ObstacleData.kind), so a v6 save carries
 // now-invalid kinds — its obstacle art (TerrainTheme.obstacleArt[kind]) resolves to undefined on resume.
 // Discard pre-rename saves (no migration), mirroring the v5 enemy-asset rename.
-export const SAVE_VERSION = 7 as const;
+// v8: the Card/Item/Spell Pickups feature added persistent Equipment + Chest components and made the
+// starting deck DERIVED from equipped items, so the saved world shape changed — discard pre-feature
+// saves so a resumed run has equipment + chests (no migration, ADR-010).
+export const SAVE_VERSION = 8 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

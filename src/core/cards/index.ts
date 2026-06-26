@@ -11,7 +11,7 @@ export {
   drawOne,
   drawUpTo,
 } from './deck';
-export { CARD_DEFS, SPELL_DEFS, STARTER_COLLECTION, cardDef, spellDef, isAttackCard, isHeavyAttack } from './content';
+export { CARD_DEFS, SPELL_DEFS, cardDef, spellDef, isAttackCard, isHeavyAttack } from './content';
 export { resolveTargeting, targetMaxRange } from './targeting';
 export { makeCardSystem } from './system';
 export { effectiveCost, cardEffectiveCost, isTempFree, sortPileForDisplay, pickCandidates } from './queries';

@@ -995,6 +995,25 @@ export class CardController {
     this.discardCount.setText(String(deck?.discardPile.length ?? 0));
   }
 
+  /** True when any overlay (a deck/discard browse OR a picker) is currently open. */
+  isOverlayOpen(): boolean {
+    return this.overlay.isOpen();
+  }
+
+  /** Refresh the deck/discard pile counters (e.g. after a chest card was added to the discard pile). */
+  refreshPiles(): void {
+    this.refreshPileCounts();
+  }
+
+  /**
+   * Open the chest reward picker: the chest's three offered card instances as faces the player chooses
+   * from. Resolves with the chosen instance id, or null if the player tapped outside (cancel). Reuses
+   * the deck/discard PileOverlay + buildOverlayItems (the offered ids are real Card instances).
+   */
+  openChestChoice(offered: readonly EntityId[], onPick: (chosen: EntityId | null) => void): void {
+    this.overlay.openPicker('Choose a card', this.buildOverlayItems(offered), onPick);
+  }
+
   /** Open the Deck or Discard browse overlay on a pile, or close it if that pile is already showing. */
   private toggleOverlay(pile: 'deck' | 'discard'): void {
     if (this.overlay.isOpen() && this.overlayPile === pile) {

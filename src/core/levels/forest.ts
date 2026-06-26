@@ -28,5 +28,11 @@ export const FOREST_LEVEL: LevelDef = {
     { kind: 'tall', hex: offsetToAxial({ col: 28, row: 22 }) },
     { kind: 'low', hex: offsetToAxial({ col: 24, row: 21 }) },
   ],
+  // Two reward chests on walkable tiles near the centred start (col 26, row 21), clear of the obstacles,
+  // to exercise the chest pickup flow. Procedural placement is a later feature.
+  chests: [
+    { hex: offsetToAxial({ col: 24, row: 19 }) },
+    { hex: offsetToAxial({ col: 28, row: 18 }) },
+  ],
   terrainSeed: 0x7e44a1, // fixed -> a consistent designed ground (could key off the world seed later)
 };
