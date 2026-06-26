@@ -24,7 +24,7 @@ export interface ObstacleSpawn {
 /**
  * A single treasure chest placed on the level: the (walkable) hex it stands on. Pure data; WorldScene
  * turns each into a Chest entity (carrying three rolled card rewards) + HexPosition — like an obstacle,
- * but on a WALKABLE tile (it doesn't block paths). The player opens it by ending a move next to it.
+ * but on a WALKABLE tile (it doesn't block paths). The player opens it by targeting it with a move (a zero-cost interact).
  */
 export interface ChestSpawn {
   readonly hex: Hex;

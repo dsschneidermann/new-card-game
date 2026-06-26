@@ -26,7 +26,7 @@ import {
   equipStartingItems,
   Chest,
   spawnChest,
-  openableChestNear,
+  unopenedChestAt,
   takeChestCard,
   isAttackCard,
   isHeavyAttack,
@@ -35,6 +35,7 @@ import {
   pixelToHex,
   offsetToAxial,
   hexDistance,
+  findPath,
   worldPixelBounds,
   terrainTile,
   terrainOverlay,
@@ -162,7 +163,8 @@ export class WorldScene extends Phaser.Scene {
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
-  // A chest the player just ended a move next to, queued to open once the move animation settles (see maybeOpenChest).
+  // A chest the player TARGETED to interact with, queued to open once the move to the preceding hex settles
+  // (see requestChestInteract / maybeOpenChest). Set only by an explicit chest target, never by adjacency.
   private pendingChest: EntityId | null = null;
 
   constructor() {
@@ -277,6 +279,9 @@ export class WorldScene extends Phaser.Scene {
         return this.fullyInFrame(x, y);
       },
       effectMask: this.effectMask,
+      // Targeting an unopened chest is a zero-cost interact rather than a stand-on move (see requestChestInteract).
+      chestInteractAt: (hex) => unopenedChestAt(this.world, hex) ?? null,
+      requestChestInteract: (chest) => this.requestChestInteract(chest),
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
@@ -364,22 +369,38 @@ export class WorldScene extends Phaser.Scene {
         this.cards.cancel();
         this.autosave();
       }
-      // The player ENDED a move next to (or on) an unopened chest: queue it to open once the move
-      // animation settles. Adjacency is enough — no movement point is spent stepping onto the chest.
-      else if (e.kind === 'MovementEnded' && e.entity === this.player) {
-        const chest = openableChestNear(this.world, e.at);
-        if (chest !== undefined) this.pendingChest = chest;
-      }
     }
     this.maybeOpenChest();
   }
 
   /**
-   * Open the chest reward picker once the player's move has visually settled next to the chest. Deferred
-   * to here (not the MovementEnded event) so the dim modal appears after the sprite arrives, not mid-slide.
-   * Opens once: pendingChest is cleared when the picker opens; the pick is applied in the callback — the
-   * chosen card goes to the player's discard pile and the chest becomes a purely-visual opened chest (its
-   * sprite is swapped to the opened-chest art); a cancel leaves the chest closed to revisit.
+   * Resolve a chest INTERACT: the player TARGETED an unopened chest, a zero movement-point action. Walk the
+   * planner's path to the chest MINUS its last step — stop on the hex immediately preceding the chest, paying
+   * only for that travel — then open it once the move settles (maybeOpenChest). If the player is already
+   * adjacent to (or standing on) the chest, no move is issued and the picker opens on the next tick. Activation
+   * happens ONLY here, never automatically by ending a move near a chest.
+   */
+  private requestChestInteract(chest: EntityId): void {
+    const chestHex = this.world.store(HexPosition).get(chest)?.hex;
+    const from = this.world.store(HexPosition).get(this.player)?.hex;
+    if (chestHex === undefined || from === undefined) return;
+    const path = findPath(this.grid, from, chestHex);
+    if (path.length === 0) return; // unreachable (defensive — the planner already gated on reachability)
+    this.pendingChest = chest;
+    if (path.length > 2) {
+      // path = [from, ..., penultimate, chest]; move to the penultimate so the chest's own last step is free.
+      const penultimate = path[path.length - 2] as Hex;
+      this.submitPlayerCommand({ kind: 'RequestMove', entity: this.player, q: penultimate.q, r: penultimate.r });
+    }
+    // path.length 1 (standing on the chest) or 2 (already adjacent): no travel — maybeOpenChest opens it next tick.
+  }
+
+  /**
+   * Open the chest reward picker once the player's move has visually settled on the hex preceding the chest
+   * (or immediately, when no move was needed). Deferred to here (not a move event) so the dim modal appears
+   * after the sprite arrives, not mid-slide. Opens once: pendingChest is cleared when the picker opens; the
+   * pick is applied in the callback — the chosen card goes to the player's discard pile and the chest becomes
+   * a purely-visual opened chest (its sprite is swapped to the opened-chest art); a cancel leaves it closed.
    */
   private maybeOpenChest(): void {
     if (this.pendingChest === null) return;
@@ -558,7 +579,7 @@ export class WorldScene extends Phaser.Scene {
       world.store(HexPosition).add(obstacle, { hex: spawn.hex });
     }
     // Chests are entities too (Chest{offered} + HexPosition) on WALKABLE tiles; the player opens one by
-    // ending a move next to it. Each rolls its three offered cards from world.rng at build (persisted);
+    // TARGETING it with a move (a zero-cost interact). Each rolls its three offered cards from world.rng at build (persisted);
     // installSystems attaches the chest art Renderable.
     for (const spawn of this.level.chests) {
       spawnChest(world, spawn.hex);

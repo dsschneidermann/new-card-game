@@ -48,7 +48,7 @@ export const AssetKeys = {
   obstacleRockGrass1: 'obstacle_rock_grass_1',
   obstacleRockGrass2: 'obstacle_rock_grass_2',
 
-  // Chest prop: a reward chest standing on a hex (bottom-anchored static sprite); opened by standing next to it.
+  // Chest prop: a reward chest standing on a hex (bottom-anchored static sprite); opened by targeting it with a move.
   chest: 'chest',
   // Opened chest prop: the purely-visual looted chest a chest becomes once taken from (no longer triggers).
   chestOpen: 'chest_open',

@@ -2,14 +2,17 @@ import { defineComponent, type ComponentType } from './ecs/component';
 import type { EntityId } from './ecs/entity';
 import type { SeededRNG } from './ecs/rng';
 import type { World } from './ecs/world';
-import { hexEquals, hexDistance, type Hex } from './hex/hex';
+import { hexEquals, type Hex } from './hex/hex';
 import { HexPosition } from './hex/movement';
 import { DeckState, buildCardInstances } from './cards';
 
 /**
- * Treasure chests on the map (Card, Item & Spell Pickups). The player opens a chest by ending a move
- * NEXT TO it (adjacent) — no movement point is spent stepping onto its tile — and chooses one of three
- * card rewards. A chest OWNS three card-instance entities (its `offered`), rolled once at world-build
+ * Treasure chests on the map (Card, Item & Spell Pickups). The player opens a chest by TARGETING it with
+ * a move — a zero movement-point INTERACT: the move stops on the hex immediately preceding the chest
+ * (paying only for that travel) and the chest opens (the scene's requestChestInteract drives this).
+ * A chest is never a normal stand-on move destination, but it does NOT block movement — it can be passed
+ * through or landed on. The player chooses one of three card rewards. A chest OWNS three card-instance
+ * entities (its `offered`), rolled once at world-build
  * from the chest card pool via world.rng; choosing one moves that instance to the player's discard pile,
  * the two unchosen cards are destroyed, and the chest is marked `opened` (it is NOT destroyed — it stays
  * on the map as a purely-visual looted chest that no longer triggers). Persisted: the chest entity, its
@@ -77,18 +80,15 @@ export function chestAt(world: World, hex: Hex): EntityId | undefined {
 }
 
 /**
- * An UNOPENED chest the player at `hex` can open — one whose tile is `hex` itself or a neighbour
- * (hexDistance <= 1). This is the activation trigger: the player only needs to stand next to a chest,
- * not step onto it. Already-opened chests are skipped (they are purely visual). Returns the first match.
+ * The UNOPENED chest standing EXACTLY on `hex`, or undefined if none. An opened chest is purely visual
+ * and not an interact target, so it is skipped. This is the chest the player opens by targeting `hex`
+ * with a move (a zero-cost interact resolved in the scene); it is distinct from chestAt, which also
+ * matches opened chests at the hex.
  */
-export function openableChestNear(world: World, hex: Hex): EntityId | undefined {
-  for (const chest of world.entitiesWith(Chest, HexPosition)) {
-    const data = world.store(Chest).get(chest);
-    if (data === undefined || data.opened) continue; // opened chests no longer trigger
-    const at = world.store(HexPosition).get(chest);
-    if (at !== undefined && hexDistance(at.hex, hex) <= 1) return chest;
-  }
-  return undefined;
+export function unopenedChestAt(world: World, hex: Hex): EntityId | undefined {
+  const chest = chestAt(world, hex);
+  if (chest === undefined) return undefined;
+  return world.store(Chest).get(chest)?.opened ? undefined : chest;
 }
 
 /**

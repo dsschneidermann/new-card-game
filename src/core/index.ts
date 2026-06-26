@@ -162,7 +162,7 @@ export {
   rollChestOffer,
   spawnChest,
   chestAt,
-  openableChestNear,
+  unopenedChestAt,
   takeChestCard,
 } from './chest';
 

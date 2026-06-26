@@ -34,6 +34,13 @@ export interface MovePlannerContext {
   isHexVisible(hex: Hex): boolean;
   /** The shared visible-window mask (WorldScene): clips the reachable fill + route numbers to the board. */
   readonly effectMask: Phaser.Display.Masks.GeometryMask;
+  /**
+   * The UNOPENED chest exactly on `hex`, or null. Targeting such a hex is a zero-cost INTERACT, not a
+   * stand-on move: the release routes to requestChestInteract instead of submitting a RequestMove.
+   */
+  chestInteractAt(hex: Hex): EntityId | null;
+  /** Resolve a chest interact: move to the hex preceding the chest (free last step), then open it. */
+  requestChestInteract(chest: EntityId): void;
 }
 
 const FILL_DEPTH = -1_000; // ground layer, below the character sprites (whose depth = screen-Y > 0)
@@ -87,9 +94,14 @@ export class MovePlanner {
     const hex = pixelToHex(this.ctx.layout, p.worldX, p.worldY);
     // A release outside the visible board cancels — same as an armed card released off-board. With a large
     // movement budget a reachable hex can lie off-screen, so reachability alone is not enough to commit a move.
-    const canMove = this.onVisibleBoard(hex) && this.reachable.has(hexKey(hex));
+    const canCommit = this.onVisibleBoard(hex) && this.reachable.has(hexKey(hex));
     this.clear();
-    if (canMove) this.ctx.submit({ kind: 'RequestMove', entity: this.ctx.player(), q: hex.q, r: hex.r });
+    if (!canCommit) return;
+    // Targeting an UNOPENED chest is a zero-cost INTERACT, not a stand-on move: stop on the hex before the
+    // chest and open it (requestChestInteract), rather than ending the move on the chest's tile.
+    const chest = this.ctx.chestInteractAt(hex);
+    if (chest !== null) this.ctx.requestChestInteract(chest);
+    else this.ctx.submit({ kind: 'RequestMove', entity: this.ctx.player(), q: hex.q, r: hex.r });
   }
 
   /** Abort an in-progress preview (e.g. a right-click or turn change while pressing); a no-op otherwise. */

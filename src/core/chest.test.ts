@@ -11,7 +11,7 @@ import {
   rollChestOffer,
   spawnChest,
   chestAt,
-  openableChestNear,
+  unopenedChestAt,
   takeChestCard,
   cardDef,
   type World,
@@ -86,17 +86,16 @@ describe('chest entities', () => {
     expect(world.store(Chest).get(chest)?.offered).toHaveLength(3);
   });
 
-  it('openableChestNear finds an unopened chest on or adjacent to the hex, and skips opened ones', () => {
+  it('unopenedChestAt matches an unopened chest EXACTLY on the hex, skips neighbours and opened chests', () => {
     const world = createWorld(6);
     const owner = makeOwner(world);
     const chest = spawnChest(world, { q: 0, r: 0 });
-    expect(openableChestNear(world, { q: 0, r: 0 })).toBe(chest); // on the chest's tile
-    expect(openableChestNear(world, { q: 1, r: 0 })).toBe(chest); // adjacent (neighbour)
-    expect(openableChestNear(world, { q: 2, r: 0 })).toBeUndefined(); // two tiles away — out of reach
-    // Once opened it is purely visual: no longer triggers from an adjacent tile.
+    expect(unopenedChestAt(world, { q: 0, r: 0 })).toBe(chest); // exactly on the chest's tile
+    expect(unopenedChestAt(world, { q: 1, r: 0 })).toBeUndefined(); // a neighbour is NOT a match (exact hex only)
+    // Once opened it is purely visual: no longer an interact target.
     const chosen = world.store(Chest).get(chest)?.offered[0] as EntityId;
     takeChestCard(world, owner, chest, chosen);
-    expect(openableChestNear(world, { q: 1, r: 0 })).toBeUndefined();
+    expect(unopenedChestAt(world, { q: 0, r: 0 })).toBeUndefined();
   });
 
   it('Chest + offered instances round-trip through serialize / restore', () => {
