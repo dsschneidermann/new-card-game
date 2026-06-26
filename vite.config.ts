@@ -20,7 +20,8 @@ export default defineConfig({
     host: '0.0.0.0',
     watch: {
       ignored: [
-        '**/**.pdnSave'
+        '**/**.pdnSave',
+        '.claude/**'
       ],
     },
   },
