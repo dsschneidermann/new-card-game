@@ -10,9 +10,6 @@ import {
   HexPosition,
   FacingState,
   Player,
-  Enemy,
-  Obstacle,
-  applyObstacles,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -25,7 +22,6 @@ import {
   Equipment,
   equipStartingItems,
   Chest,
-  spawnChest,
   unopenedChestAt,
   takeChestCard,
   isAttackCard,
@@ -37,14 +33,12 @@ import {
   hexDistance,
   findPath,
   worldPixelBounds,
-  terrainTile,
-  terrainOverlay,
-  terrainLeaf,
-  FOREST_LEVEL,
+  LevelState,
+  selectLevelId,
+  FOREST_ID,
   s,
   type Hex,
   type HexLayout,
-  type LevelDef,
   type EntityId,
   type World,
   type StorageAdapter,
@@ -64,7 +58,7 @@ import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 import { MovePlanner } from '@scenes/MovePlanner';
 import { MoveAnimator } from '@render/MoveAnimator';
-import { terrainThemeForLevel, type TerrainTheme } from '@render/terrainTheme';
+import { makeLevel, type Level, type LevelBuildContext } from '@render/levels/level';
 
 /** Scene-start payload: Resume rebuilds from the save, otherwise a fresh run. */
 interface WorldSceneData {
@@ -74,23 +68,21 @@ interface WorldSceneData {
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
 // The LAYOUT pixel fields are base (iPad) values scaled via s() into this.layout at
 // create time (s() must not run at module load).
-// The world size, start hex, enemy spawns and terrain seed now live in the active LevelDef (FOREST_LEVEL);
-// WorldScene reads them off this.level. The Larger World feature made the forest 4x the original 26x21 area.
-// The visible window stays exactly the original 26x21 grid (same on-screen frame + full hexes); the
-// camera shows this 26x21 window into the larger world and content outside it is hidden.
+// The world size, start hex, obstacles, chests, enemies and terrain are now owned by the active Level
+// (the seam); WorldScene reads cols/rows/startHex off this.level and everything else off the ECS. The
+// Larger World feature made the forest 4x the original 26x21 area. The visible window stays exactly the
+// original 26x21 grid (same on-screen frame + full hexes); the camera shows this window into the larger
+// world and content outside it is hidden.
 const VIEW_COLS = 26;
 const VIEW_ROWS = 21;
 const VIEW_CENTER_COL = Math.floor(VIEW_COLS / 2); // the window cell the player is centred on (13)
 const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 
-// Ground terrain (Hex Ground Terrain): a background tile grid, independent of the hexes, drawn as a
-// world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
-// Tiles are drawn SKEWED (width != height) although the source art is a natural 16x16 square.
+// Ground-terrain tile FOOTPRINT (display): the level builds its terrain as world-sized TilemapLayer(s) at
+// this skewed tile size (width != height although the source art is a natural 16x16 square); WorldScene
+// passes the s()-scaled size into the level's buildTerrain and clips the returned layers to the hex frame.
 const TERRAIN_TILE_W = 24; // Desktop base px tile WIDTH
 const TERRAIN_TILE_H = 16; // Desktop base px tile HEIGHT -> vertical squish vs the 16x16 source
-const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
-const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
-const LEAF_DEPTH = -1_025_000; // grass-leaf detail layer: above the grass-edge overlay, below the hex outline
 // Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
 const CAMERA_STAGGER_HEXES = 2;
@@ -117,10 +109,10 @@ const HAND_SIZE = 4;
 export class WorldScene extends Phaser.Scene {
   private world!: World;
   private grid!: HexGrid;
-  // The active level (size / start hex / enemy spawns / terrain seed) and its renderer terrain theme
-  // (tileset keys + fill/overlay/leaf frames & shapes). Resolved at the top of create().
-  private level!: LevelDef;
-  private theme!: TerrainTheme;
+  // The active level (the seam): WorldScene reads cols/rows/startHex off it and calls populate/reinstall/
+  // buildTerrain; all level content (obstacles, chests, enemies, terrain) is owned by the Level. Built in
+  // freshWorld (a random forest/space pick for the demo) or resumeOrFresh (from the saved LevelState).
+  private level!: Level;
   private sync!: SceneSync;
   private player!: EntityId;
   private storage!: StorageAdapter;
@@ -133,15 +125,10 @@ export class WorldScene extends Phaser.Scene {
   // The grass grid, drawn in WORLD space and redrawn (only on a camera pan) for the world cells that
   // fall fully inside the visible frame — so every drawn hex is a real, in-bounds world cell.
   private gridGfx!: Phaser.GameObjects.Graphics;
-  // Ground terrain: a world-sized TilemapLayer (tile indices, no baked texture — Phaser culls to the viewport)
-  // MASKED to the visible hex frame, so terrain shows only under the hexes, not in the HUD margins.
-  private terrainLayer!: Phaser.Tilemaps.TilemapLayer;
-  // The grass-edge OVERLAY layer drawn on top of the terrain fill (auto-tiling; dirt cells only).
-  private overlayLayer!: Phaser.Tilemaps.TilemapLayer;
-  // The grass-leaf detail layer drawn on top of the grass-edge overlay (decorative; all-grass 2x2 blocks only).
-  private leafLayer!: Phaser.Tilemaps.TilemapLayer;
-  private terrainCols = 0;
-  private terrainRows = 0;
+  // Ground terrain: the world-sized TilemapLayer(s) the active level builds (tile indices, no baked texture
+  // — Phaser culls to the viewport), MASKED to the visible hex frame so terrain shows only under the hexes,
+  // not in the HUD margins. The layer count is the level's (forest: fill/overlay/leaf; space: one void fill).
+  private terrainLayers: Phaser.Tilemaps.TilemapLayer[] = [];
   // The on-screen frame (the original 26x21 grid rect): only full hexes inside it are drawn and shown.
   private frame!: { left: number; right: number; top: number; bottom: number };
   // Camera scroll is clamped to this pixel box so the frame never scrolls past the world edge.
@@ -185,15 +172,13 @@ export class WorldScene extends Phaser.Scene {
     this.pendingChest = null; // no chest pickup is queued at the start of a fresh/resumed run
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
-    // Resolve the active level + its terrain theme. For now the game is the single Forest level; level
-    // transitions (later) will choose which LevelDef to load here.
-    this.level = FOREST_LEVEL;
-    this.theme = terrainThemeForLevel(this.level.id);
-    this.grid = new HexGrid(this.level.cols, this.level.rows);
-    applyObstacles(this.grid, this.level.obstacles); // obstacles block movement; tall obstacles also block line of sight
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(64), height: s(48), rowPitch: s(36), originX: s(192), originY: s(76) };
+    // Build the run's world. This is the SEAM: it picks the active level (a random forest/space pick for the
+    // demo; else the level recorded in the save), builds the grid from the level's size, populates a fresh
+    // run's content / reinstalls a resumed one, and sets this.level / this.grid / this.player.
+    this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
     // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
     // reference hex sits at the frame's centre-cell screen position so the player is where it was
     // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
@@ -214,10 +199,9 @@ export class WorldScene extends Phaser.Scene {
     };
     this.viewCenterPx = hexToPixel(this.layout, offsetToAxial({ col: VIEW_CENTER_COL, row: VIEW_CENTER_ROW }));
 
-    this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
     this.installSystems();
 
-    this.createTerrain(); // ground-tile background as a TilemapLayer windowed to the visible viewport
+    this.buildTerrain(); // the active level builds its terrain layer(s); WorldScene masks + tracks them
     this.gridGfx = this.add.graphics().setDepth(-1_000_000); // world-space hex outline; drawn by redrawGrid()
     this.buildHud();
 
@@ -504,7 +488,12 @@ export class WorldScene extends Phaser.Scene {
     return this.moveAnimator.isMoving(this.player) || this.world.commands().length > 0;
   }
 
-  /** Register the turn, movement & card systems and re-attach the transient Renderable. */
+  /**
+   * Register the turn, movement & card systems and re-attach the PLAYER's transient Renderable + AnimState.
+   * The level's content (enemy/obstacle/chest) Renderables and grid flags are (re)attached by the active
+   * level — this.level.populate (fresh) / reinstall (resume/restart) — not here, so WorldScene holds no
+   * per-kind art or content loops.
+   */
   private installSystems(): void {
     // Order: turn -> movement -> card. The turn engine validates actions and emits CardPlayed /
     // TurnStarted; the movement system executes a same-step MoveTo; the card system (last) reacts
@@ -519,33 +508,26 @@ export class WorldScene extends Phaser.Scene {
     // Transient animation stance (card-play feel), rebuilt here so Resume/Restart Turn
     // start the player in a neutral idle. Driven each frame from input + this turn's events.
     this.world.store(AnimState).add(this.player, { base: 'idle', armed: false, oneShot: null });
-    // Enemies render through the same pipeline: a transient Renderable per enemy carrying its own
-    // roster art base (Enemy.art), re-attached here on Resume/Restart Turn like the player's.
-    for (const [enemy, { art }] of this.world.store(Enemy).entries()) {
-      this.world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
-    }
-    // Obstacles render through the same pipeline as a STATIC sprite (no animBase): a transient Renderable
-    // carrying the level theme's art for the obstacle's kind, re-attached here on Resume/Restart Turn.
-    for (const [obstacle, { kind }] of this.world.store(Obstacle).entries()) {
-      this.world.store(Renderable).add(obstacle, { texture: this.theme.obstacleArt[kind] });
-    }
-    // Chests render as a STATIC sprite too (no animBase), re-attached here on Resume/Restart Turn.
-    // An already-opened chest (restored from save) shows the purely-visual opened-chest art.
-    for (const [chest, data] of this.world.store(Chest).entries()) {
-      this.world.store(Renderable).add(chest, { texture: data.opened ? AssetKeys.chestOpen : AssetKeys.chest });
-    }
   }
 
-  /** A brand-new run: a clock-seeded world with the player and its turn state. */
+  /**
+   * A brand-new run: pick the active level (a random forest/space pick for the demo; production = forest),
+   * clock-seed the world, set up the player + deck, and let the level generate + spawn its own content.
+   */
   private freshWorld(): World {
     const seed = Date.now() >>> 0;
-    console.info('[world] new run seed:', seed);
+    const id = selectLevelId(seed); // DEMO: random forest/space; reverts to forest after review (see selectLevelId)
+    this.level = makeLevel(id, seed);
+    this.grid = new HexGrid(this.level.cols, this.level.rows);
+    console.info('[world] new run seed:', seed, '— level:', id);
     const world = createWorld(seed);
     this.player = world.createEntity();
     const start = this.level.startHex;
     world.store(Player).add(this.player, { isPlayer: true });
     world.store(HexPosition).add(this.player, { hex: start });
     world.store(FacingState).add(this.player, { facing: 'right' });
+    // Persist the active level (id + seed) so a resumed run rebuilds the SAME level and regenerates its terrain.
+    world.store(LevelState).add(this.player, { id, seed });
     world.store(TurnState).add(this.player, { phase: 'player', round: 1, activeActor: this.player });
     world.store(ResourcePool).add(this.player, {
       energy: ENERGY_MAX,
@@ -564,30 +546,18 @@ export class WorldScene extends Phaser.Scene {
     equipStartingItems(world, this.player); // populates the draw pile with the basics' granted cards
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand (later turns draw via the card system on TurnStarted)
-    // Enemies are spawned from the active level definition. The forest has none for now — the temporary
-    // "one of every enemy" showcase was removed; curated per-level rosters arrive with the enemy features.
-    for (const spawn of this.level.enemySpawns) {
-      const enemy = world.createEntity();
-      world.store(Enemy).add(enemy, { isEnemy: true, art: spawn.art });
-      world.store(HexPosition).add(enemy, { hex: spawn.hex });
-    }
-    // Obstacles are entities too (Obstacle{kind} + HexPosition): installSystems attaches their art
-    // Renderable and create() already applied their walkability/sight flags to the grid.
-    for (const spawn of this.level.obstacles) {
-      const obstacle = world.createEntity();
-      world.store(Obstacle).add(obstacle, { kind: spawn.kind });
-      world.store(HexPosition).add(obstacle, { hex: spawn.hex });
-    }
-    // Chests are entities too (Chest{offered} + HexPosition) on WALKABLE tiles; the player opens one by
-    // TARGETING it with a move (a zero-cost interact). Each rolls its three offered cards from world.rng at build (persisted);
-    // installSystems attaches the chest art Renderable.
-    for (const spawn of this.level.chests) {
-      spawnChest(world, spawn.hex);
-    }
+    // The active level generates + spawns its content (obstacles, chests, enemies) as entities with their
+    // Renderables and applies the grid's walkability/sight flags. Chests roll their offered cards from
+    // world.rng here (persisted), so this stays after the deck is dealt to keep the rng stream stable.
+    this.level.populate(world, this.grid);
     return world;
   }
 
-  /** Rebuild the world from the save; fall back to a fresh run if none is usable. */
+  /**
+   * Rebuild the world from the save; fall back to a fresh run if none is usable. The active level (id +
+   * seed) is read from the restored LevelState so the SAME level is rebuilt — its terrain regenerated from
+   * the saved seed and its restored obstacle/chest/enemy entities re-applied + re-rendered via reinstall.
+   */
   private resumeOrFresh(): World {
     const loaded = loadRun(this.storage);
     if (loaded.ok) {
@@ -595,7 +565,13 @@ export class WorldScene extends Phaser.Scene {
       const player = world.entitiesWith(Player)[0];
       if (player !== undefined) {
         this.player = player;
-        console.info('[world] resumed from save');
+        const saved = world.store(LevelState).get(player);
+        const id = saved?.id ?? FOREST_ID; // defensive: a save without LevelState resumes as the forest
+        const seed = saved?.seed ?? (Date.now() >>> 0);
+        this.level = makeLevel(id, seed);
+        this.grid = new HexGrid(this.level.cols, this.level.rows);
+        this.level.reinstall(world, this.grid); // re-apply grid flags + re-attach content Renderables
+        console.info('[world] resumed from save — level:', id);
         return world;
       }
     }
@@ -619,6 +595,7 @@ export class WorldScene extends Phaser.Scene {
     this.world = restored;
     this.player = player;
     this.pendingChest = null; // a queued chest pickup from the abandoned turn is dropped on restart
+    this.level.reinstall(restored, this.grid); // re-apply grid flags + re-attach content Renderables
     this.installSystems();
     this.cards.cancel();
     this.cards.refreshHand();
@@ -798,72 +775,33 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Create the ground-terrain TilemapLayer sized to the whole hex GAME WORLD (worldPixelBounds of the
-   * GRID_COLS x GRID_ROWS grid), snapped to the terrain grid and filled ONCE from the pure core terrainTile.
-   * A TilemapLayer stores tile INDICES (no baked texture) and Phaser culls rendering to the viewport, so a
-   * world-sized layer stays cheap — the whole point of moving off the RenderTexture. It is world-space (scrolls
-   * with the camera) but MASKED to the visible hex frame (a screen-fixed rect) so terrain shows only under the
-   * hexes, not in the HUD margins.
+   * Build the active level's ground-terrain layer(s) and clip them to the visible hex frame. The level OWNS
+   * the terrain content + the tilemap build (forest: grass/dirt fill + grass-edge overlay + leaf decals;
+   * space: a single void fill); WorldScene supplies the display context (scaled tile size + world bounds),
+   * masks the returned layers to the frame, and tracks them. The layers are world-space (scroll with the
+   * camera) but MASKED to a screen-fixed rect so terrain shows only under the hexes, not in the HUD margins.
    */
-  private createTerrain(): void {
-    const tileWpx = s(TERRAIN_TILE_W);
-    const tileHpx = s(TERRAIN_TILE_H);
-    const key = this.theme.groundKey;
-    const leafKey = this.theme.leafKey;
-    const seed = this.level.terrainSeed;
-    // Per-kind variant count = its fill-frame list length, passed into the pure terrainTile so the variant
-    // index always lands within the available frames (no separate count to keep in sync with the frames).
-    const variantCounts = {
-      grass: this.theme.fillFrames.grass.length,
-      dirt: this.theme.fillFrames.dirt.length,
+  private buildTerrain(): void {
+    const ctx: LevelBuildContext = {
+      scene: this,
+      layout: this.layout,
+      worldBounds: worldPixelBounds(this.layout, this.level.cols, this.level.rows),
+      tileW: s(TERRAIN_TILE_W),
+      tileH: s(TERRAIN_TILE_H),
     };
-    // NEAREST so the 16px pixel-art tiles stay crisp scaled up.
-    this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
-    this.textures.get(leafKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
-    const wb = worldPixelBounds(this.layout, this.level.cols, this.level.rows);
-    const originCol = Math.floor(wb.minX / tileWpx);
-    // Extend the layer's TOP up by the mask's one-hex-height top-pad (layout.height) so real tiles fill it —
-    // no empty sliver above the terrain when scrolled hard against the world's top edge.
-    const topPadRows = Math.ceil(this.layout.height / tileHpx);
-    const originRow = Math.floor(wb.minY / tileHpx) - topPadRows;
-    this.terrainCols = Math.ceil(wb.maxX / tileWpx) - originCol + 1;
-    this.terrainRows = Math.ceil(wb.maxY / tileHpx) - originRow + 1;
-    const map = this.make.tilemap({ tileWidth: 16, tileHeight: 16, width: this.terrainCols, height: this.terrainRows });
-    const tileset = map.addTilesetImage('terrain', key, 16, 16) as Phaser.Tilemaps.Tileset;
-    // Second tileset on the SAME map for the grass-leaf decals (the stairs_grass foliage sheet). Its firstgid sits
-    // just past the ground tileset's range, so leaf tile gids never collide with the fill/overlay (ground) gids.
-    const leafFirstGid = tileset.firstgid + tileset.total;
-    const leafTileset = map.addTilesetImage('stairs_grass', leafKey, 16, 16, 0, 0, leafFirstGid) as Phaser.Tilemaps.Tileset;
-    this.terrainLayer = map
-      .createBlankLayer('terrain', tileset as Phaser.Tilemaps.Tileset, originCol * tileWpx, originRow * tileHpx)!
-      .setScale(tileWpx / 16, tileHpx / 16)
-      .setDepth(TERRAIN_DEPTH);
-    // Second layer (same map/tileset) for the grass-edge overlays, on top of the terrain fill.
-    this.overlayLayer = map
-      .createBlankLayer('overlay', tileset as Phaser.Tilemaps.Tileset, originCol * tileWpx, originRow * tileHpx)!
-      .setScale(tileWpx / 16, tileHpx / 16)
-      .setDepth(TERRAIN_OVERLAY_DEPTH);
-    // Third layer for the grass-leaf decals, drawn from the stairs_grass tileset, on top of the grass-edge overlays.
-    this.leafLayer = map
-      .createBlankLayer('leaf', [tileset, leafTileset], originCol * tileWpx, originRow * tileHpx)!
-      .setScale(tileWpx / 16, tileHpx / 16)
-      .setDepth(LEAF_DEPTH);
-    for (let ty = 0; ty < this.terrainRows; ty += 1) {
-      for (let tx = 0; tx < this.terrainCols; tx += 1) {
-        const { kind, variant } = terrainTile(originCol + tx, originRow + ty, seed, variantCounts);
-        this.terrainLayer.putTileAt(this.theme.fillFrames[kind][variant] as number, tx, ty);
-        const overlay = terrainOverlay(originCol + tx, originRow + ty, seed);
-        if (overlay !== null) this.overlayLayer.putTileAt(this.theme.overlayFrames[overlay], tx, ty);
-        const leafFrame = terrainLeaf(originCol + tx, originRow + ty, seed, this.theme.leafShapes);
-        // leaf frame indices are LOCAL to the stairs_grass sheet -> offset past the ground tileset's gid range.
-        if (leafFrame !== null) this.leafLayer.putTileAt(leafFirstGid + leafFrame, tx, ty);
-      }
-    }
-    // Clip the world-sized layer to the visible hex FRAME so terrain shows only under the hexes, not in the HUD
-    // margins. The layer scrolls (world-space); the mask is screen-pinned (scrollFactor 0), like PileOverlay's.
-    // The TOP edge is extended up by an extra height so ground stays visible below sprites standing on the
-    // top-row hexes (sprites are bottom-anchored and tall; otherwise the terrain clips right at their shoulders).
-    const topPad = this.layout.height * 1.5; // one and half hex height
+    this.terrainLayers = this.level.buildTerrain(ctx);
+    const mask = this.buildTerrainMask();
+    for (const layer of this.terrainLayers) layer.setMask(mask);
+  }
+
+  /**
+   * The screen-pinned geometry mask clipping the terrain layers to the visible hex frame (mirrors
+   * PileOverlay's mask). The TOP edge is extended up by an extra height so ground stays visible below the
+   * tall, bottom-anchored sprites standing on the top-row hexes (otherwise terrain clips at their
+   * shoulders); the bottom a little for the same reason.
+   */
+  private buildTerrainMask(): Phaser.Display.Masks.GeometryMask {
+    const topPad = this.layout.height * 1.5; // one and a half hex height
     const bottomPad = this.layout.height * 0.25; // quarter hex height
     const maskShape = this.make.graphics({}, false);
     maskShape
@@ -875,13 +813,7 @@ export class WorldScene extends Phaser.Scene {
         this.frame.bottom - this.frame.top + topPad + bottomPad,
       );
     maskShape.setScrollFactor(0);
-    const mask = maskShape.createGeometryMask();
-    this.terrainLayer.setMask(mask);
-    this.overlayLayer.setMask(mask);
-    this.leafLayer.setMask(mask);
-    console.info(
-      `[terrain] world layer: ${this.terrainCols} x ${this.terrainRows} = ${this.terrainCols * this.terrainRows} tiles (tile ${tileWpx}x${tileHpx}px)`,
-    );
+    return maskShape.createGeometryMask();
   }
 
   /**

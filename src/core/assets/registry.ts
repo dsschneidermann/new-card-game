@@ -87,6 +87,12 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.chest, [64, 64, 0.5], 'wooden treasure chest', 'Chest: reward pickup on the map', { frameCount: 1, downPx: 8 }),
   asset(AssetKeys.chestOpen, [64, 64, 0.5], 'open empty treasure chest', 'Chest (opened): purely-visual looted chest', { frameCount: 1, downPx: 8 }),
 
+  // --- SPACE LEVEL (TEMPORARY — removed after the level-seam code review). All ADR-004 placeholders. ---
+  // terrain_space is declared 32x32 so its half-size placeholder is a 16x16 tile (the tilemap tileset size).
+  asset(AssetKeys.terrainSpace, [32, 32], 'dark starfield void tile', 'Terrain: empty space (void) tileset', { frameCount: 1 }),
+  asset(AssetKeys.obstacleAsteroid1, [64, 64, 0.6], 'large asteroid', 'Obstacle: large asteroid (blocks movement + line of sight)', { frameCount: 1, downPx: 4 }),
+  asset(AssetKeys.obstacleAsteroid2, [64, 64, 0.45], 'small asteroid', 'Obstacle: small asteroid (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
+
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
   asset(AssetKeys.enemySlime1Idle, [64, 64, 0.5], 'slime1 idle', 'Enemy slime1 idle', { frameCount: 6, fps: 6, frameOffsetY: 192, downPx: 10 }),
@@ -319,6 +325,9 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiPanel,
   AssetKeys.chest, // no real art yet — generated placeholder (ADR-004)
   AssetKeys.chestOpen, // no real art yet — generated placeholder (ADR-004)
+  AssetKeys.terrainSpace, // TEMPORARY space level — generated placeholder (ADR-004)
+  AssetKeys.obstacleAsteroid1, // TEMPORARY space level — generated placeholder (ADR-004)
+  AssetKeys.obstacleAsteroid2, // TEMPORARY space level — generated placeholder (ADR-004)
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

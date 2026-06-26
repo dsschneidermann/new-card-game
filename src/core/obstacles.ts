@@ -1,6 +1,8 @@
 import { defineComponent, type ComponentType } from './ecs/component';
 import { type Hex } from './hex/hex';
 import { HexGrid } from './hex/grid';
+import { HexPosition } from './hex/movement';
+import type { World } from './ecs/world';
 
 /**
  * A kind of map obstacle (ADR-006). A TALL obstacle blocks movement AND line of sight; a LOW obstacle blocks
@@ -22,7 +24,7 @@ export const OBSTACLE_RULES: Record<ObstacleKind, ObstacleRule> = {
 
 /**
  * An obstacle entity's data: its kind. Persisted (like Enemy) so resume restores each obstacle and its
- * art. The renderer maps the kind to a texture via the level's TerrainTheme.obstacleArt.
+ * art. The renderer maps the kind to a texture via the active level (forest tree/rock, space asteroid).
  */
 export interface ObstacleData {
   readonly kind: ObstacleKind;
@@ -41,4 +43,18 @@ export function applyObstacles(grid: HexGrid, obstacles: Iterable<{ kind: Obstac
     if (rule.blocksMove) grid.setWalkable(hex, false);
     if (rule.blocksSight) grid.setBlocksSight(hex, true);
   }
+}
+
+/**
+ * Apply the grid walkability + sight flags from the world's RESTORED Obstacle entities. Used by a level's
+ * fresh populate AND its resume/restart reinstall, so a resumed run re-derives identical flags from the
+ * persisted obstacle entities — no need to regenerate (or persist) the placement list. Reads each
+ * Obstacle{kind} + its HexPosition and defers to applyObstacles.
+ */
+export function applyObstacleEntities(world: World, grid: HexGrid): void {
+  const spawns = world.entitiesWith(Obstacle, HexPosition).map((e) => ({
+    kind: world.store(Obstacle).get(e)!.kind,
+    hex: world.store(HexPosition).get(e)!.hex,
+  }));
+  applyObstacles(grid, spawns);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBSTACLE_RULES, Obstacle, applyObstacles } from './obstacles';
+import { OBSTACLE_RULES, Obstacle, applyObstacles, applyObstacleEntities } from './obstacles';
 import { HexGrid } from './hex/grid';
 import { offsetToAxial } from './hex/layout';
 import { HexPosition } from './hex/movement';
@@ -39,5 +39,38 @@ describe('Obstacle persistence', () => {
     const obstacles = [...restored.store(Obstacle).entries()];
     expect(obstacles).toHaveLength(1);
     expect(obstacles[0]![1].kind).toBe('tall');
+  });
+});
+
+describe('applyObstacleEntities (resume parity)', () => {
+  it('re-derives the same grid flags from restored entities as applying the placement list does', () => {
+    const tall = offsetToAxial({ col: 3, row: 3 });
+    const low = offsetToAxial({ col: 5, row: 7 });
+
+    // Fresh build: flags from the placement list.
+    const gridFromList = new HexGrid(12, 12);
+    applyObstacles(gridFromList, [
+      { kind: 'tall', hex: tall },
+      { kind: 'low', hex: low },
+    ]);
+
+    // Resume: build obstacle entities, serialize+restore, then derive flags from the restored entities.
+    const world = createWorld(1);
+    for (const [kind, hex] of [
+      ['tall', tall],
+      ['low', low],
+    ] as const) {
+      const e = world.createEntity();
+      world.store(Obstacle).add(e, { kind });
+      world.store(HexPosition).add(e, { hex });
+    }
+    const restored = restoreWorld(serializeWorld(world));
+    const gridFromEntities = new HexGrid(12, 12);
+    applyObstacleEntities(restored, gridFromEntities);
+
+    for (const hex of [tall, low]) {
+      expect(gridFromEntities.isWalkable(hex)).toBe(gridFromList.isWalkable(hex));
+      expect(gridFromEntities.blocksSight(hex)).toBe(gridFromList.blocksSight(hex));
+    }
   });
 });

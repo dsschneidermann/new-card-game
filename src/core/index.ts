@@ -55,18 +55,37 @@ export { hasLineOfSight, lineOfSightPath } from './hex/los';
 export type { HexPositionData, FacingData } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
-// Procedural ground terrain (its own square background grid; the hexes render on top)
-export type { TerrainKind, TerrainTile, TerrainOverlay, GrassNeighbours, LeafShape, LeafShapeTile } from './terrain/terrain';
-export { terrainTile, terrainKind, terrainOverlay, overlayFor, terrainLeaf, valueNoise } from './terrain/terrain';
+// Procedural-terrain ALGORITHM helpers (level-agnostic; levels compose them — grass/dirt live in the forest).
+export type { WarpOptions, OverlayTile, EdgeNeighbours, LeafShape, LeafShapeTile, ScatterOptions } from './terrain/terrain';
+export { hash01, valueNoise, warpedNoise, opened2x2, overlayFor, scatterDecal } from './terrain/terrain';
 
-// Levels: pure per-level definitions (size, start hex, enemy spawns, obstacles, terrain seed). The
-// renderer pairs each with a terrain theme by id (src/render/terrainTheme.ts); the seed feeds the pure terrain fns.
-export type { EnemySpawn, ObstacleSpawn, LevelDef } from './levels';
-export { FOREST_LEVEL } from './levels';
+// Levels: shared content-placement types + the pure level seam — the active-level component, the level ids
+// + selection, and each level's pure terrain + procedural generators. The renderer pairs these with frames/art.
+export type { EnemySpawn, ObstacleSpawn, ChestSpawn, LevelStateData, TerrainKind, TerrainTile, TerrainOverlay } from './levels';
+export {
+  LevelState,
+  FOREST_ID,
+  SPACE_ID,
+  selectLevelId,
+  forestTerrainKind,
+  forestTerrainTile,
+  forestOverlay,
+  forestLeaf,
+  FOREST_COLS,
+  FOREST_ROWS,
+  forestStartHex,
+  generateForestObstacles,
+  generateForestChests,
+  SPACE_COLS,
+  SPACE_ROWS,
+  spaceStartHex,
+  generateSpaceObstacles,
+} from './levels';
 
-// Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and applyObstacles (grid flags).
+// Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers
+// (applyObstacles for a placement list, applyObstacleEntities for the restored entities on resume).
 export type { ObstacleKind, ObstacleRule, ObstacleData } from './obstacles';
-export { OBSTACLE_RULES, Obstacle, applyObstacles } from './obstacles';
+export { OBSTACLE_RULES, Obstacle, applyObstacles, applyObstacleEntities } from './obstacles';
 
 // Character sprite animation helpers
 export type { Facing } from './sprite';

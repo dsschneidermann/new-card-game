@@ -1,0 +1,156 @@
+import { describe, it, expect } from 'vitest';
+import {
+  forestTerrainKind,
+  forestTerrainTile,
+  forestOverlay,
+  forestLeaf,
+  generateForestObstacles,
+  generateForestChests,
+  forestStartHex,
+  FOREST_COLS,
+  FOREST_ROWS,
+  HexGrid,
+  applyObstacles,
+  offsetToAxial,
+  hexKey,
+  hexDistance,
+  type LeafShape,
+} from '@core/index';
+
+describe('forest terrain (grass/dirt fill)', () => {
+  const SEED = 1234;
+  const VARIANT_COUNTS = { grass: 2, dirt: 4 };
+
+  it('forestTerrainTile is deterministic and keeps the variant within the kind bounds', () => {
+    for (let r = 0; r < 30; r += 1)
+      for (let c = 0; c < 30; c += 1) {
+        const t = forestTerrainTile(c, r, SEED, VARIANT_COUNTS);
+        expect(forestTerrainTile(c, r, SEED, VARIANT_COUNTS)).toEqual(t);
+        expect(t.variant).toBeGreaterThanOrEqual(0);
+        expect(t.variant).toBeLessThan(VARIANT_COUNTS[t.kind]);
+      }
+  });
+
+  it('produces coherent patches that are mostly grass with a non-zero dirt minority', () => {
+    const SIZE = 70;
+    let same = 0;
+    let total = 0;
+    let dirt = 0;
+    for (let r = 0; r < SIZE; r += 1)
+      for (let c = 0; c < SIZE; c += 1) {
+        if (forestTerrainKind(c, r, SEED) === 'dirt') dirt += 1;
+        if (c < SIZE - 1) {
+          total += 1;
+          if (forestTerrainKind(c, r, SEED) === forestTerrainKind(c + 1, r, SEED)) same += 1;
+        }
+      }
+    expect(same / total).toBeGreaterThan(0.8); // coherent regions, not white noise
+    const frac = dirt / (SIZE * SIZE);
+    expect(frac).toBeGreaterThan(0.02);
+    expect(frac).toBeLessThan(0.5);
+  });
+});
+
+describe('forestOverlay (grass-edge auto-tiling)', () => {
+  const SEED = 4242;
+
+  it('overlays only on dirt (a grass cell is null), and is deterministic', () => {
+    for (let r = 0; r < 40; r += 1)
+      for (let c = 0; c < 40; c += 1) {
+        if (forestTerrainKind(c, r, SEED) === 'grass') expect(forestOverlay(c, r, SEED)).toBeNull();
+        if (forestOverlay(c, r, SEED) !== null) expect(forestTerrainKind(c, r, SEED)).toBe('dirt');
+        expect(forestOverlay(c, r, SEED)).toBe(forestOverlay(c, r, SEED));
+      }
+  });
+
+  it('every dirt cell is >=2 thick (never grass on both opposite cardinals), so the rule set stays complete', () => {
+    const g = (c: number, r: number): boolean => forestTerrainKind(c, r, SEED) === 'grass';
+    for (let r = -5; r < 45; r += 1)
+      for (let c = -5; c < 45; c += 1) {
+        if (forestTerrainKind(c, r, SEED) !== 'dirt') continue;
+        expect(g(c - 1, r) && g(c + 1, r)).toBe(false);
+        expect(g(c, r - 1) && g(c, r + 1)).toBe(false);
+      }
+  });
+});
+
+describe('forestLeaf (grass-leaf foliage)', () => {
+  const SEED = 9001;
+  const SHAPES: LeafShape[] = [
+    [{ dx: 0, dy: 0, frame: 10 }],
+    [
+      { dx: 0, dy: 0, frame: 30 },
+      { dx: 1, dy: 0, frame: 31 },
+      { dx: 0, dy: 1, frame: 32 },
+      { dx: 1, dy: 1, frame: 33 },
+    ],
+  ];
+
+  it('places decals only on grass and is deterministic', () => {
+    for (let r = -10; r < 50; r += 1)
+      for (let c = -10; c < 50; c += 1) {
+        const f = forestLeaf(c, r, SEED, SHAPES);
+        expect(forestLeaf(c, r, SEED, SHAPES)).toBe(f);
+        if (f !== null) expect(forestTerrainKind(c, r, SEED)).toBe('grass');
+      }
+  });
+
+  it('is inert with no shapes', () => {
+    for (let r = 0; r < 20; r += 1) for (let c = 0; c < 20; c += 1) expect(forestLeaf(c, r, SEED, [])).toBeNull();
+  });
+});
+
+describe('forest placement generation', () => {
+  const grid = (): HexGrid => new HexGrid(FOREST_COLS, FOREST_ROWS);
+
+  it('forestStartHex is in-bounds and walkable', () => {
+    expect(grid().inBounds(forestStartHex)).toBe(true);
+    expect(grid().isWalkable(forestStartHex)).toBe(true);
+  });
+
+  it('generateForestObstacles is deterministic, in-bounds, and keeps the start clear', () => {
+    const a = generateForestObstacles(777);
+    const b = generateForestObstacles(777);
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThan(0);
+    const g = grid();
+    const startKey = hexKey(forestStartHex);
+    for (const o of a) {
+      expect(g.inBounds(o.hex)).toBe(true);
+      expect(o.kind === 'tall' || o.kind === 'low').toBe(true);
+      expect(hexKey(o.hex)).not.toBe(startKey);
+      expect(hexDistance(o.hex, forestStartHex)).toBeGreaterThan(3); // START_CLEAR_RADIUS
+    }
+  });
+
+  it('applying the generated obstacles sets walkability/sight per kind and leaves the start walkable', () => {
+    const g = grid();
+    const obstacles = generateForestObstacles(777);
+    applyObstacles(g, obstacles);
+    for (const o of obstacles) {
+      expect(g.isWalkable(o.hex)).toBe(false);
+      expect(g.blocksSight(o.hex)).toBe(o.kind === 'tall');
+    }
+    expect(g.isWalkable(forestStartHex)).toBe(true);
+  });
+
+  it('generateForestChests is deterministic, in-bounds, walkable (clear of obstacles + start), and distinct', () => {
+    const obstacles = generateForestObstacles(777);
+    const a = generateForestChests(777, obstacles);
+    const b = generateForestChests(777, obstacles);
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThan(0);
+    const g = grid();
+    applyObstacles(g, obstacles);
+    const seen = new Set<string>();
+    const blocked = new Set(obstacles.map((o) => hexKey(o.hex)));
+    for (const c of a) {
+      expect(g.inBounds(c.hex)).toBe(true);
+      expect(g.isWalkable(c.hex)).toBe(true); // not on an obstacle
+      expect(blocked.has(hexKey(c.hex))).toBe(false);
+      expect(hexKey(c.hex)).not.toBe(hexKey(forestStartHex));
+      expect(seen.has(hexKey(c.hex))).toBe(false); // distinct
+      seen.add(hexKey(c.hex));
+    }
+  });
+});

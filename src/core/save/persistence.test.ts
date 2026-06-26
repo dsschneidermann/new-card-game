@@ -7,6 +7,7 @@ import {
   defineComponent,
   HexPosition,
   FacingState,
+  LevelState,
   makeMovementSystem,
   HexGrid,
   offsetToAxial,
@@ -40,6 +41,16 @@ describe('serializeWorld / restoreWorld', () => {
     expect(restored.store(FacingState).get(a)).toEqual({ facing: 'left' });
     expect(restored.store(HexPosition).get(b)).toEqual({ hex: { q: -3, r: 4 } });
     expect(restored.entitiesWith(HexPosition)).toEqual([a, b]);
+  });
+
+  it('round-trips the active LevelState (level id + seed) so a resumed run rebuilds the right level', () => {
+    for (const id of ['forest', 'space']) {
+      const world = createWorld(5);
+      const player = world.createEntity();
+      world.store(LevelState).add(player, { id, seed: 0xabc123 });
+      const restored = restoreWorld(serializeWorld(world));
+      expect(restored.store(LevelState).get(player)).toEqual({ id, seed: 0xabc123 });
+    }
   });
 
   it('serializes only persistent components (transient ones are excluded)', () => {

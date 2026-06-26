@@ -28,7 +28,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // saves so a resumed run has equipment + chests (no migration, ADR-010).
 // v9: chests are now opened by standing NEXT TO them and are kept (not destroyed) as purely-visual
 // opened chests — Chest gained an `opened` flag, changing the saved shape again; discard older saves.
-export const SAVE_VERSION = 9 as const;
+// v10: the level-ownership refactor persists the active level via a new LevelState{id, seed} component on
+// the player (so a resumed run rebuilds the right level — forest vs space — and regenerates its terrain
+// identically). The saved shape changed; discard pre-refactor saves (no migration, ADR-010).
+export const SAVE_VERSION = 10 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

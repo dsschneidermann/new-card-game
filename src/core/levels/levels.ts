@@ -2,9 +2,14 @@ import type { Hex } from '../hex/hex';
 import type { ObstacleKind } from '../obstacles';
 
 /**
- * A single enemy placed at level start: its art base (the renderer draws `${art}.idle`)
- * and the hex it stands on. Pure data — no Phaser, no entity ids; WorldScene turns each
- * spawn into an Enemy entity at create time.
+ * Shared per-level CONTENT-PLACEMENT types (Phaser-free, ADR-002). A level's pure generator
+ * (src/core/levels/<id>) produces lists of these; the renderer Level turns each into an entity. They are
+ * level-agnostic value types — which kinds/art a level uses, and where it places them, is the level's own.
+ */
+
+/**
+ * A single enemy placed at level start: its art base (the renderer draws `${art}.idle`) and the hex it
+ * stands on. The renderer turns each into an Enemy entity.
  */
 export interface EnemySpawn {
   readonly art: string;
@@ -12,9 +17,9 @@ export interface EnemySpawn {
 }
 
 /**
- * A single obstacle placed on the level: its kind (tall/low — see OBSTACLE_RULES for what each blocks)
- * and the hex it occupies. Pure data; WorldScene turns each into an Obstacle entity, applies its
- * walkability/sight flags to the grid, and renders it via the TerrainTheme's art for its kind.
+ * A single obstacle placed on a level: its behavioural kind (tall/low — see OBSTACLE_RULES for what each
+ * blocks) and the hex it occupies. The renderer turns each into an Obstacle entity, applies its
+ * walkability/sight flags to the grid, and draws the level's art for its kind.
  */
 export interface ObstacleSpawn {
   readonly kind: ObstacleKind;
@@ -22,31 +27,10 @@ export interface ObstacleSpawn {
 }
 
 /**
- * A single treasure chest placed on the level: the (walkable) hex it stands on. Pure data; WorldScene
- * turns each into a Chest entity (carrying three rolled card rewards) + HexPosition — like an obstacle,
- * but on a WALKABLE tile (it doesn't block paths). The player opens it by targeting it with a move (a zero-cost interact).
+ * A single treasure chest placed on a level: the (walkable) hex it stands on. The renderer turns each into
+ * a Chest entity (carrying three rolled card rewards) + HexPosition — like an obstacle, but on a WALKABLE
+ * tile (it doesn't block paths). The player opens it by targeting it with a move (a zero-cost interact).
  */
 export interface ChestSpawn {
   readonly hex: Hex;
-}
-
-/**
- * A level's pure, engine-agnostic definition (ADR-002): world size, the player's start
- * hex, the enemy spawns, and the terrain seed that feeds the shared pure terrain functions
- * (terrainTile / terrainOverlay / terrainLeaf). Phaser-free and unit-testable.
- *
- * The Phaser-tileset-coupled terrain content (sheet frame indices + leaf shapes) is NOT
- * here — those are renderer-owned (see the Terrain Rendering arch), so the renderer pairs a
- * LevelDef with a TerrainTheme by id (src/render/terrainTheme.ts). The seed lives here
- * because it only drives the pure noise, not any sheet frame.
- */
-export interface LevelDef {
-  readonly id: string;
-  readonly cols: number;
-  readonly rows: number;
-  readonly startHex: Hex;
-  readonly enemySpawns: readonly EnemySpawn[];
-  readonly obstacles: readonly ObstacleSpawn[];
-  readonly chests: readonly ChestSpawn[];
-  readonly terrainSeed: number;
 }
