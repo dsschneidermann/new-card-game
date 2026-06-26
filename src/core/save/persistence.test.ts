@@ -44,13 +44,11 @@ describe('serializeWorld / restoreWorld', () => {
   });
 
   it('round-trips the active LevelState (level id + seed) so a resumed run rebuilds the right level', () => {
-    for (const id of ['forest', 'space']) {
-      const world = createWorld(5);
-      const player = world.createEntity();
-      world.store(LevelState).add(player, { id, seed: 0xabc123 });
-      const restored = restoreWorld(serializeWorld(world));
-      expect(restored.store(LevelState).get(player)).toEqual({ id, seed: 0xabc123 });
-    }
+    const world = createWorld(5);
+    const player = world.createEntity();
+    world.store(LevelState).add(player, { id: 'forest', seed: 0xabc123 });
+    const restored = restoreWorld(serializeWorld(world));
+    expect(restored.store(LevelState).get(player)).toEqual({ id: 'forest', seed: 0xabc123 });
   });
 
   it('serializes only persistent components (transient ones are excluded)', () => {

@@ -53,13 +53,6 @@ export const AssetKeys = {
   // Opened chest prop: the purely-visual looted chest a chest becomes once taken from (no longer triggers).
   chestOpen: 'chest_open',
 
-  // SPACE LEVEL (TEMPORARY — removed after the level-seam code review). Placeholder void tile + asteroid props.
-  // terrain_space is declared 32x32 so the ADR-004 placeholder (rendered at half size) yields a 16x16 tile
-  // usable as a 16x16 tilemap tileset, matching the forest ground tileset's tile size.
-  terrainSpace: 'terrain_space',
-  obstacleAsteroid1: 'obstacle_asteroid_1',
-  obstacleAsteroid2: 'obstacle_asteroid_2',
-
   // slime1
   enemySlime1Idle: 'enemy_slime1.idle',
   enemySlime1Walk: 'enemy_slime1.walk',

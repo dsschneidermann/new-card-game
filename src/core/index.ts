@@ -65,7 +65,6 @@ export type { EnemySpawn, ObstacleSpawn, ChestSpawn, LevelStateData, ForestTerra
 export {
   LevelState,
   FOREST_ID,
-  SPACE_ID,
   selectLevelId,
   forestTerrainKind,
   forestTerrainTile,
@@ -76,10 +75,6 @@ export {
   forestStartHex,
   generateForestObstacles,
   generateForestChests,
-  SPACE_COLS,
-  SPACE_ROWS,
-  spaceStartHex,
-  generateSpaceObstacles,
 } from './levels';
 
 // Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers

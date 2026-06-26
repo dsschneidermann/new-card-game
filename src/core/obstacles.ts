@@ -24,7 +24,7 @@ export const OBSTACLE_RULES: Record<ObstacleKind, ObstacleRule> = {
 
 /**
  * An obstacle entity's data: its kind. Persisted (like Enemy) so resume restores each obstacle and its
- * art. The renderer maps the kind to a texture via the active level (forest tree/rock, space asteroid).
+ * art. The renderer maps the kind to a texture via the active level (e.g. the forest's tree/rock art).
  */
 export interface ObstacleData {
   readonly kind: ObstacleKind;

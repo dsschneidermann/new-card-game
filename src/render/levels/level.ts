@@ -1,7 +1,6 @@
 import type Phaser from 'phaser';
 import {
   FOREST_ID,
-  SPACE_ID,
   HexGrid,
   type Hex,
   type HexLayout,
@@ -9,7 +8,6 @@ import {
   type World,
 } from '@core/index';
 import { ForestLevel } from './ForestLevel';
-import { SpaceLevel } from './SpaceLevel';
 
 /**
  * The renderer-side LEVEL SEAM. A Level owns its terrain, obstacles, chests and the generation that
@@ -43,8 +41,6 @@ export interface Level {
 /** Build the Level for an id (the only place that maps a level id to its renderer class). */
 export function makeLevel(id: string, seed: number): Level {
   switch (id) {
-    case SPACE_ID:
-      return new SpaceLevel(seed);
     case FOREST_ID:
     default:
       return new ForestLevel(seed);

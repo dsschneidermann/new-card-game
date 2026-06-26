@@ -112,7 +112,7 @@ export class WorldScene extends Phaser.Scene {
   private grid!: HexGrid;
   // The active level (the seam): WorldScene reads cols/rows/startHex off it and calls populate/reinstall/
   // buildTerrain; all level content (obstacles, chests, enemies, terrain) is owned by the Level. Built in
-  // freshWorld (a random forest/space pick for the demo) or resumeOrFresh (from the saved LevelState).
+  // freshWorld (selectLevelId — today always the forest) or resumeOrFresh (from the saved LevelState).
   private level!: Level;
   private sync!: SceneSync;
   private player!: EntityId;
@@ -128,7 +128,7 @@ export class WorldScene extends Phaser.Scene {
   private gridGfx!: Phaser.GameObjects.Graphics;
   // Ground terrain: the world-sized TilemapLayer(s) the active level builds (tile indices, no baked texture
   // — Phaser culls to the viewport), MASKED to the visible hex frame so terrain shows only under the hexes,
-  // not in the HUD margins. The layer count is the level's (forest: fill/overlay/leaf; space: one void fill).
+  // not in the HUD margins. The layer count is the level's (the forest's fill/overlay/leaf).
   private terrainLayers: Phaser.Tilemaps.TilemapLayer[] = [];
   // The on-screen frame (the original 26x21 grid rect): only full hexes inside it are drawn and shown.
   private frame!: { left: number; right: number; top: number; bottom: number };
@@ -176,8 +176,8 @@ export class WorldScene extends Phaser.Scene {
     this.sync = new SceneSync(this, HOP_MS);
     // Hex layout in current-scale pixels (s() — must run here, not at module load).
     this.layout = { width: s(64), height: s(48), rowPitch: s(36), originX: s(192), originY: s(76) };
-    // Build the run's world. This is the SEAM: it picks the active level (a random forest/space pick for the
-    // demo; else the level recorded in the save), builds the grid from the level's size, populates a fresh
+    // Build the run's world. This is the SEAM: it picks the active level (the forest, via selectLevelId;
+    // else the level recorded in the save), builds the grid from the level's size, populates a fresh
     // run's content / reinstalls a resumed one, and sets this.level / this.grid / this.player.
     this.world =
       data?.resume === true
@@ -517,12 +517,12 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * A brand-new run: roll a fresh clock seed, pick the active level (a random forest/space pick for the
-   * demo; production = forest) and build the run from it.
+   * A brand-new run: roll a fresh clock seed, pick the active level (selectLevelId — today always the
+   * forest, the first production level) and build the run from it.
    */
   private freshWorld(): World {
     const seed = Date.now() >>> 0;
-    const id = selectLevelId(seed); // DEMO: random forest/space; reverts to forest after review (see selectLevelId)
+    const id = selectLevelId(seed); // the seam's level pick (forest today; a future level would join here)
     return this.buildRun(id, seed);
   }
 
@@ -809,8 +809,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * Build the active level's ground-terrain layer(s) and clip them to the visible hex frame. The level OWNS
-   * the terrain content + the tilemap build (forest: grass/dirt fill + grass-edge overlay + leaf decals;
-   * space: a single void fill); WorldScene supplies the display context (scaled tile size + world bounds),
+   * the terrain content + the tilemap build (the forest's grass/dirt fill + grass-edge overlay + leaf
+   * decals); WorldScene supplies the display context (scaled tile size + world bounds),
    * masks the returned layers to the frame, and tracks them. The layers are world-space (scroll with the
    * camera) but MASKED to a screen-fixed rect so terrain shows only under the hexes, not in the HUD margins.
    */
