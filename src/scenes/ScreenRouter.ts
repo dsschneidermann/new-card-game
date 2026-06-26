@@ -60,7 +60,7 @@ export class ScreenRouter {
           mgr.stop('PauseOverlay');
           if (event === 'RestartLevel') {
             mgr.stop('WorldScene');
-            mgr.start('WorldScene');
+            mgr.start('WorldScene', { restart: true }); // replay the SAME level (same seed), reset to the start
           } else {
             mgr.resume('WorldScene');
           }

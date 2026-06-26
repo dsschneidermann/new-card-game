@@ -60,9 +60,10 @@ import { MovePlanner } from '@scenes/MovePlanner';
 import { MoveAnimator } from '@render/MoveAnimator';
 import { makeLevel, type Level, type LevelBuildContext } from '@render/levels/level';
 
-/** Scene-start payload: Resume rebuilds from the save, otherwise a fresh run. */
+/** Scene-start payload: Resume rebuilds the saved run; Restart Level replays the saved level from the start; otherwise a fresh run. */
 interface WorldSceneData {
   resume?: boolean;
+  restart?: boolean;
 }
 
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
@@ -178,7 +179,12 @@ export class WorldScene extends Phaser.Scene {
     // Build the run's world. This is the SEAM: it picks the active level (a random forest/space pick for the
     // demo; else the level recorded in the save), builds the grid from the level's size, populates a fresh
     // run's content / reinstalls a resumed one, and sets this.level / this.grid / this.player.
-    this.world = data?.resume === true ? this.resumeOrFresh() : this.freshWorld();
+    this.world =
+      data?.resume === true
+        ? this.resumeOrFresh()
+        : data?.restart === true
+          ? this.restartLevelWorld()
+          : this.freshWorld();
     // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
     // reference hex sits at the frame's centre-cell screen position so the player is where it was
     // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
@@ -511,15 +517,42 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * A brand-new run: pick the active level (a random forest/space pick for the demo; production = forest),
-   * clock-seed the world, set up the player + deck, and let the level generate + spawn its own content.
+   * A brand-new run: roll a fresh clock seed, pick the active level (a random forest/space pick for the
+   * demo; production = forest) and build the run from it.
    */
   private freshWorld(): World {
     const seed = Date.now() >>> 0;
     const id = selectLevelId(seed); // DEMO: random forest/space; reverts to forest after review (see selectLevelId)
+    return this.buildRun(id, seed);
+  }
+
+  /**
+   * Restart Level (from the pause menu): rebuild the SAME level from the start. The run's level id + seed
+   * are read back from the autosave (persisted as LevelState) and replayed, so the terrain, obstacles and
+   * chests regenerate IDENTICALLY — the level is reset to round 1, not re-randomised (the seed IS the level).
+   * Falls back to a fresh run only if no save is readable.
+   */
+  private restartLevelWorld(): World {
+    const loaded = loadRun(this.storage);
+    if (loaded.ok) {
+      const saved = applySave(loaded.state);
+      const savedPlayer = saved.entitiesWith(Player)[0];
+      const level = savedPlayer !== undefined ? saved.store(LevelState).get(savedPlayer) : undefined;
+      if (level !== undefined) return this.buildRun(level.id, level.seed);
+    }
+    console.info('[world] restart level: no usable save; starting a fresh run');
+    return this.freshWorld();
+  }
+
+  /**
+   * Build the run for a GIVEN level id + seed: construct the world, the player and its equipment-derived
+   * deck, persist the LevelState, and let the level generate + spawn its own content. Shared by a fresh run
+   * (a rolled seed) and Restart Level (the run's saved seed), so the seed alone determines the whole level.
+   */
+  private buildRun(id: string, seed: number): World {
     this.level = makeLevel(id, seed);
     this.grid = new HexGrid(this.level.cols, this.level.rows);
-    console.info('[world] new run seed:', seed, '— level:', id);
+    console.info('[world] build run — seed:', seed, '· level:', id);
     const world = createWorld(seed);
     this.player = world.createEntity();
     const start = this.level.startHex;
