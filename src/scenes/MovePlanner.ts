@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  chestInteractTargets,
+  hexesReachable,
   findPath,
   hexToPixel,
   pixelToHex,
@@ -203,12 +203,20 @@ export class MovePlanner {
   }
 
   /**
-   * Hexes the player can act on this press: every hex reachable within the movement budget PLUS unopened
-   * chests exactly one ring beyond it (a chest is a zero-cost interact — the move stops on the hex before it).
-   * The rule lives in the core chestInteractTargets so this overlay and the chest system share one definition.
+   * Hexes the player can act on this press: every hex reachable within the movement budget, PLUS unopened
+   * chests exactly ONE step beyond it. A chest is a zero-cost interact — the move stops on the hex preceding
+   * it (its own last step is free) — so a chest whose preceding hex is reachable (i.e. the chest sits at
+   * budget+1) is a valid target even though a normal move could not end there. We expand the BFS by one ring
+   * and keep only the chests it adds; every other budget+1 hex stays OUT, so non-chest tiles never become
+   * stand-on destinations. (With 0 budget the +1 ring is the neighbours, so an adjacent chest is still openable.)
    */
   private computeReachable(from: Hex): Map<string, Hex> {
-    return chestInteractTargets(this.ctx.grid, this.ctx.world(), from, this.budget());
+    const reachable = hexesReachable(this.ctx.grid, from, this.budget());
+    const expanded = hexesReachable(this.ctx.grid, from, this.budget() + 1);
+    for (const [key, hex] of expanded) {
+      if (!reachable.has(key) && this.ctx.chestInteractAt(hex) !== null) reachable.set(key, hex);
+    }
+    return reachable;
   }
 
   private playerHex(): Hex | null {

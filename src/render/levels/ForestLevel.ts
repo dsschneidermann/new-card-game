@@ -137,8 +137,15 @@ export class ForestLevel implements Level {
     for (const [obstacle, { kind }] of world.store(Obstacle).entries()) {
       world.store(Renderable).add(obstacle, { texture: OBSTACLE_ART[kind] });
     }
+    // An unopened chest shows the closed art; an already-opened chest (restored from save) shows the final
+    // frame of the 3-frame chest_1_opening sheet (frame 2 = fully open).
     for (const [chest, data] of world.store(Chest).entries()) {
-      world.store(Renderable).add(chest, { texture: data.opened ? AssetKeys.chestOpen : AssetKeys.chest });
+      world.store(Renderable).add(
+        chest,
+        data.opened
+          ? { texture: AssetKeys.chest1Opening, frame: 2 }
+          : { texture: AssetKeys.chest1Unopened },
+      );
     }
     for (const [enemy, { art }] of world.store(Enemy).entries()) {
       world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });

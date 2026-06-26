@@ -28,5 +28,5 @@ export type Command =
   | { kind: 'RequestChestInteract'; entity: EntityId; chest: EntityId }
   // The player picked one of the chest's three offered cards: the chest system applies takeChestCard
   // (chosen -> owner's discard, the two unchosen destroyed, chest marked opened) and emits ChestOpened.
-  | { kind: 'TakeChestCard'; owner: EntityId; chest: EntityId; chosen: EntityId }
+  | { kind: 'TakeChestCard'; entity: EntityId; chest: EntityId; chosen: EntityId }
   | { kind: 'EndTurn'; entity: EntityId };

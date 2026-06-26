@@ -25,12 +25,10 @@ import {
   unopenedChestAt,
   takeChestCard,
   chestStopHex,
-  chestInteractTargets,
   PendingChestInteraction,
   cardDef,
   offsetToAxial,
   hexDistance,
-  hexKey,
   findPath,
   type World,
   type EntityId,
@@ -172,42 +170,6 @@ describe('chestStopHex', () => {
   });
 });
 
-describe('chestInteractTargets', () => {
-  const grid = new HexGrid(12, 12);
-  const from = offsetToAxial({ col: 5, row: 5 });
-
-  it('includes hexes within budget and an unopened chest one ring beyond; excludes other budget+1 hexes', () => {
-    const world = createWorld(1);
-    const chestHex = offsetToAxial({ col: 8, row: 5 });
-    const nonChestFar = offsetToAxial({ col: 2, row: 5 });
-    const near = offsetToAxial({ col: 6, row: 5 });
-    expect(hexDistance(from, chestHex)).toBe(3); // budget+1
-    expect(hexDistance(from, nonChestFar)).toBe(3); // budget+1
-    expect(hexDistance(from, near)).toBe(1); // within budget
-    spawnChest(world, chestHex);
-    const targets = chestInteractTargets(grid, world, from, 2);
-    expect(targets.has(hexKey(near))).toBe(true);
-    expect(targets.has(hexKey(chestHex))).toBe(true); // unopened chest at budget+1 -> targetable
-    expect(targets.has(hexKey(nonChestFar))).toBe(false); // non-chest at budget+1 -> NOT a stand-on target
-  });
-
-  it('excludes an opened chest at budget+1', () => {
-    const world = createWorld(1);
-    const chestHex = offsetToAxial({ col: 8, row: 5 });
-    const chest = spawnChest(world, chestHex);
-    (world.store(Chest).get(chest) as { opened?: boolean }).opened = true;
-    expect(chestInteractTargets(grid, world, from, 2).has(hexKey(chestHex))).toBe(false);
-  });
-
-  it('with 0 budget still includes an adjacent unopened chest', () => {
-    const world = createWorld(1);
-    const adjacent = offsetToAxial({ col: 6, row: 5 });
-    expect(hexDistance(from, adjacent)).toBe(1);
-    spawnChest(world, adjacent);
-    expect(chestInteractTargets(grid, world, from, 0).has(hexKey(adjacent))).toBe(true);
-  });
-});
-
 describe('makeChestSystem', () => {
   it('RequestChestInteract on a chest 2+ away moves to the stop hex and marks pending, not yet ready', () => {
     const { world, grid, player } = setup();
@@ -276,7 +238,7 @@ describe('makeChestSystem', () => {
     const chest = spawnChest(world, offsetToAxial({ col: 8, row: 5 }));
     const offered = [...(world.store(Chest).get(chest)?.offered ?? [])];
     const chosen = offered[1] as EntityId;
-    const evs = advance(world, [{ kind: 'TakeChestCard', owner: player, chest, chosen }]);
+    const evs = advance(world, [{ kind: 'TakeChestCard', entity: player, chest, chosen }]);
     expect(kinds(evs)).toContain('ChestOpened');
     expect((world.store(DeckState).get(player) as DeckStateData).discardPile).toEqual([chosen]);
     expect(world.store(Chest).get(chest)?.opened).toBe(true);
@@ -287,7 +249,7 @@ describe('makeChestSystem', () => {
     const { world, player } = setup();
     const chest = spawnChest(world, offsetToAxial({ col: 8, row: 5 }));
     const stranger = world.createEntity();
-    const evs = advance(world, [{ kind: 'TakeChestCard', owner: player, chest, chosen: stranger }]);
+    const evs = advance(world, [{ kind: 'TakeChestCard', entity: player, chest, chosen: stranger }]);
     expect(kinds(evs)).not.toContain('ChestOpened');
     expect(world.store(Chest).get(chest)?.opened).toBeFalsy();
     expect((world.store(DeckState).get(player) as DeckStateData).discardPile).toHaveLength(0);

@@ -4,7 +4,7 @@ import type { SeededRNG } from './ecs/rng';
 import type { System, World } from './ecs/world';
 import { hexEquals, type Hex } from './hex/hex';
 import type { HexGrid } from './hex/grid';
-import { findPath, hexesReachable } from './hex/path';
+import { findPath } from './hex/path';
 import { HexPosition } from './hex/movement';
 import { DeckState, buildCardInstances } from './cards';
 
@@ -142,24 +142,6 @@ export function chestStopHex(grid: HexGrid, from: Hex, chestHex: Hex): Hex {
 }
 
 /**
- * The hexes a move from `from` with `budget` movement points can TARGET: every hex reachable within the
- * budget, PLUS any unopened chest exactly one ring beyond it. A chest is a zero-cost interact — the move
- * stops on the hex before it — so a chest whose preceding hex is reachable (i.e. it sits at budget+1) is a
- * valid target even though a normal move could not end there. We expand the BFS by one ring and keep only
- * the chests it adds, so non-chest budget+1 hexes never become stand-on destinations. (With 0 budget the +1
- * ring is the neighbours, so an adjacent chest is still targetable.) Shared by the move planner's overlay /
- * commit gate, keyed by hexKey like hexesReachable so the planner can paint and test membership directly.
- */
-export function chestInteractTargets(grid: HexGrid, world: World, from: Hex, budget: number): Map<string, Hex> {
-  const reachable = hexesReachable(grid, from, budget);
-  const expanded = hexesReachable(grid, from, budget + 1);
-  for (const [key, hex] of expanded) {
-    if (!reachable.has(key) && unopenedChestAt(world, hex) !== undefined) reachable.set(key, hex);
-  }
-  return reachable;
-}
-
-/**
  * Chest Interaction Core System (ADR-002): owns the chest pickup RULES so the scene keeps only input and
  * presentation. Registered BEFORE the turn system, so a RequestMove it submits for an interact is validated
  * and executed by the turn + movement systems the SAME step (commands submitted by a later system would be
@@ -206,7 +188,7 @@ export function makeChestSystem(grid: HexGrid): System {
         world.submit({ kind: 'RequestMove', entity: cmd.entity, q: stop.q, r: stop.r });
         pending.add(cmd.entity, { chest: cmd.chest, stopHex: stop });
       } else if (cmd.kind === 'TakeChestCard') {
-        takeChestCard(world, cmd.owner, cmd.chest, cmd.chosen);
+        takeChestCard(world, cmd.entity, cmd.chest, cmd.chosen);
         if (chests.get(cmd.chest)?.opened === true) world.emit({ kind: 'ChestOpened', chest: cmd.chest });
       }
     }

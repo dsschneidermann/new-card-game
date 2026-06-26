@@ -168,7 +168,7 @@ export {
 } from './items';
 
 // Chests: reward pickups placed on the map (the Chest component, the card pool, roll/spawn/query/take) and
-// the Chest Interaction Core System (makeChestSystem) + its pending marker and stop-hex / target helpers.
+// the Chest Interaction Core System (makeChestSystem) + its pending marker and stop-hex helper.
 export type { ChestData, PendingChestInteractionData } from './chest';
 export {
   Chest,
@@ -181,7 +181,6 @@ export {
   takeChestCard,
   PendingChestInteraction,
   chestStopHex,
-  chestInteractTargets,
   makeChestSystem,
 } from './chest';
 

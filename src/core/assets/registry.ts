@@ -83,9 +83,10 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
   asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
 
-  // --- Chest prop: a reward chest the player opens by targeting it with a move. Placeholder until real art drops in. ---
-  asset(AssetKeys.chest, [64, 64, 0.5], 'wooden treasure chest', 'Chest: reward pickup on the map', { frameCount: 1, downPx: 8 }),
-  asset(AssetKeys.chestOpen, [64, 64, 0.5], 'open empty treasure chest', 'Chest (opened): purely-visual looted chest', { frameCount: 1, downPx: 8 }),
+  // --- Chest prop: real 128x128 art. Unopened is static; opening is a 3-frame ONE-SHOT animation (no idle/walk/ready
+  //     suffix -> animRepeat 0, so it plays once and holds its last frame = the opened chest). ---
+  asset(AssetKeys.chest1Unopened, [128, 128, 0.5], 'wooden treasure chest, closed', 'Chest: unopened reward pickup on the map', { frameCount: 1, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.chest1Opening, [128, 128, 0.5], 'treasure chest opening (closed -> lid up)', 'Chest opening: one-shot anim, last frame = opened chest', { frameCount: 3, fps: 6, downPx: -6, forwardPx: -2 }),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
@@ -320,8 +321,6 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
-  AssetKeys.chest, // no real art yet — generated placeholder (ADR-004)
-  AssetKeys.chestOpen, // no real art yet — generated placeholder (ADR-004)
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

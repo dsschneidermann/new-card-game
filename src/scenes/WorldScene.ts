@@ -97,6 +97,8 @@ const MANA_MAX = 5;
 const MANA_REGEN = 1;
 const MOVE_BUDGET = 5;
 const HAND_SIZE = 4;
+// The opened chest shows the final frame of the 3-frame chest_1_opening sheet (frame 2 = fully open).
+const CHEST_OPENED_FRAME = 2;
 
 /**
  * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
@@ -384,7 +386,7 @@ export class WorldScene extends Phaser.Scene {
     if (data === undefined) return; // chest already gone (defensive)
     this.cards.openChestChoice(data.offered, (chosen) => {
       if (chosen === null) return; // cancelled — the chest stays closed for a later visit
-      this.world.submit({ kind: 'TakeChestCard', owner: this.player, chest, chosen });
+      this.world.submit({ kind: 'TakeChestCard', entity: this.player, chest, chosen });
     });
   }
 
@@ -394,7 +396,7 @@ export class WorldScene extends Phaser.Scene {
    * the discard pile, and checkpoint. Driven by the event, not the pick callback, so the mutation stays core-owned.
    */
   private onChestOpened(chest: EntityId): void {
-    this.world.store(Renderable).add(chest, { texture: AssetKeys.chestOpen });
+    this.world.store(Renderable).add(chest, { texture: AssetKeys.chest1Opening, frame: CHEST_OPENED_FRAME });
     this.cards.refreshPiles();
     this.autosave();
   }
