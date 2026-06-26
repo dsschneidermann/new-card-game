@@ -81,7 +81,7 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 // Ground terrain (Hex Ground Terrain): a background tile grid, independent of the hexes, drawn as a
 // world-sized TilemapLayer (below the hex outline) MASKED to the visible hex frame. Per-cell tile: core terrainTile.
 // Tiles are drawn SKEWED (width != height) although the source art is a natural 16x16 square.
-const TERRAIN_TILE_W = 32; // Desktop base px tile WIDTH
+const TERRAIN_TILE_W = 24; // Desktop base px tile WIDTH
 const TERRAIN_TILE_H = 16; // Desktop base px tile HEIGHT -> vertical squish vs the 16x16 source
 const TERRAIN_DEPTH = -1_100_000; // below the hex outline (gridGfx at -1_000_000)
 const TERRAIN_OVERLAY_DEPTH = -1_050_000; // grass-edge overlay layer: above the terrain fill, below the hex outline
