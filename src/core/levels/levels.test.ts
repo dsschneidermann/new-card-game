@@ -36,7 +36,7 @@ describe('FOREST_LEVEL', () => {
     expect(grid.isWalkable(FOREST_LEVEL.startHex)).toBe(true); // the start hex stays clear
   });
 
-  it('places reward chests on in-bounds, walkable tiles (the player moves ONTO a chest)', () => {
+  it('places reward chests on in-bounds, walkable tiles (the player opens a chest by standing next to it)', () => {
     expect(FOREST_LEVEL.chests.length).toBeGreaterThan(0);
     const grid = new HexGrid(FOREST_LEVEL.cols, FOREST_LEVEL.rows);
     applyObstacles(grid, FOREST_LEVEL.obstacles);

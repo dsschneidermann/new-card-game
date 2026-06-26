@@ -2,21 +2,25 @@ import { defineComponent, type ComponentType } from './ecs/component';
 import type { EntityId } from './ecs/entity';
 import type { SeededRNG } from './ecs/rng';
 import type { World } from './ecs/world';
-import { hexEquals, type Hex } from './hex/hex';
+import { hexEquals, hexDistance, type Hex } from './hex/hex';
 import { HexPosition } from './hex/movement';
 import { DeckState, buildCardInstances } from './cards';
 
 /**
- * Treasure chests on the map (Card, Item & Spell Pickups). The player walks ONTO a chest's hex to open
- * it and choose one of three card rewards. A chest OWNS three card-instance entities (its `offered`),
- * rolled once at world-build from the chest card pool via world.rng; choosing one moves that instance
- * to the player's discard pile and the chest (with its two unchosen cards) is destroyed. Persisted: the
- * chest entity, its `offered` ids, and each offered instance's Card component round-trip with the save.
+ * Treasure chests on the map (Card, Item & Spell Pickups). The player opens a chest by ending a move
+ * NEXT TO it (adjacent) — no movement point is spent stepping onto its tile — and chooses one of three
+ * card rewards. A chest OWNS three card-instance entities (its `offered`), rolled once at world-build
+ * from the chest card pool via world.rng; choosing one moves that instance to the player's discard pile,
+ * the two unchosen cards are destroyed, and the chest is marked `opened` (it is NOT destroyed — it stays
+ * on the map as a purely-visual looted chest that no longer triggers). Persisted: the chest entity, its
+ * `offered` ids, the `opened` flag, and each offered instance's Card component round-trip with the save.
  * Pure and Phaser-free (ADR-002) — the scene drives the UI choice, this owns the data + the mutation.
  */
 export interface ChestData {
-  /** The three card-instance entities the chest offers (each carries a Card { defId }). */
+  /** The three card-instance entities the chest offers (each carries a Card { defId }); emptied once opened. */
   offered: EntityId[];
+  /** Once taken from, the chest is purely visual: it shows the opened-chest sprite and no longer triggers. */
+  opened?: boolean;
 }
 export const Chest: ComponentType<ChestData> = defineComponent<ChestData>('Chest');
 
@@ -63,7 +67,7 @@ export function spawnChest(
   return chest;
 }
 
-/** The chest standing on `hex`, or undefined if none. */
+/** The chest standing on `hex`, or undefined if none (opened or not — a position query). */
 export function chestAt(world: World, hex: Hex): EntityId | undefined {
   for (const chest of world.entitiesWith(Chest, HexPosition)) {
     const at = world.store(HexPosition).get(chest);
@@ -73,9 +77,26 @@ export function chestAt(world: World, hex: Hex): EntityId | undefined {
 }
 
 /**
- * Take `chosen` (one of the chest's offered instances) into `owner`'s discard pile, destroy the two
- * unchosen offered instances, and destroy the chest. Defensive: if `chosen` is not one of the chest's
- * offered cards, nothing is taken and the chest is left intact (the caller passed a stale id).
+ * An UNOPENED chest the player at `hex` can open — one whose tile is `hex` itself or a neighbour
+ * (hexDistance <= 1). This is the activation trigger: the player only needs to stand next to a chest,
+ * not step onto it. Already-opened chests are skipped (they are purely visual). Returns the first match.
+ */
+export function openableChestNear(world: World, hex: Hex): EntityId | undefined {
+  for (const chest of world.entitiesWith(Chest, HexPosition)) {
+    const data = world.store(Chest).get(chest);
+    if (data === undefined || data.opened) continue; // opened chests no longer trigger
+    const at = world.store(HexPosition).get(chest);
+    if (at !== undefined && hexDistance(at.hex, hex) <= 1) return chest;
+  }
+  return undefined;
+}
+
+/**
+ * Take `chosen` (one of the chest's offered instances) into `owner`'s discard pile and destroy the two
+ * unchosen offered instances. The chest entity is NOT destroyed: it is marked `opened` and its `offered`
+ * list cleared, leaving it on the map as a purely-visual looted chest that no longer triggers. Defensive:
+ * if `chosen` is not one of the chest's offered cards, nothing is taken and the chest is left intact
+ * (the caller passed a stale id).
  */
 export function takeChestCard(world: World, owner: EntityId, chest: EntityId, chosen: EntityId): void {
   const data = world.store(Chest).get(chest);
@@ -85,5 +106,6 @@ export function takeChestCard(world: World, owner: EntityId, chest: EntityId, ch
     if (inst === chosen && deck !== undefined) deck.discardPile.push(inst);
     else world.destroyEntity(inst); // unchosen cards (and the chosen one if there is no deck) are discarded
   }
-  world.destroyEntity(chest);
+  data.offered = [];
+  data.opened = true;
 }

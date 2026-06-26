@@ -26,7 +26,7 @@ import {
   equipStartingItems,
   Chest,
   spawnChest,
-  chestAt,
+  openableChestNear,
   takeChestCard,
   isAttackCard,
   isHeavyAttack,
@@ -162,7 +162,7 @@ export class WorldScene extends Phaser.Scene {
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
-  // A chest the player just moved onto, queued to open once the move animation settles (see maybeOpenChest).
+  // A chest the player just ended a move next to, queued to open once the move animation settles (see maybeOpenChest).
   private pendingChest: EntityId | null = null;
 
   constructor() {
@@ -364,9 +364,10 @@ export class WorldScene extends Phaser.Scene {
         this.cards.cancel();
         this.autosave();
       }
-      // The player ENDED a move on a chest's hex: queue it to open once the move animation settles.
+      // The player ENDED a move next to (or on) an unopened chest: queue it to open once the move
+      // animation settles. Adjacency is enough — no movement point is spent stepping onto the chest.
       else if (e.kind === 'MovementEnded' && e.entity === this.player) {
-        const chest = chestAt(this.world, e.at);
+        const chest = openableChestNear(this.world, e.at);
         if (chest !== undefined) this.pendingChest = chest;
       }
     }
@@ -374,10 +375,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Open the chest reward picker once the player's move has visually settled on the chest. Deferred to
-   * here (not the MovementEnded event) so the dim modal appears after the sprite arrives, not mid-slide.
+   * Open the chest reward picker once the player's move has visually settled next to the chest. Deferred
+   * to here (not the MovementEnded event) so the dim modal appears after the sprite arrives, not mid-slide.
    * Opens once: pendingChest is cleared when the picker opens; the pick is applied in the callback — the
-   * chosen card goes to the player's discard pile and the chest is consumed; a cancel leaves it to revisit.
+   * chosen card goes to the player's discard pile and the chest becomes a purely-visual opened chest (its
+   * sprite is swapped to the opened-chest art); a cancel leaves the chest closed to revisit.
    */
   private maybeOpenChest(): void {
     if (this.pendingChest === null) return;
@@ -388,8 +390,10 @@ export class WorldScene extends Phaser.Scene {
     const data = this.world.store(Chest).get(chest);
     if (data === undefined) return; // chest already gone (defensive)
     this.cards.openChestChoice(data.offered, (chosen) => {
-      if (chosen === null) return; // cancelled — the chest stays for a later visit
+      if (chosen === null) return; // cancelled — the chest stays closed for a later visit
       takeChestCard(this.world, this.player, chest, chosen);
+      // The chest is now looted: swap its Renderable to the opened-chest sprite (purely visual).
+      this.world.store(Renderable).add(chest, { texture: AssetKeys.chestOpen });
       this.cards.refreshPiles();
       this.autosave();
     });
@@ -505,8 +509,9 @@ export class WorldScene extends Phaser.Scene {
       this.world.store(Renderable).add(obstacle, { texture: this.theme.obstacleArt[kind] });
     }
     // Chests render as a STATIC sprite too (no animBase), re-attached here on Resume/Restart Turn.
-    for (const [chest] of this.world.store(Chest).entries()) {
-      this.world.store(Renderable).add(chest, { texture: AssetKeys.chest });
+    // An already-opened chest (restored from save) shows the purely-visual opened-chest art.
+    for (const [chest, data] of this.world.store(Chest).entries()) {
+      this.world.store(Renderable).add(chest, { texture: data.opened ? AssetKeys.chestOpen : AssetKeys.chest });
     }
   }
 
@@ -552,8 +557,9 @@ export class WorldScene extends Phaser.Scene {
       world.store(Obstacle).add(obstacle, { kind: spawn.kind });
       world.store(HexPosition).add(obstacle, { hex: spawn.hex });
     }
-    // Chests are entities too (Chest{offered} + HexPosition) on WALKABLE tiles. Each rolls its three
-    // offered cards from world.rng at build (persisted); installSystems attaches the chest art Renderable.
+    // Chests are entities too (Chest{offered} + HexPosition) on WALKABLE tiles; the player opens one by
+    // ending a move next to it. Each rolls its three offered cards from world.rng at build (persisted);
+    // installSystems attaches the chest art Renderable.
     for (const spawn of this.level.chests) {
       spawnChest(world, spawn.hex);
     }

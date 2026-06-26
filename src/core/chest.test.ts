@@ -11,6 +11,7 @@ import {
   rollChestOffer,
   spawnChest,
   chestAt,
+  openableChestNear,
   takeChestCard,
   cardDef,
   type World,
@@ -55,7 +56,7 @@ describe('chest entities', () => {
     expect(chestAt(world, { q: 9, r: 9 })).toBeUndefined();
   });
 
-  it('takeChestCard moves the chosen card to the discard pile and destroys the chest + unchosen cards', () => {
+  it('takeChestCard moves the chosen card to the discard, destroys the unchosen, and marks the chest opened (kept)', () => {
     const world = createWorld(3);
     const owner = makeOwner(world);
     const chest = spawnChest(world, { q: 0, r: 0 });
@@ -66,19 +67,36 @@ describe('chest entities', () => {
     expect(deck.discardPile).toEqual([chosen]);
     expect(deck.drawPile).toHaveLength(0);
     expect(world.isAlive(chosen)).toBe(true);
-    expect(world.isAlive(chest)).toBe(false);
+    // The chest entity stays alive as a purely-visual opened chest: marked opened, offered cleared.
+    expect(world.isAlive(chest)).toBe(true);
+    expect(world.store(Chest).get(chest)?.opened).toBe(true);
+    expect(world.store(Chest).get(chest)?.offered).toHaveLength(0);
     for (const inst of offered) if (inst !== chosen) expect(world.isAlive(inst)).toBe(false);
   });
 
-  it('takeChestCard with a card NOT among the offered set is a no-op (chest intact, nothing taken)', () => {
+  it('takeChestCard with a card NOT among the offered set is a no-op (chest closed, nothing taken)', () => {
     const world = createWorld(4);
     const owner = makeOwner(world);
     const chest = spawnChest(world, { q: 0, r: 0 });
     const stranger = world.createEntity();
     takeChestCard(world, owner, chest, stranger);
     expect(world.isAlive(chest)).toBe(true);
+    expect(world.store(Chest).get(chest)?.opened).toBeFalsy();
     expect((world.store(DeckState).get(owner) as DeckStateData).discardPile).toHaveLength(0);
     expect(world.store(Chest).get(chest)?.offered).toHaveLength(3);
+  });
+
+  it('openableChestNear finds an unopened chest on or adjacent to the hex, and skips opened ones', () => {
+    const world = createWorld(6);
+    const owner = makeOwner(world);
+    const chest = spawnChest(world, { q: 0, r: 0 });
+    expect(openableChestNear(world, { q: 0, r: 0 })).toBe(chest); // on the chest's tile
+    expect(openableChestNear(world, { q: 1, r: 0 })).toBe(chest); // adjacent (neighbour)
+    expect(openableChestNear(world, { q: 2, r: 0 })).toBeUndefined(); // two tiles away — out of reach
+    // Once opened it is purely visual: no longer triggers from an adjacent tile.
+    const chosen = world.store(Chest).get(chest)?.offered[0] as EntityId;
+    takeChestCard(world, owner, chest, chosen);
+    expect(openableChestNear(world, { q: 1, r: 0 })).toBeUndefined();
   });
 
   it('Chest + offered instances round-trip through serialize / restore', () => {

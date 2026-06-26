@@ -43,8 +43,12 @@ export class SceneSync {
         catch(err) {
           console.error(err)
         }
-      } else if (v.frame !== undefined) {
-        sprite.setFrame(v.frame);
+      } else {
+        // Static (non-animated) sprite: reconcile the texture key so a swap on an existing sprite
+        // (e.g. a chest -> opened chest) takes effect — the texture is otherwise only set at creation.
+        // The anim branch above owns texture for animated sprites, so this can't fight an animation.
+        if (sprite.texture.key !== v.texture) sprite.setTexture(v.texture);
+        if (v.frame !== undefined) sprite.setFrame(v.frame);
       }
       sprite.setFlipX(v.flipX ?? false);
       // Resolve the CURRENTLY displayed sheet's descriptor (the playing anim's texture, not the

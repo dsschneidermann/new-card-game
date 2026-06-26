@@ -26,7 +26,9 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v8: the Card/Item/Spell Pickups feature added persistent Equipment + Chest components and made the
 // starting deck DERIVED from equipped items, so the saved world shape changed — discard pre-feature
 // saves so a resumed run has equipment + chests (no migration, ADR-010).
-export const SAVE_VERSION = 8 as const;
+// v9: chests are now opened by standing NEXT TO them and are kept (not destroyed) as purely-visual
+// opened chests — Chest gained an `opened` flag, changing the saved shape again; discard older saves.
+export const SAVE_VERSION = 9 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

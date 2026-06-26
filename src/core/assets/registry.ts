@@ -83,8 +83,9 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
   asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
 
-  // --- Chest prop: a reward chest the player walks onto to open. Placeholder until real art drops in. ---
+  // --- Chest prop: a reward chest the player opens by standing next to it. Placeholder until real art drops in. ---
   asset(AssetKeys.chest, [64, 64, 0.5], 'wooden treasure chest', 'Chest: reward pickup on the map', { frameCount: 1, downPx: 8 }),
+  asset(AssetKeys.chestOpen, [64, 64, 0.5], 'open empty treasure chest', 'Chest (opened): purely-visual looted chest', { frameCount: 1, downPx: 8 }),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
@@ -317,6 +318,7 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
   AssetKeys.chest, // no real art yet — generated placeholder (ADR-004)
+  AssetKeys.chestOpen, // no real art yet — generated placeholder (ADR-004)
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(
