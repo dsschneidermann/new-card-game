@@ -56,7 +56,7 @@ export type { HexPositionData, FacingData } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
 
 // Procedural-terrain ALGORITHM helpers (level-agnostic; levels compose them — grass/dirt live in the forest).
-export type { WarpOptions, OverlayTile, EdgeNeighbours, LeafShape, LeafShapeTile, ScatterOptions } from './terrain/terrain';
+export type { WarpOptions, OverlayTile, EdgeNeighbours, DecalShape, DecalShapeTile, ScatterOptions } from './terrain/terrain';
 export { hash01, valueNoise, warpedNoise, opened2x2, overlayFor, scatterDecal } from './terrain/terrain';
 
 // Levels: shared content-placement types + the pure level seam — the active-level component, the level ids

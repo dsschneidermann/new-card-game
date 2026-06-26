@@ -14,7 +14,7 @@ import {
   offsetToAxial,
   hexKey,
   hexDistance,
-  type LeafShape,
+  type DecalShape,
 } from '@core/index';
 
 describe('forest terrain (grass/dirt fill)', () => {
@@ -76,7 +76,7 @@ describe('forestOverlay (grass-edge auto-tiling)', () => {
 
 describe('forestLeaf (grass-leaf foliage)', () => {
   const SEED = 9001;
-  const SHAPES: LeafShape[] = [
+  const SHAPES: DecalShape[] = [
     [{ dx: 0, dy: 0, frame: 10 }],
     [
       { dx: 0, dy: 0, frame: 30 },

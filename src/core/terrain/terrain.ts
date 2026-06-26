@@ -131,7 +131,7 @@ export function overlayFor(g: EdgeNeighbours): OverlayTile | null {
 }
 
 /** One tile of a decal: its offset from the decal's top-left anchor and the sheet frame to draw. */
-export interface LeafShapeTile {
+export interface DecalShapeTile {
   readonly dx: number;
   readonly dy: number;
   readonly frame: number;
@@ -141,7 +141,7 @@ export interface LeafShapeTile {
  * A decal: a connected cluster of tiles of ANY shape, anchored at its top-left (min dx = min dy = 0).
  * The frame indices are opaque to the helper — a level maps them to its foliage sheet.
  */
-export type LeafShape = readonly LeafShapeTile[];
+export type DecalShape = readonly DecalShapeTile[];
 
 /** Tuning for scatterDecal (a level supplies its own values). */
 export interface ScatterOptions {
@@ -156,7 +156,7 @@ export interface ScatterOptions {
 }
 
 /** A decal's bounding-box size (it is anchored so min dx = min dy = 0). */
-function shapeSize(shape: LeafShape): { w: number; h: number } {
+function shapeSize(shape: DecalShape): { w: number; h: number } {
   let w = 0;
   let h = 0;
   for (const tile of shape) {
@@ -178,7 +178,7 @@ export function scatterDecal(
   col: number,
   row: number,
   seed: number,
-  shapes: readonly LeafShape[],
+  shapes: readonly DecalShape[],
   allow: (c: number, r: number) => boolean,
   o: ScatterOptions,
 ): number | null {

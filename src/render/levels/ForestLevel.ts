@@ -23,7 +23,7 @@ import {
   type ObstacleKind,
   type TerrainKind,
   type TerrainOverlay,
-  type LeafShape,
+  type DecalShape,
 } from '@core/index';
 import { Renderable } from '@render/characterViews';
 import type { Level, LevelBuildContext } from './level';
@@ -52,7 +52,7 @@ const OVERLAY_FRAMES: Record<TerrainOverlay, number> = {
 
 // Grass-leaf decals from the stairs_grass foliage sheet (frame indices LOCAL to that sheet; the renderer
 // offsets them past the ground tileset's gid range). Extracted from the gap-separated TMX "reeds" clusters.
-const LEAF_SHAPES: readonly LeafShape[] = [
+const LEAF_SHAPES: readonly DecalShape[] = [
   [{ dx: 0, dy: 0, frame: 113 }, { dx: 1, dy: 0, frame: 114 }, { dx: 0, dy: 1, frame: 134 }, { dx: 1, dy: 1, frame: 135 }, { dx: 0, dy: 2, frame: 155 }, { dx: 1, dy: 2, frame: 156 }],
   [{ dx: 0, dy: 0, frame: 115 }, { dx: 1, dy: 0, frame: 116 }, { dx: 2, dy: 0, frame: 117 }, { dx: 0, dy: 1, frame: 136 }, { dx: 1, dy: 1, frame: 137 }, { dx: 2, dy: 1, frame: 138 }, { dx: 0, dy: 2, frame: 157 }, { dx: 1, dy: 2, frame: 158 }, { dx: 2, dy: 2, frame: 159 }],
   [{ dx: 0, dy: 0, frame: 118 }, { dx: 1, dy: 0, frame: 119 }, { dx: 2, dy: 0, frame: 120 }, { dx: 0, dy: 1, frame: 139 }, { dx: 1, dy: 1, frame: 140 }, { dx: 2, dy: 1, frame: 141 }, { dx: 0, dy: 2, frame: 160 }, { dx: 1, dy: 2, frame: 161 }, { dx: 2, dy: 2, frame: 162 }],

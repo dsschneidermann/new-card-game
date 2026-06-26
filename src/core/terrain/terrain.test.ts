@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { valueNoise, opened2x2, overlayFor, scatterDecal, type LeafShape } from '@core/index';
+import { valueNoise, opened2x2, overlayFor, scatterDecal, type DecalShape } from '@core/index';
 
 describe('valueNoise', () => {
   it('stays in [0,1) and is pure for a given point + seed', () => {
@@ -79,7 +79,7 @@ describe('scatterDecal (one-per-slot decal placement)', () => {
   const SEED = 9001;
   const OPTS = { slot: 3, density: 0.8, cluster: 0.35, scale: 0.3 };
   // A single-tile decal, an L-shaped (non-rectangular) decal, and a 2x2 decal — each with distinct frames.
-  const SHAPES: LeafShape[] = [
+  const SHAPES: DecalShape[] = [
     [{ dx: 0, dy: 0, frame: 10 }],
     [
       { dx: 0, dy: 0, frame: 20 },

@@ -15,7 +15,7 @@ import {
   type WarpOptions,
   type ScatterOptions,
   type OverlayTile,
-  type LeafShape,
+  type DecalShape,
 } from '../../terrain/terrain';
 
 /** The forest ground kinds. */
@@ -91,6 +91,6 @@ const FOREST_LEAF: ScatterOptions = { slot: 3, density: 0.8, cluster: 0.35, scal
  * The grass-leaf decal frame to draw at (col, row), or null. Decals land only where the whole footprint is
  * grass. `shapes` is the renderer's foliage decal set (frame indices opaque here). Pure + deterministic.
  */
-export function forestLeaf(col: number, row: number, seed: number, shapes: readonly LeafShape[]): number | null {
+export function forestLeaf(col: number, row: number, seed: number, shapes: readonly DecalShape[]): number | null {
   return scatterDecal(col, row, seed, shapes, (c, r) => forestTerrainKind(c, r, seed) === 'grass', FOREST_LEAF);
 }
