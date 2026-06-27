@@ -25,6 +25,7 @@ import { buildItemCard } from '@render/itemCard';
 
 const OVERLAY_DEPTH = 2_000_000 + 100; // above the HUD, same band as PileOverlay
 const TOOLTIP_DEPTH = OVERLAY_DEPTH + 10;
+const FIGURE_MARGIN_LEFT = 40; // base-px gap from the screen's left edge to the mannequin's left edge (hugs the Gear column)
 const FIGURE_TOP = 150; // base-px y of the mannequin's TOP edge (below the title)
 const SLOT_RADIUS = 42; // base-px slot disc radius
 const SLOT_FILL = 0x394150; // slot backing-disc fill
@@ -37,7 +38,7 @@ const SLOT_ART_INSET = 7; // px inset of the art within the disc
 const SLOT_LABEL_FONT_PX = 12; // empty-slot kind label
 const SLOT_LABEL_COLOR = '#9ca3af';
 const TOOLTIP_SCALE = 0.8; // the hovered item's rectangle renders a touch smaller than full
-const TOOLTIP_GAP = 36; // px gap between the figure edge and the tooltip
+const TOOLTIP_GAP = 36; // px gap between the slot disc and its tooltip
 
 /**
  * Fractional slot positions over the figure: (fx, fy) are fractions of the displayed figure's width/height
@@ -59,10 +60,9 @@ const SLOT_LAYOUT: Record<EquipKind, { fx: number; fy: number }> = {
 
 export class EquipmentOverlay {
   private readonly container: Phaser.GameObjects.Container;
+  private readonly title: Phaser.GameObjects.Text;
   private dynamic: Phaser.GameObjects.GameObject[] = []; // mannequin + slots, rebuilt each open
   private tooltip: Phaser.GameObjects.Container | null = null;
-  private figureCx = 0; // displayed figure centre x (screen px), set on open
-  private figureHalfW = 0; // displayed figure half-width (screen px), set on open
 
   constructor(private readonly scene: Phaser.Scene) {
     const { width, height } = scene.scale;
@@ -72,10 +72,10 @@ export class EquipmentOverlay {
     // against its own scrollFactor, so without this the backdrop's hit area would drift with the world camera.
     const dim = scene.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setScrollFactor(0).setInteractive();
     dim.on('pointerdown', () => this.close()); // tap the backdrop to close
-    const title = scene.add
+    this.title = scene.add
       .text(width / 2, s(80), 'Equipment', { fontFamily: 'monospace', fontSize: `${s(48)}px`, color: '#e5e7eb' })
       .setOrigin(0.5);
-    this.container.add([dim, title]);
+    this.container.add([dim, this.title]);
   }
 
   isOpen(): boolean {
@@ -86,17 +86,16 @@ export class EquipmentOverlay {
    *  current equipment (e.g. right after a chest equip). `equipment` is the player's EquipmentData (or undefined). */
   open(equipment: EquipmentData | undefined): void {
     this.clearDynamic();
-    const { width } = this.scene.scale;
-    // Mannequin figure: display size from its descriptor (assetScale, the no-hardcoded-scale invariant),
-    // top-anchored under the title. Slot positions are fractions of THIS displayed size, so they track it.
+    // Mannequin figure: display size from its descriptor (assetScale, the no-hardcoded-scale invariant).
+    // Slot positions are fractions of THIS displayed size, so they track it.
     const md = resolveKey(AssetKeys.uiMannequin)?.descriptor;
     const mScale = md ? assetScale(md) : 1;
     const fw = s((md?.size[0] ?? 512) * mScale);
     const fh = s((md?.size[1] ?? 1024) * mScale);
-    const cx = width / 2;
+    // Left-anchored: the figure hugs the screen's left edge, above the Gear button's column.
+    const cx = s(FIGURE_MARGIN_LEFT) + fw / 2;
     const cy = s(FIGURE_TOP) + fh / 2;
-    this.figureCx = cx;
-    this.figureHalfW = fw / 2;
+    this.title.setX(cx); // centre the title over the (left-shifted) figure
     const figure = this.scene.add.image(cx, cy, AssetKeys.uiMannequin).setOrigin(0.5).setDisplaySize(fw, fh).setScrollFactor(0);
     this.container.add(figure);
     this.dynamic.push(figure);
@@ -152,13 +151,17 @@ export class EquipmentOverlay {
     // Hovering a FILLED slot shows that item's full rectangle as a tooltip beside the figure.
     if (def !== undefined) {
       slotC.setInteractive(new Phaser.Geom.Circle(0, 0, r), Phaser.Geom.Circle.Contains);
-      slotC.on('pointerover', () => this.showTooltip(def, x));
+      slotC.on('pointerover', () => this.showTooltip(def, x, y));
       slotC.on('pointerout', () => this.hideTooltip());
     }
   }
 
-  /** Show `def`'s full item rectangle as a tooltip, on the side of the figure away from the hovered slot. */
-  private showTooltip(def: ItemDef, slotX: number): void {
+  /**
+   * Show `def`'s full item rectangle as a tooltip to the RIGHT of the hovered slot, vertically centred on
+   * the slot — mirroring the spell sidebar's hover tooltip (which sits a fixed dx right of the disc).
+   * Clamped so the whole card stays on-screen.
+   */
+  private showTooltip(def: ItemDef, slotX: number, slotY: number): void {
     this.hideTooltip();
     const { width, height } = this.scene.scale;
     const card = buildItemCard(this.scene, def, { scale: TOOLTIP_SCALE });
@@ -167,13 +170,10 @@ export class EquipmentOverlay {
     const fd = resolveKey(AssetKeys.cardSkill)?.descriptor;
     const halfW = (s(fd ? fd.size[0] * assetScale(fd) : 195) * TOOLTIP_SCALE) / 2;
     const halfH = (s(fd ? fd.size[1] * assetScale(fd) : 284) * TOOLTIP_SCALE) / 2;
-    // Put the tooltip on the side OPPOSITE the hovered slot so it never covers it; clamp fully on-screen.
-    const onLeftHalf = slotX <= this.figureCx;
-    const rawX = onLeftHalf
-      ? this.figureCx + this.figureHalfW + s(TOOLTIP_GAP) + halfW
-      : this.figureCx - this.figureHalfW - s(TOOLTIP_GAP) - halfW;
+    // To the RIGHT of the slot disc, at the slot's y; clamp so the whole card stays on-screen.
+    const rawX = slotX + s(SLOT_RADIUS) + s(TOOLTIP_GAP) + halfW;
     const tx = Phaser.Math.Clamp(rawX, halfW + s(8), width - halfW - s(8));
-    const ty = Phaser.Math.Clamp(height / 2, halfH + s(8), height - halfH - s(8));
+    const ty = Phaser.Math.Clamp(slotY, halfH + s(8), height - halfH - s(8));
     card.setPosition(tx, ty).setDepth(TOOLTIP_DEPTH).setScrollFactor(0);
     this.tooltip = card;
   }
