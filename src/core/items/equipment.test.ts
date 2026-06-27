@@ -13,6 +13,7 @@ import {
   ITEM_DEFS,
   EQUIP_KINDS,
   cardDef,
+  resolveKey,
   type World,
   type EntityId,
   type DeckStateData,
@@ -39,6 +40,13 @@ describe('item content registry', () => {
     }
     for (const item of ITEM_DEFS) {
       for (const id of item.grantsCards) expect(cardDef(id)).toBeDefined();
+    }
+  });
+
+  it('every item declares equipment art that resolves to a registered asset key', () => {
+    for (const item of ITEM_DEFS) {
+      expect(item.art, `${item.id} has art`).toBeTruthy();
+      expect(resolveKey(item.art), `${item.id} art "${item.art}" resolves in the manifest`).toBeDefined();
     }
   });
 

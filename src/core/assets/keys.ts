@@ -38,6 +38,21 @@ export const AssetKeys = {
   spellArtSelfheal: 'spell_art_selfheal',
   spellArtTeleport: 'spell_art_teleport',
 
+  // Equipment / item art (one per ItemDef): shown in the item rectangle's top half and the equipped-items overlay slots.
+  itemArtIronSword: 'item_art_iron_sword',
+  itemArtWoodenShield: 'item_art_wooden_shield',
+  itemArtShortBow: 'item_art_short_bow',
+  itemArtLeatherBoots: 'item_art_leather_boots',
+  itemArtRustyDagger: 'item_art_rusty_dagger',
+  itemArtLeatherCap: 'item_art_leather_cap',
+  itemArtLeatherTunic: 'item_art_leather_tunic',
+  itemArtTravelersCape: 'item_art_travelers_cape',
+  itemArtPlainAmulet: 'item_art_plain_amulet',
+  itemArtApprenticeSpellbook: 'item_art_apprentice_spellbook',
+
+  // Equipped-items overlay: the mannequin figure the equip slots are laid over.
+  uiMannequin: 'ui_mannequin',
+
   // Ground terrain tileset (16x16 frame-indexed spritesheet) for the square terrain background.
   terrainGroundGrass: 'terrain_ground_grass',
   // Grass-leaf foliage tileset (16x16 frame-indexed spritesheet) — the leaf detail layer reads its decal frames from it.

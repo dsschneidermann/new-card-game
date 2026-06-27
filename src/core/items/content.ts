@@ -1,4 +1,5 @@
 import type { ItemDef } from './types';
+import { AssetKeys } from '../assets/keys';
 
 /**
  * The static starter item content (Card, Item & Spell Pickups). One example ItemDef per kind. Today
@@ -8,19 +9,19 @@ import type { ItemDef } from './types';
  */
 export const ITEM_DEFS: readonly ItemDef[] = [
   // The four basic starting items: each grants two basic cards. Their combined grants ARE the opening deck.
-  { id: 'iron_sword', name: 'Iron Sword', kind: 'weapon_melee', grantsCards: ['melee', 'melee'] },
-  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'] },
-  { id: 'short_bow', name: 'Short Bow', kind: 'weapon_ranged', grantsCards: ['rangedshot', 'rangedshot'] },
-  { id: 'leather_boots', name: 'Leather Boots', kind: 'boots', grantsCards: ['jump', 'jump'] },
+  { id: 'iron_sword', name: 'Iron Sword', kind: 'weapon_melee', grantsCards: ['melee', 'melee'], art: AssetKeys.itemArtIronSword },
+  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'], art: AssetKeys.itemArtWoodenShield },
+  { id: 'short_bow', name: 'Short Bow', kind: 'weapon_ranged', grantsCards: ['rangedshot', 'rangedshot'], art: AssetKeys.itemArtShortBow },
+  { id: 'leather_boots', name: 'Leather Boots', kind: 'boots', grantsCards: ['jump', 'jump'], art: AssetKeys.itemArtLeatherBoots },
 
   // One placeholder example per remaining kind (no card grants yet; stat bonuses are deferred).
-  { id: 'rusty_dagger', name: 'Rusty Dagger', kind: 'weapon_backup', grantsCards: [] },
-  { id: 'leather_cap', name: 'Leather Cap', kind: 'armor_head', grantsCards: [] },
-  { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [] },
-  { id: 'travelers_cape', name: "Traveler's Cape", kind: 'cape', grantsCards: [] },
-  { id: 'plain_amulet', name: 'Plain Amulet', kind: 'amulet', grantsCards: [] },
+  { id: 'rusty_dagger', name: 'Rusty Dagger', kind: 'weapon_backup', grantsCards: [], art: AssetKeys.itemArtRustyDagger },
+  { id: 'leather_cap', name: 'Leather Cap', kind: 'armor_head', grantsCards: [], art: AssetKeys.itemArtLeatherCap },
+  { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [], art: AssetKeys.itemArtLeatherTunic },
+  { id: 'travelers_cape', name: "Traveler's Cape", kind: 'cape', grantsCards: [], art: AssetKeys.itemArtTravelersCape },
+  { id: 'plain_amulet', name: 'Plain Amulet', kind: 'amulet', grantsCards: [], art: AssetKeys.itemArtPlainAmulet },
   // grantsSpells is illustrative only — spellbook -> spell granting is deferred (no player-spell collection yet).
-  { id: 'apprentice_spellbook', name: 'Apprentice Spellbook', kind: 'spellbook', grantsCards: [], grantsSpells: ['blizzard'] },
+  { id: 'apprentice_spellbook', name: 'Apprentice Spellbook', kind: 'spellbook', grantsCards: [], grantsSpells: ['blizzard'], art: AssetKeys.itemArtApprenticeSpellbook },
 ];
 
 /**

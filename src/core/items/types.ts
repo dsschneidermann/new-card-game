@@ -1,3 +1,5 @@
+import type { AssetKey } from '../assets/keys';
+
 /**
  * Items & equipment (Card, Item & Spell Pickups feature). An ItemDef is plain, engine-agnostic data
  * identified by id; its `kind` is the equipment slot it fills (the player equips at most one item per
@@ -46,4 +48,7 @@ export interface ItemDef {
   readonly grantsCards: readonly string[];
   /** SpellDef ids a spellbook would grant — DEFERRED (not consumed yet; spellbooks are TBD). */
   readonly grantsSpells?: readonly string[];
+  /** Registered AssetKey of this item's equipment art (e.g. AssetKeys.itemArtIronSword): shown in the
+   *  item rectangle's top half and in the equipped-items overlay slot. Mirrors CardDef.art / SpellDef.art. */
+  readonly art: AssetKey;
 }

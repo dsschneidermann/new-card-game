@@ -24,6 +24,7 @@ import {
   canPlaySpell,
   OfferedItem,
   itemDef,
+  Equipment,
   type World,
   type EntityId,
   type HexGrid,
@@ -31,11 +32,12 @@ import {
   type Hex,
   type CardDef,
   type SpellDef,
-  type ItemDef,
   type Command,
 } from '@core/index';
 import { PileOverlay, OVERLAY_FACE_SCALE, type OverlayItem } from './PileOverlay';
 import { TargetingPainter } from './TargetingPainter';
+import { EquipmentOverlay } from './EquipmentOverlay';
+import { buildItemCard } from '@render/itemCard';
 
 /** What WorldScene provides to the card UI (kept thin; no Phaser types leak into core). */
 export interface CardUiContext {
@@ -177,6 +179,8 @@ export class CardController {
   // The Deck/Discard/card-picker overlay (its own widget); CardController only opens/closes it.
   private overlay!: PileOverlay;
   private overlayPile: 'deck' | 'discard' | null = null; // which pile the browse overlay shows (null = closed)
+  // The Equipped-Items overlay (its own widget); CardController owns the button + open/close lifecycle.
+  private equipment!: EquipmentOverlay;
   private deckCount!: Phaser.GameObjects.Text; // draw-pile count over the deck icon (lower-left)
   private discardCount!: Phaser.GameObjects.Text; // discard-pile count over the discard icon (lower-right)
 
@@ -197,7 +201,9 @@ export class CardController {
     this.buildSpellSidebar();
     this.buildDeckIcon();
     this.buildDiscardIcon();
+    this.buildEquipmentButton();
     this.overlay = new PileOverlay(this.scene);
+    this.equipment = new EquipmentOverlay(this.scene);
     this.refreshHand();
   }
 
@@ -290,6 +296,7 @@ export class CardController {
     this.disarm();
     this.overlay.close();
     this.overlayPile = null;
+    this.equipment.close();
   }
 
   /**
@@ -991,6 +998,37 @@ export class CardController {
     icon.on('pointerdown', () => this.toggleOverlay('discard'));
   }
 
+  /**
+   * The equipped-items button: a lower-left HUD slab directly ABOVE the deck icon (the deck icon sits at
+   * height - s(80)). Opens the Equipped-Items overlay. Screen-pinned at HUD depth like the deck/discard
+   * icons, so it sits above the world input zone and never leaks the press to the board.
+   */
+  private buildEquipmentButton(): void {
+    const { height } = this.scene.scale;
+    const icon = this.scene.add.container(s(88), height - s(196)).setDepth(HUD_DEPTH).setScrollFactor(0);
+    const box = this.scene.add.rectangle(0, 0, s(76), s(64), 0x394150).setStrokeStyle(s(4), 0x9ca3af);
+    const label = this.scene.add
+      .text(0, 0, 'Gear', { fontFamily: 'monospace', fontSize: `${s(24)}px`, color: '#e5e7eb' })
+      .setOrigin(0.5);
+    icon.add([box, label]);
+    icon.setInteractive(new Phaser.Geom.Rectangle(-s(44), -s(40), s(88), s(80)), Phaser.Geom.Rectangle.Contains);
+    icon.on('pointerdown', () => this.toggleEquipment());
+  }
+
+  /**
+   * Toggle the equipped-items overlay. Opening it first closes any open pile browse/picker (single active
+   * modal) and reads the player's CURRENT Equipment, so the panel always reflects the live loadout.
+   */
+  private toggleEquipment(): void {
+    if (this.equipment.isOpen()) {
+      this.equipment.close();
+      return;
+    }
+    this.overlay.close();
+    this.overlayPile = null;
+    this.equipment.open(this.ctx.world().store(Equipment).get(this.ctx.player()));
+  }
+
   /** Refresh the draw-pile (Deck) and discard-pile counters from the live DeckState. */
   private refreshPileCounts(): void {
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
@@ -998,9 +1036,9 @@ export class CardController {
     this.discardCount.setText(String(deck?.discardPile.length ?? 0));
   }
 
-  /** True when any overlay (a deck/discard browse OR a picker) is currently open. */
+  /** True when any overlay (a deck/discard browse, a picker, OR the equipped-items panel) is open. */
   isOverlayOpen(): boolean {
-    return this.overlay.isOpen();
+    return this.overlay.isOpen() || this.equipment.isOpen();
   }
 
   /** Refresh the deck/discard pile counters (e.g. after a chest card was added to the discard pile). */
@@ -1037,56 +1075,12 @@ export class CardController {
       const option = world.store(OfferedItem).get(id);
       if (option !== undefined) {
         const def = itemDef(option.defId);
-        if (def !== undefined) items.push({ id, face: this.makeItemFace(def) });
+        // Item options render as the shared item rectangle (no card face) at the overlay face scale, so the
+        // picker hit-test (card-face footprint) still lines up. Same builder the equipment overlay tooltip uses.
+        if (def !== undefined) items.push({ id, face: buildItemCard(this.scene, def, { scale: OVERLAY_FACE_SCALE }) });
       }
     }
     return items;
-  }
-
-  /**
-   * A minimal item face for a chest reward (items have no per-item art yet): the skill-card background with
-   * the item name, its slot kind, and a short grant summary. Sized + scaled to match makeCardFace so the
-   * PileOverlay hit-test (which assumes the card-face footprint) lines up.
-   */
-  private makeItemFace(def: ItemDef): Phaser.GameObjects.Container {
-    const { w: baseW, h: baseH } = this.cardFaceBase();
-    const w = s(baseW);
-    const h = s(baseH);
-    const c = this.scene.add.container(0, 0).setScrollFactor(0);
-    const background = this.scene.add.image(0, 0, AssetKeys.cardSkill).setOrigin(0.5).setDisplaySize(w, h);
-    const name = this.scene.add
-      .text(0, -h / 2 + s(28), def.name, {
-        fontFamily: 'monospace',
-        fontSize: `${s(22)}px`,
-        color: CARD_NAME_COLOR,
-        align: 'center',
-        wordWrap: { width: w - s(40) },
-      })
-      .setOrigin(0.5, 0);
-    const slot = this.scene.add
-      .text(0, 0, `Equip · ${def.kind.replace(/_/g, ' ')}`, {
-        fontFamily: 'monospace',
-        fontSize: `${s(16)}px`,
-        color: '#9ca3af',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-    const grantsText =
-      def.grantsCards.length > 0
-        ? `grants ${def.grantsCards.length} card${def.grantsCards.length > 1 ? 's' : ''}`
-        : 'no bonus yet';
-    const grants = this.scene.add
-      .text(0, h / 2 - s(72), grantsText, {
-        fontFamily: 'monospace',
-        fontSize: `${s(16)}px`,
-        color: CARD_EFFECT_COLOR,
-        align: 'center',
-        wordWrap: { width: w - s(48) },
-      })
-      .setOrigin(0.5, 0);
-    c.add([background, name, slot, grants]);
-    c.setScale(OVERLAY_FACE_SCALE);
-    return c;
   }
 
   /** Open the Deck or Discard browse overlay on a pile, or close it if that pile is already showing. */
@@ -1096,6 +1090,7 @@ export class CardController {
       this.overlayPile = null;
       return;
     }
+    this.equipment.close(); // single active modal: opening a pile closes the equipped-items panel
     const deck = this.ctx.world().store(DeckState).get(this.ctx.player());
     const ids = pile === 'deck' ? deck?.drawPile ?? [] : deck?.discardPile ?? [];
     this.overlay.openBrowse(pile === 'deck' ? 'Deck' : 'Discard', this.buildOverlayItems(ids));

@@ -72,6 +72,22 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.spellArtSelfheal, [128, 128, 0.46], 'spell art (self heal)', 'Spell art: self heal'),
   asset(AssetKeys.spellArtTeleport, [128, 128, 0.46], 'spell art (teleport)', 'Spell art: teleport'),
 
+  // --- Equipment / item art (one per ItemDef): the item rectangle's top-half image + the equipped-items
+  //     overlay slot icons. Static, scale 0.35 like card art; PLACEHOLDERS until real art drops in. ---
+  asset(AssetKeys.itemArtIronSword, [256, 256, 0.35], 'item art (iron sword)', 'Item art: iron sword'),
+  asset(AssetKeys.itemArtWoodenShield, [256, 256, 0.35], 'item art (wooden shield)', 'Item art: wooden shield'),
+  asset(AssetKeys.itemArtShortBow, [256, 256, 0.35], 'item art (short bow)', 'Item art: short bow'),
+  asset(AssetKeys.itemArtLeatherBoots, [256, 256, 0.35], 'item art (leather boots)', 'Item art: leather boots'),
+  asset(AssetKeys.itemArtRustyDagger, [256, 256, 0.35], 'item art (rusty dagger)', 'Item art: rusty dagger'),
+  asset(AssetKeys.itemArtLeatherCap, [256, 256, 0.35], 'item art (leather cap)', 'Item art: leather cap'),
+  asset(AssetKeys.itemArtLeatherTunic, [256, 256, 0.35], 'item art (leather tunic)', 'Item art: leather tunic'),
+  asset(AssetKeys.itemArtTravelersCape, [256, 256, 0.35], 'item art (travelers cape)', 'Item art: travelers cape'),
+  asset(AssetKeys.itemArtPlainAmulet, [256, 256, 0.35], 'item art (plain amulet)', 'Item art: plain amulet'),
+  asset(AssetKeys.itemArtApprenticeSpellbook, [256, 256, 0.35], 'item art (apprentice spellbook)', 'Item art: apprentice spellbook'),
+
+  // --- Equipped-items overlay figure: the mannequin the equip slots are laid over. Single static UI image. ---
+  asset(AssetKeys.uiMannequin, [512, 1024, 0.34], 'humanoid mannequin silhouette, front-facing', 'Equipment overlay mannequin figure'),
+
   // --- Ground terrain: the Ground_grass tileset as a 16x16 frame-indexed spritesheet (frameCount, NO
   //     fps = static frame states, not an animation). The square terrain background reads fill frames from it. ---
   asset(AssetKeys.terrainGroundGrass, [16, 16], 'ground + grass terrain fill tiles', 'Terrain: ground/grass tileset', { frameCount: 651 }),
@@ -321,6 +337,18 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
+  // Equipment visuals: placeholders so the suite + build stay green with no files; promote per key as real art lands.
+  AssetKeys.itemArtIronSword,
+  AssetKeys.itemArtWoodenShield,
+  AssetKeys.itemArtShortBow,
+  AssetKeys.itemArtLeatherBoots,
+  AssetKeys.itemArtRustyDagger,
+  AssetKeys.itemArtLeatherCap,
+  AssetKeys.itemArtLeatherTunic,
+  AssetKeys.itemArtTravelersCape,
+  AssetKeys.itemArtPlainAmulet,
+  AssetKeys.itemArtApprenticeSpellbook,
+  AssetKeys.uiMannequin,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(
