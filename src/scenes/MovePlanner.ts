@@ -7,6 +7,8 @@ import {
   hexKey,
   HexPosition,
   MovementBudget,
+  unopenedChestAt,
+  disguisedMimicAt,
   s,
   type World,
   type EntityId,
@@ -28,18 +30,12 @@ export interface MovePlannerContext {
   canStart(): boolean;
   /**
    * True when a hex is on the VISIBLE board — in grid bounds AND fully inside the on-screen frame. Used for
-   * the ACTION gate only (onRelease cancels a move released off the visible board); the visual clipping of
+   * the ACTION gate only (onPointerUp cancels a move released off the visible board); the visual clipping of
    * the overlay rides the shared effectMask, not this predicate.
    */
   isHexVisible(hex: Hex): boolean;
   /** The shared visible-window mask (WorldScene): clips the reachable fill + route numbers to the board. */
   readonly effectMask: Phaser.Display.Masks.GeometryMask;
-  /**
-   * The UNOPENED chest exactly on `hex`, or null. Targeting such a hex is a zero-cost INTERACT, not a
-   * stand-on move: the release submits a RequestChestInteract command instead of a RequestMove, and the
-   * core chest system stops on the hex before the chest and opens it.
-   */
-  chestInteractAt(hex: Hex): EntityId | null;
 }
 
 const FILL_DEPTH = -1_000; // ground layer, below the character sprites (whose depth = screen-Y > 0)
@@ -96,11 +92,11 @@ export class MovePlanner {
     const canCommit = this.onVisibleBoard(hex) && this.reachable.has(hexKey(hex));
     this.clear();
     if (!canCommit) return;
-    // Targeting an UNOPENED chest is a zero-cost INTERACT, not a stand-on move: submit a RequestChestInteract
-    // so the core chest system stops on the hex before the chest and opens it, rather than ending the move
-    // on the chest's tile.
-    const chest = this.ctx.chestInteractAt(hex);
-    if (chest !== null) this.ctx.submit({ kind: 'RequestChestInteract', entity: this.ctx.player(), chest });
+    // Targeting an interact prop (unopened chest or disguised mimic) is a zero-cost INTERACT, not a stand-on
+    // move: submit a RequestInteract so the core interact system stops on the hex before it and resolves it,
+    // rather than ending the move on the prop's tile.
+    const target = this.interactAt(hex);
+    if (target !== null) this.ctx.submit({ kind: 'RequestInteract', entity: this.ctx.player(), target });
     else this.ctx.submit({ kind: 'RequestMove', entity: this.ctx.player(), q: hex.q, r: hex.r });
   }
 
@@ -148,9 +144,9 @@ export class MovePlanner {
     const from = this.playerHex();
     if (from === null) return;
     const path = findPath(this.ctx.grid, from, hex);
-    // A chest is a zero-cost interact: the move stops on the hex BEFORE it (the chest's last step is free),
-    // so number the route only up to that preceding hex — the chest tile itself carries no step number.
-    const numberedSteps = this.ctx.chestInteractAt(hex) !== null ? path.length - 1 : path.length;
+    // An interact prop is a zero-cost interact: the move stops on the hex BEFORE it (the prop's last step is
+    // free), so number the route only up to that preceding hex — the prop tile itself carries no step number.
+    const numberedSteps = this.interactAt(hex) !== null ? path.length - 1 : path.length;
     for (let i = 1; i < numberedSteps; i += 1) {
       const step = path[i] as Hex;
       const { x, y } = hexToPixel(this.ctx.layout, step);
@@ -203,20 +199,32 @@ export class MovePlanner {
   }
 
   /**
-   * Hexes the player can act on this press: every hex reachable within the movement budget, PLUS unopened
-   * chests exactly ONE step beyond it. A chest is a zero-cost interact — the move stops on the hex preceding
-   * it (its own last step is free) — so a chest whose preceding hex is reachable (i.e. the chest sits at
-   * budget+1) is a valid target even though a normal move could not end there. We expand the BFS by one ring
-   * and keep only the chests it adds; every other budget+1 hex stays OUT, so non-chest tiles never become
-   * stand-on destinations. (With 0 budget the +1 ring is the neighbours, so an adjacent chest is still openable.)
+   * Hexes the player can act on this press: every hex reachable within the movement budget, PLUS interact
+   * props (unopened chests / disguised mimics) exactly ONE step beyond it. Such a prop is a zero-cost
+   * interact — the move stops on the hex preceding it (its own last step is free) — so a prop whose preceding
+   * hex is reachable (i.e. it sits at budget+1) is a valid target even though a normal move could not end
+   * there. We expand the BFS by one ring and keep only the props it adds; every other budget+1 hex stays OUT,
+   * so non-prop tiles never become stand-on destinations. (With 0 budget the +1 ring is the neighbours, so an
+   * adjacent prop is still openable.)
    */
   private computeReachable(from: Hex): Map<string, Hex> {
     const reachable = hexesReachable(this.ctx.grid, from, this.budget());
     const expanded = hexesReachable(this.ctx.grid, from, this.budget() + 1);
     for (const [key, hex] of expanded) {
-      if (!reachable.has(key) && this.ctx.chestInteractAt(hex) !== null) reachable.set(key, hex);
+      if (!reachable.has(key) && this.interactAt(hex) !== null) reachable.set(key, hex);
     }
     return reachable;
+  }
+
+  /**
+   * The interact target (unopened chest or disguised mimic) exactly on `hex`, or null. Targeting such a hex
+   * is a zero-cost INTERACT, not a stand-on move: the release submits a RequestInteract command instead of a
+   * RequestMove, and the core interact system stops on the hex before the target and resolves it. Lives here
+   * (the move planner) since interact-targeting is a movement-gesture concern, not core simulation.
+   */
+  private interactAt(hex: Hex): EntityId | null {
+    const world = this.ctx.world();
+    return unopenedChestAt(world, hex) ?? disguisedMimicAt(world, hex) ?? null;
   }
 
   private playerHex(): Hex | null {

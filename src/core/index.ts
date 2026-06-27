@@ -75,6 +75,10 @@ export {
   forestStartHex,
   generateForestObstacles,
   generateForestChests,
+  forestMimicIndex,
+  forestPropFacing,
+  FOREST_CHEST_MIN,
+  FOREST_CHEST_MAX,
 } from './levels';
 
 // Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers
@@ -167,22 +171,31 @@ export {
   equipStartingItems,
 } from './items';
 
-// Chests: reward pickups placed on the map (the Chest component, the card pool, roll/spawn/query/take) and
-// the Chest Interaction Core System (makeChestSystem) + its pending marker and stop-hex helper.
-export type { ChestData, PendingChestInteractionData } from './chest';
+// Chests: reward pickups placed on the map (the Chest component, the card + item pools, the open-time mixed
+// reward roll rolled once + persisted, and the apply). Mimics: disguised enemies that share the interact
+// approach and reveal on it. The Approach-Interact Core System that drives both lives in interact.ts (below).
+export type { ChestData, ChestOfferData, OfferedItemData } from './chest';
 export {
   Chest,
+  ChestOffer,
+  OfferedItem,
   CHEST_CARD_POOL,
+  CHEST_ITEM_POOL,
   CHEST_OFFER_SIZE,
   rollChestOffer,
+  rollChestRewardOffer,
   spawnChest,
   chestAt,
   unopenedChestAt,
-  takeChestCard,
-  PendingChestInteraction,
-  chestStopHex,
-  makeChestSystem,
+  takeChestReward,
 } from './chest';
+export type { MimicData } from './mimic';
+export { Mimic, MIMIC_ART, spawnMimic, disguisedMimicAt, revealMimic } from './mimic';
+
+// Approach-Interact Core System (interact.ts): the shared approach/arrive/resolve loop for interactable
+// props (chests + disguised mimics), its pending-travel marker, and the stop-hex helper.
+export type { PendingInteractionData } from './interact';
+export { PendingInteraction, interactStopHex, makeInteractSystem } from './interact';
 
 // Display settings: viewport, resolution & the manual pixel-scale (browser pixel clarity)
 export type { ViewportMode, ResolutionTier, DisplaySettings } from './display';

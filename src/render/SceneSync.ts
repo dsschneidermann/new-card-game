@@ -14,6 +14,9 @@ import type { RenderableView } from './characterViews';
 export class SceneSync {
   private readonly sprites = new Map<EntityId, Phaser.GameObjects.Sprite>();
   private readonly targets = new Map<EntityId, { x: number; y: number }>();
+  // Last animEpoch played per sprite, so a one-shot anim (a chest opening) re-plays when the epoch is bumped
+  // even though its key is unchanged. Undefined for character anims (which only re-play on a key change).
+  private readonly animEpochs = new Map<EntityId, number | undefined>();
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -38,17 +41,23 @@ export class SceneSync {
       }
       if (v.anim !== undefined) {
         try {
-          if (sprite.anims.currentAnim?.key !== v.anim) sprite.play(v.anim);
+          // Re-play on a key change OR an animEpoch bump (the latter re-fires a one-shot, e.g. re-opening a chest).
+          const epochChanged = this.animEpochs.get(v.id) !== v.animEpoch;
+          if (sprite.anims.currentAnim?.key !== v.anim || epochChanged) sprite.play(v.anim);
         }
         catch(err) {
           console.error(err)
         }
+        this.animEpochs.set(v.id, v.animEpoch);
       } else {
         // Static (non-animated) sprite: reconcile the texture key so a swap on an existing sprite
-        // (e.g. a chest -> opened chest) takes effect — the texture is otherwise only set at creation.
-        // The anim branch above owns texture for animated sprites, so this can't fight an animation.
+        // (e.g. a chest -> opened chest, or a finished one-shot reverting to a static frame) takes effect —
+        // the texture is otherwise only set at creation. Stop any still-playing anim first so it can't fight
+        // the static frame, then reconcile texture + frame.
+        if (sprite.anims.isPlaying) sprite.anims.stop();
         if (sprite.texture.key !== v.texture) sprite.setTexture(v.texture);
         if (v.frame !== undefined) sprite.setFrame(v.frame);
+        this.animEpochs.delete(v.id);
       }
       sprite.setFlipX(v.flipX ?? false);
       // Resolve the CURRENTLY displayed sheet's descriptor (the playing anim's texture, not the
@@ -77,6 +86,7 @@ export class SceneSync {
         sprite.destroy();
         this.sprites.delete(id);
         this.targets.delete(id);
+        this.animEpochs.delete(id);
       }
     }
   }

@@ -23,6 +23,8 @@ export interface RenderableView {
   readonly frame?: number;
   /** Optional animation key to play (looping); takes precedence over frame. */
   readonly anim?: string;
+  /** Bump to force a one-shot `anim` to replay even when its key is unchanged (item one-shots, e.g. a chest opening). */
+  readonly animEpoch?: number;
   /** Mirror horizontally — e.g. a right-facing sheet shown facing left. */
   readonly flipX?: boolean;
 }
@@ -123,7 +125,17 @@ export function* buildCharacterViews(
         flipX: facing === 'left',
       };
     } else {
-      yield { id, x, y, texture: r.texture, ...(r.frame !== undefined ? { frame: r.frame } : {}) };
+      // A static (non-animated) renderable. It may still carry a facing — e.g. a disguised mimic posed as a
+      // closed chest — so honour FacingState here too; entities without one (obstacles) default to 'right'.
+      const facing = facings.get(id)?.facing ?? 'right';
+      yield {
+        id,
+        x,
+        y,
+        texture: r.texture,
+        ...(r.frame !== undefined ? { frame: r.frame } : {}),
+        flipX: facing === 'left',
+      };
     }
   }
 }

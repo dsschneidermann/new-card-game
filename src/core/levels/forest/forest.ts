@@ -4,7 +4,7 @@
  * the run seed. Unit-tested. The renderer half (src/render/levels/ForestLevel) pairs these with the
  * forest's tileset frames + prop art. Only the generic algorithm helpers (hashing, hex math) are shared.
  */
-import { offsetToAxial } from '../../hex/layout';
+import { offsetToAxial, axialToOffset } from '../../hex/layout';
 import { hexKey, hexDistance, type Hex } from '../../hex/hex';
 import { hash01 } from '../../terrain/terrain';
 import type { ObstacleSpawn, ChestSpawn } from '../levels';
@@ -48,15 +48,25 @@ export function generateForestObstacles(seed: number): ObstacleSpawn[] {
   return out;
 }
 
-const CHEST_COUNT = 4; // how many reward chests the forest places
+// Reward-prop placement (tunable; surfaced at visual-QA). The forest places a RANDOMIZED number of reward
+// props in [FOREST_CHEST_MIN, FOREST_CHEST_MAX], and zero or one of those positions is instead a disguised
+// mimic (MIMIC_CHANCE). Both counts are derived deterministically from the run seed, so Restart Level
+// reproduces the same LAYOUT (only a chest's reward CONTENT differs, since that is rolled at open time).
+export const FOREST_CHEST_MIN = 4; // fewest reward props placed
+export const FOREST_CHEST_MAX = 6; // most reward props placed
+const MIMIC_CHANCE = 0.5; // chance the forest contains a mimic (otherwise zero)
 const CHEST_CANDIDATE_RATE = 0.03; // fraction of free cells that become chest candidates (then spread out)
 const CHEST_PLACE_SALT = 0x0c4e57;
+const CHEST_COUNT_SALT = 0x0c4e58; // decorrelated stream for the prop COUNT
+const MIMIC_PRESENT_SALT = 0x0c4e59; // decorrelated stream for whether a mimic exists
+const MIMIC_INDEX_SALT = 0x0c4e5a; // decorrelated stream for WHICH position is the mimic
+const FACING_SALT = 0x0c4e5b; // decorrelated stream for a prop's left/right facing
 
 /**
- * The forest's reward chests, generated deterministically from the run seed: CHEST_COUNT chests on
- * walkable tiles (never on an obstacle or the start hex), spread across the map by sampling candidates
- * over the whole grid and taking evenly-spaced ones. Pure — the renderer turns each into a Chest entity
- * (which rolls its offered cards from world.rng at spawn).
+ * The forest's reward-prop positions, generated deterministically from the run seed: a RANDOMIZED count in
+ * [FOREST_CHEST_MIN, FOREST_CHEST_MAX] on walkable tiles (never on an obstacle or the start hex), spread
+ * across the map by sampling candidates over the whole grid and taking evenly-spaced ones. Pure — the
+ * renderer turns each into a Chest entity, except the one chosen by forestMimicIndex which becomes a mimic.
  */
 export function generateForestChests(seed: number, obstacles: readonly ObstacleSpawn[]): ChestSpawn[] {
   const blocked = new Set<string>(obstacles.map((o) => hexKey(o.hex)));
@@ -69,10 +79,33 @@ export function generateForestChests(seed: number, obstacles: readonly ObstacleS
       if (hash01(col, row, seed ^ CHEST_PLACE_SALT) < CHEST_CANDIDATE_RATE) candidates.push(hex);
     }
   }
-  const n = Math.min(CHEST_COUNT, candidates.length);
+  const span = FOREST_CHEST_MAX - FOREST_CHEST_MIN + 1;
+  const wanted = FOREST_CHEST_MIN + Math.floor(hash01(0, 0, seed ^ CHEST_COUNT_SALT) * span);
+  const n = Math.min(wanted, candidates.length);
   const chests: ChestSpawn[] = [];
   for (let i = 0; i < n; i += 1) {
     chests.push({ hex: candidates[Math.floor((i * candidates.length) / n)]! }); // evenly spaced -> spread + distinct
   }
   return chests;
+}
+
+/**
+ * Which of the `count` reward-prop positions is a disguised mimic, or null for none — derived
+ * deterministically from the run seed. With probability MIMIC_CHANCE the forest contains exactly ONE mimic
+ * at a seed-chosen index; otherwise none. The renderer spawns a mimic at that index instead of a chest.
+ */
+export function forestMimicIndex(seed: number, count: number): number | null {
+  if (count <= 0) return null;
+  if (hash01(1, 0, seed ^ MIMIC_PRESENT_SALT) >= MIMIC_CHANCE) return null;
+  return Math.min(count - 1, Math.floor(hash01(2, 0, seed ^ MIMIC_INDEX_SALT) * count));
+}
+
+/**
+ * A reward prop's facing (left/right), derived deterministically from its hex + the run seed. Purely
+ * cosmetic — it does NOT touch world.rng (uses the terrain hash), so chests and mimics spawn facing a
+ * stable random direction that reproduces on Restart Level and is stable on Resume.
+ */
+export function forestPropFacing(hex: Hex, seed: number): 'left' | 'right' {
+  const { col, row } = axialToOffset(hex);
+  return hash01(col, row, seed ^ FACING_SALT) < 0.5 ? 'left' : 'right';
 }

@@ -22,6 +22,8 @@ import {
   assetScale,
   canPlayCard,
   canPlaySpell,
+  OfferedItem,
+  itemDef,
   type World,
   type EntityId,
   type HexGrid,
@@ -29,6 +31,7 @@ import {
   type Hex,
   type CardDef,
   type SpellDef,
+  type ItemDef,
   type Command,
 } from '@core/index';
 import { PileOverlay, OVERLAY_FACE_SCALE, type OverlayItem } from './PileOverlay';
@@ -1006,12 +1009,84 @@ export class CardController {
   }
 
   /**
-   * Open the chest reward picker: the chest's three offered card instances as faces the player chooses
-   * from. Resolves with the chosen instance id, or null if the player tapped outside (cancel). Reuses
-   * the deck/discard PileOverlay + buildOverlayItems (the offered ids are real Card instances).
+   * Open the chest reward picker: the chest's rolled option entities as faces the player chooses from — a
+   * Card instance renders a card face, an OfferedItem entity renders an item face. Resolves with the chosen
+   * option entity id, or null if the player tapped outside (cancel). Reuses the deck/discard PileOverlay.
    */
-  openChestChoice(offered: readonly EntityId[], onPick: (chosen: EntityId | null) => void): void {
-    this.overlay.openPicker('Choose a card', this.buildOverlayItems(offered), onPick);
+  openChestChoice(options: readonly EntityId[], onPick: (chosen: EntityId | null) => void): void {
+    this.overlay.openPicker('Choose a reward', this.buildRewardItems(options), onPick);
+  }
+
+  /**
+   * Build the chest picker's faces from its option entity ids: a Card instance -> a card face (effective
+   * cost + colour); an OfferedItem entity -> a minimal item face. Order is preserved (the offer is already
+   * shuffled in core), so cards and items interleave as rolled.
+   */
+  private buildRewardItems(ids: readonly EntityId[]): OverlayItem[] {
+    const world = this.ctx.world();
+    const items: OverlayItem[] = [];
+    for (const id of ids) {
+      const card = world.store(Card).get(id);
+      if (card !== undefined) {
+        const def = cardDef(card.defId);
+        if (def !== undefined) {
+          items.push({ id, face: this.makeCardFace(def, OVERLAY_FACE_SCALE, cardEffectiveCost(world, id), isTempFree(world, id)) });
+        }
+        continue;
+      }
+      const option = world.store(OfferedItem).get(id);
+      if (option !== undefined) {
+        const def = itemDef(option.defId);
+        if (def !== undefined) items.push({ id, face: this.makeItemFace(def) });
+      }
+    }
+    return items;
+  }
+
+  /**
+   * A minimal item face for a chest reward (items have no per-item art yet): the skill-card background with
+   * the item name, its slot kind, and a short grant summary. Sized + scaled to match makeCardFace so the
+   * PileOverlay hit-test (which assumes the card-face footprint) lines up.
+   */
+  private makeItemFace(def: ItemDef): Phaser.GameObjects.Container {
+    const { w: baseW, h: baseH } = this.cardFaceBase();
+    const w = s(baseW);
+    const h = s(baseH);
+    const c = this.scene.add.container(0, 0).setScrollFactor(0);
+    const background = this.scene.add.image(0, 0, AssetKeys.cardSkill).setOrigin(0.5).setDisplaySize(w, h);
+    const name = this.scene.add
+      .text(0, -h / 2 + s(28), def.name, {
+        fontFamily: 'monospace',
+        fontSize: `${s(22)}px`,
+        color: CARD_NAME_COLOR,
+        align: 'center',
+        wordWrap: { width: w - s(40) },
+      })
+      .setOrigin(0.5, 0);
+    const slot = this.scene.add
+      .text(0, 0, `Equip · ${def.kind.replace(/_/g, ' ')}`, {
+        fontFamily: 'monospace',
+        fontSize: `${s(16)}px`,
+        color: '#9ca3af',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    const grantsText =
+      def.grantsCards.length > 0
+        ? `grants ${def.grantsCards.length} card${def.grantsCards.length > 1 ? 's' : ''}`
+        : 'no bonus yet';
+    const grants = this.scene.add
+      .text(0, h / 2 - s(72), grantsText, {
+        fontFamily: 'monospace',
+        fontSize: `${s(16)}px`,
+        color: CARD_EFFECT_COLOR,
+        align: 'center',
+        wordWrap: { width: w - s(48) },
+      })
+      .setOrigin(0.5, 0);
+    c.add([background, name, slot, grants]);
+    c.setScale(OVERLAY_FACE_SCALE);
+    return c;
   }
 
   /** Open the Deck or Discard browse overlay on a pile, or close it if that pile is already showing. */

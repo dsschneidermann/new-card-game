@@ -37,9 +37,11 @@ export type GameEvent =
   | { kind: 'TurnEnded'; phase: 'player' | 'enemy' }
   | { kind: 'ResourceChanged'; entity: EntityId }
   | { kind: 'ActionRejected'; reason: string }
-  // Chest Interaction Core System. ChestInteractReady: the player has reached the chest's stop hex (or was
-  // already adjacent) and the reward picker should open — the scene defers the actual open until the move
-  // animation settles (presentation timing). ChestOpened: a pick was applied (chosen card discarded, chest
-  // marked opened) — the scene swaps the chest sprite to the opened art and refreshes pile counts.
+  // Approach-Interact Core System. ChestInteractReady: the player has reached the chest's stop hex (or was
+  // already adjacent) and its reward offer has been rolled — the scene plays the opening animation + a short
+  // beat, then opens the picker (presentation timing). ChestOpened: a pick was applied (chosen reward taken,
+  // chest marked opened) — the scene holds the opened art and refreshes pile counts. MimicRevealed: a
+  // disguised mimic was reached and woke — the scene swaps it from its chest disguise to its monster animation.
   | { kind: 'ChestInteractReady'; entity: EntityId; chest: EntityId }
-  | { kind: 'ChestOpened'; chest: EntityId };
+  | { kind: 'ChestOpened'; chest: EntityId }
+  | { kind: 'MimicRevealed'; mimic: EntityId };

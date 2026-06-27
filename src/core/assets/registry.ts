@@ -85,8 +85,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
 
   // --- Chest prop: real 128x128 art. Unopened is static; opening is a 3-frame ONE-SHOT animation (no idle/walk/ready
   //     suffix -> animRepeat 0, so it plays once and holds its last frame = the opened chest). ---
-  asset(AssetKeys.chest1Unopened, [128, 128, 0.5], 'wooden treasure chest, closed', 'Chest: unopened reward pickup on the map', { frameCount: 1, downPx: -6, forwardPx: -2 }),
-  asset(AssetKeys.chest1Opening, [128, 128, 0.5], 'treasure chest opening (closed -> lid up)', 'Chest opening: one-shot anim, last frame = opened chest', { frameCount: 3, fps: 6, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.chest1Unopened, [128, 128, 0.5], 'wooden treasure chest, closed', 'Chest: unopened reward pickup on the map', { frameCount: 1, downPx: -6 }),
+  asset(AssetKeys.chest1Opening, [128, 128, 0.5], 'treasure chest opening (closed -> lid up)', 'Chest opening: one-shot anim, last frame = opened chest', { frameCount: 3, fps: 10, downPx: -6 }),
 
   // --- Enemy roster: one descriptor per animation (idle/walk/attack animated; hurt/death static) ---
   // slime1
@@ -237,10 +237,10 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.enemyLavaGolemDeath, [128, 128, 0.5], 'lava_golem death', 'Enemy lava_golem death'),
 
   // mimic_1
-  asset(AssetKeys.enemyMimic1Idle, [128, 128, 0.5], 'mimic_1 idle', 'Enemy mimic_1 idle', { frameCount: 10, fps: 10, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.enemyMimic1Idle, [128, 128, 0.5], 'mimic_1 idle', 'Enemy mimic_1 idle', { frameCount: 10, fps: 10, downPx: -6 }),
   asset(AssetKeys.enemyMimic1Walk, [128, 128, 0.5], 'mimic_1 walk', 'Enemy mimic_1 walk', { frameCount: 11, fps: 10, downPx: -6 }),
   asset(AssetKeys.enemyMimic1Attack, [128, 128, 0.5], 'mimic_1 attack', 'Enemy mimic_1 attack', { frameCount: 7, fps: 10, downPx: -6, forwardPx: 4 }),
-  asset(AssetKeys.enemyMimic1Unopened, [128, 128, 0.5], 'mimic_1 unopened', 'Enemy mimic_1 unopened', { frameCount: 1, downPx: -6, forwardPx: -2 }),
+  asset(AssetKeys.enemyMimic1Unopened, [128, 128, 0.5], 'mimic_1 unopened', 'Enemy mimic_1 unopened', { frameCount: 1, downPx: -6 }),
   asset(AssetKeys.enemyMimic1Hurt, [128, 128, 0.5], 'mimic_1 hurt', 'Enemy mimic_1 hurt'),
   asset(AssetKeys.enemyMimic1Death, [128, 128, 0.5], 'mimic_1 death', 'Enemy mimic_1 death'),
 

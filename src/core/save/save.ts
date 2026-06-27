@@ -31,7 +31,12 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v10: the level-ownership refactor persists the active level via a new LevelState{id, seed} component on
 // the player (so a resumed run rebuilds the right level and regenerates its terrain identically). The
 // saved shape changed; discard pre-refactor saves (no migration, ADR-010).
-export const SAVE_VERSION = 10 as const;
+// v11: the Chest Rewards feature added the Chest/Mimic interact model (mimics as disguised enemies, chests
+// rolling a mixed card/item reward at open time).
+// v12: a chest's rolled reward offer is now PERSISTED (ChestOffer + OfferedItem flipped to persistent) so
+// re-opening an un-taken chest shows the same choices and the offer survives save/load — the saved shape
+// changed again; discard older saves.
+export const SAVE_VERSION = 12 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

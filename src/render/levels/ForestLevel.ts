@@ -4,14 +4,19 @@ import {
   Obstacle,
   Chest,
   Enemy,
+  Mimic,
   HexPosition,
+  FacingState,
   spawnChest,
+  spawnMimic,
   applyObstacleEntities,
   forestTerrainTile,
   forestOverlay,
   forestLeaf,
   generateForestObstacles,
   generateForestChests,
+  forestMimicIndex,
+  forestPropFacing,
   forestStartHex,
   FOREST_COLS,
   FOREST_ROWS,
@@ -26,6 +31,7 @@ import {
   type DecalShape,
 } from '@core/index';
 import { Renderable } from '@render/characterViews';
+import { ItemRenderable } from '@render/itemViews';
 import type { Level, LevelBuildContext } from './level';
 
 // Terrain render depths (the forest's 3-layer stack), all BELOW the hex outline (gridGfx at -1_000_000).
@@ -122,8 +128,15 @@ export class ForestLevel implements Level {
       world.store(Obstacle).add(e, { kind: o.kind });
       world.store(HexPosition).add(e, { hex: o.hex });
     }
-    // Each chest rolls its three offered cards from world.rng at spawn (deterministic + persisted).
-    for (const c of generateForestChests(this.seed, obstacles)) spawnChest(world, c.hex);
+    // Reward props: a randomized number of positions, with zero or one of them instead a disguised mimic.
+    // Placement is seed-deterministic (reproduces on Restart Level); a chest's reward CONTENT is rolled at
+    // open time (so it can exclude already-equipped items), not here.
+    const props = generateForestChests(this.seed, obstacles);
+    const mimicIndex = forestMimicIndex(this.seed, props.length);
+    props.forEach((c, i) => {
+      if (i === mimicIndex) spawnMimic(world, c.hex);
+      else spawnChest(world, c.hex);
+    });
     this.install(world, grid);
   }
 
@@ -137,18 +150,32 @@ export class ForestLevel implements Level {
     for (const [obstacle, { kind }] of world.store(Obstacle).entries()) {
       world.store(Renderable).add(obstacle, { texture: OBSTACLE_ART[kind] });
     }
-    // An unopened chest shows the closed art; an already-opened chest (restored from save) shows the final
+    // Chests are PROPS, drawn by the item view system (ItemRenderable) with a seed-deterministic facing.
+    // An unopened chest shows the closed art; an already-opened chest (restored from save) holds the final
     // frame of the 3-frame chest_1_opening sheet (frame 2 = fully open).
     for (const [chest, data] of world.store(Chest).entries()) {
-      world.store(Renderable).add(
+      const at = world.store(HexPosition).get(chest);
+      const facing = at !== undefined ? forestPropFacing(at.hex, this.seed) : 'right';
+      world.store(ItemRenderable).add(
         chest,
         data.opened
-          ? { texture: AssetKeys.chest1Opening, frame: 2 }
-          : { texture: AssetKeys.chest1Unopened },
+          ? { texture: AssetKeys.chest1Opening, frame: 2, facing }
+          : { texture: AssetKeys.chest1Unopened, facing },
       );
     }
+    // Enemies (incl. mimics) get a seed-deterministic facing. A DISGUISED mimic renders as the static
+    // closed-chest frame (no animBase, so it reads as a chest); a revealed mimic or a normal enemy renders
+    // its looping idle animation. On reveal the scene swaps the mimic's Renderable to the idle animation.
     for (const [enemy, { art }] of world.store(Enemy).entries()) {
-      world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
+      const at = world.store(HexPosition).get(enemy);
+      const facing = at !== undefined ? forestPropFacing(at.hex, this.seed) : 'right';
+      world.store(FacingState).add(enemy, { facing });
+      const mimic = world.store(Mimic).get(enemy);
+      if (mimic !== undefined && mimic.revealed !== true) {
+        world.store(Renderable).add(enemy, { texture: `${art}.unopened` });
+      } else {
+        world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
+      }
     }
   }
 

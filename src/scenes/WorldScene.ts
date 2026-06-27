@@ -16,14 +16,15 @@ import {
   makeMovementSystem,
   makeTurnSystem,
   makeCardSystem,
-  makeChestSystem,
+  makeInteractSystem,
   DeckState,
   reshuffle,
   drawUpTo,
   Equipment,
   equipStartingItems,
-  Chest,
-  unopenedChestAt,
+  Enemy,
+  ChestOffer,
+  MIMIC_ART,
   isAttackCard,
   isHeavyAttack,
   facingToward,
@@ -53,6 +54,7 @@ import {
   attackDurationMs,
   type AnimStateData,
 } from '@render/characterViews';
+import { ItemRenderable, buildItemViews } from '@render/itemViews';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 import { MovePlanner } from '@scenes/MovePlanner';
@@ -99,6 +101,12 @@ const MOVE_BUDGET = 5;
 const HAND_SIZE = 4;
 // The opened chest shows the final frame of the 3-frame chest_1_opening sheet (frame 2 = fully open).
 const CHEST_OPENED_FRAME = 2;
+// The chest's opening animation: the auto-registered one-shot for the 3-frame chest_1_opening sheet
+// (PreloadScene keys every animated descriptor `${key}.right`). It plays once and holds frame 2.
+const CHEST_OPENING_ANIM = `${AssetKeys.chest1Opening}.right`;
+// Beat between the chest opening animation starting and the reward picker opening, so the player sees the
+// chest open first. The 3-frame sheet runs ~250ms at 10fps, so the picker opens just as the lid finishes.
+const CHEST_OPEN_BEAT_MS = 350;
 
 /**
  * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
@@ -152,9 +160,16 @@ export class WorldScene extends Phaser.Scene {
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
-  // A chest the core chest system reported ready (ChestInteractReady), queued to open once the move to the
+  // A chest the core interact system reported ready (ChestInteractReady), queued to open once the move to the
   // preceding hex settles (see maybeOpenChest). Set only from that event, never by adjacency at move-end.
   private pendingChest: EntityId | null = null;
+  // A mimic the core revealed (MimicRevealed), queued to swap from its chest disguise to its monster
+  // animation once the move settles (see maybeRevealMimic) — so the reveal lands when the player arrives,
+  // not mid-slide, mirroring how the chest opening is deferred. The data reveal already happened in the sim.
+  private pendingMimicReveal: EntityId | null = null;
+  // True from when a chest's opening animation begins (after the move settles) until the player resolves the
+  // reward picker. Locks input through the opening beat + the modal, and stops maybeOpenChest re-triggering.
+  private chestOpening = false;
 
   constructor() {
     super('WorldScene');
@@ -172,6 +187,8 @@ export class WorldScene extends Phaser.Scene {
     this.lastGridScrollY = NaN;
     this.camRefHex = undefined;
     this.pendingChest = null; // no chest pickup is queued at the start of a fresh/resumed run
+    this.pendingMimicReveal = null; // nor a deferred mimic reveal
+    this.chestOpening = false;
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.sync = new SceneSync(this, HOP_MS);
@@ -262,7 +279,7 @@ export class WorldScene extends Phaser.Scene {
         this.isPlayerPhase() &&
         !this.cards.isArmed() &&
         this.time.now >= this.moveLockedUntilMs, // brief post-rejection lockout (see flashRejected)
-      // isHexVisible stays for the ACTION gate only: MovePlanner.onRelease cancels a move released off the
+      // isHexVisible stays for the ACTION gate only: MovePlanner.onPointerUp cancels a move released off the
       // visible board (onVisibleBoard). The visual clipping of the reachable fill + route numbers now rides
       // the shared effectMask below, like the card-targeting paint.
       isHexVisible: (hex) => {
@@ -270,9 +287,6 @@ export class WorldScene extends Phaser.Scene {
         return this.fullyInFrame(x, y);
       },
       effectMask: this.effectMask,
-      // Targeting an unopened chest is a zero-cost interact rather than a stand-on move: MovePlanner submits a
-      // RequestChestInteract and the core chest system drives the stop-before-it move + opening.
-      chestInteractAt: (hex) => unopenedChestAt(this.world, hex) ?? null,
     });
 
     // A transparent, interactive world zone (below the HUD) takes grid clicks;
@@ -342,9 +356,12 @@ export class WorldScene extends Phaser.Scene {
     this.updateCamera(); // hex-snap follow: set the scroll BEFORE culling so off-frame sprites are hidden
     // Show only the sprites whose hex falls fully inside the visible frame; entities elsewhere in the
     // larger world are dropped so nothing renders in the margins around the grid.
-    const views = [...buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes())].filter(
-      (v) => this.fullyInFrame(v.x, v.y),
-    );
+    // Characters (player/enemies, incl. revealed mimics) come from buildCharacterViews; props (chests, and a
+    // disguised mimic's chest sprite) come from the item view system. SceneSync reconciles both streams.
+    const views = [
+      ...buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes()),
+      ...buildItemViews(this.world, this.layout),
+    ].filter((v) => this.fullyInFrame(v.x, v.y));
     this.sync.sync(views);
     this.refreshHud();
     for (const e of events) {
@@ -360,45 +377,127 @@ export class WorldScene extends Phaser.Scene {
         this.cards.cancel();
         this.autosave();
       }
-      // The core chest system says the reward picker can open (the player reached the chest's stop hex, or was
-      // already adjacent): queue it. maybeOpenChest defers the actual open until the move animation settles.
+      // The core interact system says a chest is ready (the player reached its stop hex, or was already
+      // adjacent — its reward offer is rolled): queue it. maybeOpenChest defers the opening animation + picker
+      // until the move animation settles.
       else if (e.kind === 'ChestInteractReady' && e.entity === this.player) this.pendingChest = e.chest;
-      // A chest was looted in the sim: swap it to the opened-chest sprite, refresh pile counts, checkpoint.
+      // A chest was looted in the sim: hold the opened-chest frame, refresh pile counts, checkpoint.
       else if (e.kind === 'ChestOpened') this.onChestOpened(e.chest);
+      // A disguised mimic was reached and woke (data flip already done in the sim): queue the sprite swap so
+      // it lands after the move animation settles, not mid-slide. maybeRevealMimic performs it.
+      else if (e.kind === 'MimicRevealed') this.pendingMimicReveal = e.mimic;
     }
     this.maybeOpenChest();
+    this.maybeRevealMimic();
   }
 
   /**
-   * Open the chest reward picker once the player's move has visually settled on the hex preceding the chest
-   * (or immediately, when no move was needed). pendingChest is set from the core ChestInteractReady event;
-   * the open is deferred to here so the dim modal appears after the sprite arrives, not mid-slide. Opens once:
-   * pendingChest is cleared when the picker opens. The pick is submitted as a TakeChestCard command — the core
-   * chest system applies it and emits ChestOpened (handled in onChestOpened); a cancel leaves the chest closed.
+   * Once the player's move has visually settled on the hex preceding a ready chest (or immediately, when no
+   * move was needed), begin the opening sequence. pendingChest is set from the core ChestInteractReady event;
+   * the open is deferred to here so the chest opens after the sprite arrives, not mid-slide. Triggers once:
+   * pendingChest is cleared and chestOpening gates re-entry through the opening beat + the modal.
    */
   private maybeOpenChest(): void {
     if (this.pendingChest === null) return;
     if (this.moveAnimator.isMoving(this.player)) return; // wait for the move slide to finish
     if (this.cards.isOverlayOpen()) return; // don't stack over an already-open overlay
+    if (this.chestOpening) return; // already opening (animation beat / picker up)
     const chest = this.pendingChest;
     this.pendingChest = null;
-    const data = this.world.store(Chest).get(chest);
-    if (data === undefined) return; // chest already gone (defensive)
-    this.cards.openChestChoice(data.offered, (chosen) => {
-      if (chosen === null) return; // cancelled — the chest stays closed for a later visit
-      this.world.submit({ kind: 'TakeChestCard', entity: this.player, chest, chosen });
-    });
+    this.beginChestOpen(chest);
   }
 
   /**
-   * A chest was looted in the sim (the core chest system applied the pick and emitted ChestOpened): swap its
-   * Renderable to the opened-chest sprite (purely visual), refresh the pile counts now the chosen card is in
-   * the discard pile, and checkpoint. Driven by the event, not the pick callback, so the mutation stays core-owned.
+   * Once the player's move has visually settled on the hex preceding a reached mimic, swap the disguise to
+   * its monster animation — mirroring maybeOpenChest, so the reveal lands when the sprite arrives, not
+   * mid-slide. pendingMimicReveal is set from the core MimicRevealed event (the data flip already happened);
+   * this defers only the PRESENTATION until the move animation finishes. Fires immediately when the mimic was
+   * adjacent (no slide to wait on).
+   */
+  private maybeRevealMimic(): void {
+    if (this.pendingMimicReveal === null) return;
+    if (this.moveAnimator.isMoving(this.player)) return; // wait for the move slide to finish, like the chest
+    const mimic = this.pendingMimicReveal;
+    this.pendingMimicReveal = null;
+    this.onMimicRevealed(mimic);
+  }
+
+  /**
+   * Play the chest's opening animation, then (after a short beat so the player sees it open) show the reward
+   * picker. The animation rides the chest's ItemRenderable: set its anim to the one-shot opening key and bump
+   * animEpoch so SceneSync (re)plays it. Input is locked for the whole beat (chestOpening). The picker reads
+   * the offer the core interact system already rolled at ChestInteractReady.
+   */
+  private beginChestOpen(chest: EntityId): void {
+    this.chestOpening = true;
+    const r = this.world.store(ItemRenderable).get(chest);
+    if (r !== undefined) {
+      r.texture = AssetKeys.chest1Opening;
+      delete r.frame;
+      r.anim = CHEST_OPENING_ANIM;
+      r.animEpoch = (r.animEpoch ?? 0) + 1;
+    }
+    this.time.delayedCall(CHEST_OPEN_BEAT_MS, () => this.openChestPicker(chest));
+  }
+
+  /**
+   * Open the reward picker for `chest`, reading the option entities the interact system rolled. Picking
+   * submits a TakeChestReward command (the core applies it and emits ChestOpened, handled in onChestOpened);
+   * dismissing just reverts the chest to its closed sprite — the rolled offer is KEPT (persisted), so a later
+   * visit re-opens the same choices. The input lock (chestOpening) is released here, when the player resolves
+   * the picker.
+   */
+  private openChestPicker(chest: EntityId): void {
+    const offer = this.world.store(ChestOffer).get(chest);
+    if (offer === undefined) {
+      this.chestOpening = false; // defensive: nothing to choose (offer gone)
+      return;
+    }
+    this.cards.openChestChoice(offer.options, (chosen) => {
+      this.chestOpening = false;
+      if (chosen === null) {
+        this.revertChestSprite(chest); // back to the closed chest; it re-opens the same offer later
+        return;
+      }
+      this.world.submit({ kind: 'TakeChestReward', entity: this.player, chest, chosen });
+    });
+  }
+
+  /** Revert a chest's sprite to its closed art (after the player cancels the reward picker). */
+  private revertChestSprite(chest: EntityId): void {
+    const r = this.world.store(ItemRenderable).get(chest);
+    if (r === undefined) return;
+    r.texture = AssetKeys.chest1Unopened;
+    delete r.frame;
+    delete r.anim;
+  }
+
+  /**
+   * A chest was looted in the sim (the core interact system applied the pick and emitted ChestOpened): hold
+   * the opened-chest frame (the opening animation already ran), refresh pile counts now the reward has landed,
+   * and checkpoint. Driven by the event, not the pick callback, so the mutation stays core-owned.
    */
   private onChestOpened(chest: EntityId): void {
-    this.world.store(Renderable).add(chest, { texture: AssetKeys.chest1Opening, frame: CHEST_OPENED_FRAME });
+    const r = this.world.store(ItemRenderable).get(chest);
+    if (r !== undefined) {
+      r.texture = AssetKeys.chest1Opening;
+      r.frame = CHEST_OPENED_FRAME;
+      delete r.anim;
+    }
     this.cards.refreshPiles();
     this.autosave();
+  }
+
+  /**
+   * A disguised mimic woke (the core interact system revealed it and emitted MimicRevealed): swap its
+   * Renderable from the static chest-disguise frame to its looping idle monster animation, and flash a notice.
+   * Purely presentation — the reveal itself is owned by the core (Mimic.revealed persists).
+   */
+  private onMimicRevealed(mimic: EntityId): void {
+    const art = this.world.store(Enemy).get(mimic)?.art ?? MIMIC_ART;
+    this.world.store(Renderable).add(mimic, { texture: `${art}.idle`, animBase: art });
+    this.toast.setText("It's a mimic!");
+    this.time.delayedCall(1200, () => this.toast?.setText(''));
   }
 
   /**
@@ -482,7 +581,7 @@ export class WorldScene extends Phaser.Scene {
    * intent completes before any new move / End Turn / Restart Turn is accepted. Esc/Pause stays live.
    */
   private get inputLocked(): boolean {
-    return this.moveAnimator.isMoving(this.player) || this.world.commands().length > 0;
+    return this.moveAnimator.isMoving(this.player) || this.world.commands().length > 0 || this.chestOpening;
   }
 
   /**
@@ -492,12 +591,12 @@ export class WorldScene extends Phaser.Scene {
    * no per-kind art or content loops.
    */
   private installSystems(): void {
-    // Order: chest -> turn -> movement -> card. The chest system runs FIRST so the RequestMove it submits for
-    // a chest interact is validated + executed by the turn/movement systems the SAME step (a command submitted
-    // by a later system is dropped at step end); it also resolves a prior step's arrival, emitting
-    // ChestInteractReady. The turn engine validates actions and emits CardPlayed / TurnStarted; the movement
-    // system executes a same-step MoveTo; the card system (last) reacts to draw/discard cards and resolve effects.
-    this.world.addSystem(makeChestSystem(this.grid));
+    // Order: interact -> turn -> movement -> card. The interact system runs FIRST so the RequestMove it
+    // submits for a chest/mimic interact is validated + executed by the turn/movement systems the SAME step (a
+    // command submitted by a later system is dropped at step end); it also resolves a prior step's arrival,
+    // emitting ChestInteractReady / MimicRevealed. The turn engine validates actions and emits CardPlayed /
+    // TurnStarted; the movement system executes a same-step MoveTo; the card system (last) reacts to cards.
+    this.world.addSystem(makeInteractSystem(this.grid));
     this.world.addSystem(makeTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.addSystem(makeCardSystem(HAND_SIZE));
@@ -622,6 +721,8 @@ export class WorldScene extends Phaser.Scene {
     this.world = restored;
     this.player = player;
     this.pendingChest = null; // a queued chest pickup from the abandoned turn is dropped on restart
+    this.pendingMimicReveal = null; // and any deferred mimic reveal
+    this.chestOpening = false;
     this.level.reinstall(restored, this.grid); // re-apply grid flags + re-attach content Renderables
     this.installSystems();
     this.cards.cancel();

@@ -21,12 +21,13 @@ export type Command =
   // picked CARD instances (e.g. the discard card chosen for Recall) that the card's effect resolves.
   | { kind: 'PlayCard'; entity: EntityId; cardId: string; energyCost?: number; target?: EntityId; targets?: readonly Hex[]; cardEntity?: EntityId; faceToward?: Hex; cardTargets?: readonly EntityId[] }
   | { kind: 'PlaySpell'; entity: EntityId; spellId: string; manaCost?: number; target?: EntityId; targets?: readonly Hex[] }
-  // Chest Interaction Core System: a zero-cost INTERACT submitted by the scene when the player TARGETS an
-  // unopened chest. The chest system (registered first) computes the stop hex — the tile before the chest,
-  // since the chest's own last step is free — submits the RequestMove the turn engine validates, and tracks
-  // arrival; a chest never blocks movement and is never a normal stand-on destination.
-  | { kind: 'RequestChestInteract'; entity: EntityId; chest: EntityId }
-  // The player picked one of the chest's three offered cards: the chest system applies takeChestCard
-  // (chosen -> owner's discard, the two unchosen destroyed, chest marked opened) and emits ChestOpened.
-  | { kind: 'TakeChestCard'; entity: EntityId; chest: EntityId; chosen: EntityId }
+  // Approach-Interact Core System: a zero-cost INTERACT submitted by the scene when the player TARGETS an
+  // unopened chest OR a disguised mimic. The interact system (registered first) computes the stop hex — the
+  // tile before the target, since the target's own last step is free — submits the RequestMove the turn
+  // engine validates, and tracks arrival; the target never blocks movement and is never a stand-on destination.
+  | { kind: 'RequestInteract'; entity: EntityId; target: EntityId }
+  // The player picked one of the chest's reward options (a Card instance or an OfferedItem): the interact
+  // system applies takeChestReward (chosen card -> owner's discard / chosen item -> equipped, the rest
+  // destroyed, chest marked opened) and emits ChestOpened.
+  | { kind: 'TakeChestReward'; entity: EntityId; chest: EntityId; chosen: EntityId }
   | { kind: 'EndTurn'; entity: EntityId };
