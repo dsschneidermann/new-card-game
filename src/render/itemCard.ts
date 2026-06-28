@@ -19,7 +19,7 @@ const ITEM_CARD_FALLBACK_W = 195;
 const ITEM_CARD_FALLBACK_H = 284;
 // The slab: a filled rounded rectangle with a thin grey border (replaces the card-face background for items).
 const ITEM_CARD_FILL = 0x2a2f3a; // dark slate fill
-const ITEM_CARD_FILL_ALPHA = 0.96;
+const ITEM_CARD_FILL_ALPHA = 1.0;
 const ITEM_CARD_BORDER_W = 3; // border stroke width
 const ITEM_CARD_BORDER_COLOR = 0x9ca3af; // grey border
 const ITEM_CARD_RADIUS = 12; // rounded-corner radius

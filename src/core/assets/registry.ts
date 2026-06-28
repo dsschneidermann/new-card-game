@@ -86,7 +86,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.itemArtApprenticeSpellbook, [256, 256, 0.35], 'item art (apprentice spellbook)', 'Item art: apprentice spellbook'),
 
   // --- Equipped-items overlay figure: the mannequin the equip slots are laid over. Single static UI image. ---
-  asset(AssetKeys.uiMannequin, [512, 1024, 0.34], 'humanoid mannequin silhouette, front-facing', 'Equipment overlay mannequin figure'),
+  asset(AssetKeys.uiMannequin, [256, 512, 0.75], 'humanoid mannequin silhouette, front-facing', 'Equipment overlay mannequin figure'),
 
   // --- Ground terrain: the Ground_grass tileset as a 16x16 frame-indexed spritesheet (frameCount, NO
   //     fps = static frame states, not an animation). The square terrain background reads fill frames from it. ---
@@ -337,18 +337,6 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
-  // Equipment visuals: placeholders so the suite + build stay green with no files; promote per key as real art lands.
-  AssetKeys.itemArtIronSword,
-  AssetKeys.itemArtWoodenShield,
-  AssetKeys.itemArtShortBow,
-  AssetKeys.itemArtLeatherBoots,
-  AssetKeys.itemArtRustyDagger,
-  AssetKeys.itemArtLeatherCap,
-  AssetKeys.itemArtLeatherTunic,
-  AssetKeys.itemArtTravelersCape,
-  AssetKeys.itemArtPlainAmulet,
-  AssetKeys.itemArtApprenticeSpellbook,
-  AssetKeys.uiMannequin,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

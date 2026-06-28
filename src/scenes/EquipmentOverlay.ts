@@ -25,7 +25,7 @@ import { buildItemCard } from '@render/itemCard';
 
 const OVERLAY_DEPTH = 2_000_000 + 100; // above the HUD, same band as PileOverlay
 const TOOLTIP_DEPTH = OVERLAY_DEPTH + 10;
-const FIGURE_MARGIN_LEFT = 40; // base-px gap from the screen's left edge to the mannequin's left edge (hugs the Gear column)
+const FIGURE_MARGIN_LEFT = 170; // base-px gap from the screen's left edge to the mannequin's left edge
 const FIGURE_TOP = 150; // base-px y of the mannequin's TOP edge (below the title)
 const SLOT_RADIUS = 42; // base-px slot disc radius
 const SLOT_FILL = 0x394150; // slot backing-disc fill
@@ -37,7 +37,7 @@ const SLOT_RING_EMPTY = 0x6b7280; // empty slot rings faint grey
 const SLOT_ART_INSET = 7; // px inset of the art within the disc
 const SLOT_LABEL_FONT_PX = 12; // empty-slot kind label
 const SLOT_LABEL_COLOR = '#9ca3af';
-const TOOLTIP_SCALE = 0.8; // the hovered item's rectangle renders a touch smaller than full
+const TOOLTIP_SCALE = 1; // the hovered item's rectangle renders a touch smaller than full
 const TOOLTIP_GAP = 36; // px gap between the slot disc and its tooltip
 
 /**
@@ -46,16 +46,16 @@ const TOOLTIP_GAP = 36; // px gap between the slot disc and its tooltip
  * live visual-QA tuning at review. Covers every EquipKind (a compile-time Record, so a new kind must add one).
  */
 const SLOT_LAYOUT: Record<EquipKind, { fx: number; fy: number }> = {
-  armor_head: { fx: 0.0, fy: -0.42 },
-  amulet: { fx: 0.0, fy: -0.27 },
-  armor_body: { fx: 0.0, fy: -0.07 },
-  cape: { fx: 0.3, fy: -0.3 },
-  spellbook: { fx: -0.3, fy: -0.3 },
-  weapon_melee: { fx: -0.36, fy: 0.02 },
-  shield: { fx: 0.36, fy: 0.02 },
-  weapon_ranged: { fx: -0.36, fy: 0.22 },
-  weapon_backup: { fx: 0.36, fy: 0.22 },
-  boots: { fx: 0.0, fy: 0.42 },
+  armor_head: { fx: 0.15, fy: -0.30 },
+  amulet: { fx: 0.15, fy: -0.17 },
+  armor_body: { fx: 0.15, fy: -0.04 },
+  cape: { fx: 0.40, fy: -0.22 },
+  weapon_ranged: { fx: -0.33, fy: -0.3 },
+  weapon_melee: { fx: -0.33, fy: 0.02 },
+  shield: { fx: 0.40, fy: 0.02 },
+  spellbook: { fx: -0.33, fy: 0.22 },
+  weapon_backup: { fx: 0.40, fy: 0.22 },
+  boots: { fx: 0.15, fy: 0.42 },
 };
 
 export class EquipmentOverlay {
@@ -92,7 +92,7 @@ export class EquipmentOverlay {
     const mScale = md ? assetScale(md) : 1;
     const fw = s((md?.size[0] ?? 512) * mScale);
     const fh = s((md?.size[1] ?? 1024) * mScale);
-    // Left-anchored: the figure hugs the screen's left edge, above the Gear button's column.
+    // Left-anchored: the figure is near the screen's left edge, above the Gear button's column.
     const cx = s(FIGURE_MARGIN_LEFT) + fw / 2;
     const cy = s(FIGURE_TOP) + fh / 2;
     this.title.setX(cx); // centre the title over the (left-shifted) figure
