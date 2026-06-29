@@ -1,44 +1,40 @@
 /**
- * Combat & enemy-archetype data (ADR-007). Pure value types, Phaser-free (ADR-002): the archetype
- * catalogue, the attack profile, and the damage-result breakdown all live here so combat math and
- * targeting are unit-testable against fixed inputs.
+ * Combat & enemy-definition data (ADR-007). Pure value types, Phaser-free (ADR-002): the enemy roster,
+ * the attack profile, and the damage-result breakdown all live here so combat math and targeting are
+ * unit-testable against fixed inputs.
  */
 
-/** Behaviour tags an archetype carries; the Enemy AI feature selects per-enemy behaviour from these. */
-export type BehaviorTag = 'melee' | 'ranged' | 'armored' | 'spellcaster' | 'support';
-
-/**
- * How an attacker chooses among the targets it can reach (ADR-007). 'highestThreat' is a placeholder
- * until threat is modelled by the Enemy AI feature; selectTarget currently treats it as 'nearest'.
- */
-export type TargetRule = 'nearest' | 'lowestHp' | 'highestThreat';
-
-/** An attack's reach and effect (ADR-007). Ranges are measured in hex tiles (ADR-006). */
+/** A single named attack an entity can make (ADR-007). Ranges are measured in hex tiles (ADR-006). */
 export interface AttackProfile {
+  /** Identifies the attack (e.g. 'bite', 'fire_breath') — carried on AttackResolved so the scene can
+   *  animate the specific attack, and useful for logs/balancing when an entity has several. */
+  readonly name: string;
   readonly minRange: number;
   readonly maxRange: number;
   readonly requiresLineOfSight: boolean;
-  readonly targetRule: TargetRule;
   readonly baseDamage: number;
   /** Armour ignored before the min-1 floor (ADR-007). Absent means 0. */
   readonly pierce?: number;
 }
 
 /**
- * A data-driven enemy archetype: a bundle of stats plus behaviour tags, NOT a subclass (ADR-007). Stat
- * lines are data, so balance tuning needs no code change. spawnEnemy materialises a def into components.
+ * A concrete enemy definition: base stats plus one or more attacks, tied to a roster sprite (ADR-007). A
+ * data-driven bundle materialised onto components by spawnEnemy — not a subclass. The roster holds many
+ * such definitions with different stats; balance numbers are data, so tuning needs no code change.
  */
 export interface EnemyDef {
   readonly id: string;
-  /** Logical art base (ADR-004); the renderer draws `${spriteKey}.idle`. Placeholder until real art lands. */
+  /** Display name (e.g. 'Lava Golem'). */
+  readonly name: string;
+  /** Roster art base, e.g. 'enemy_goblin_1' — the renderer draws `${spriteKey}.idle` and animates states. */
   readonly spriteKey: string;
   readonly maxHp: number;
   /** Flat damage reduction (ADR-007). */
   readonly armor: number;
   /** Tiles the enemy may move per turn (read by the Enemy AI feature). */
   readonly movement: number;
-  readonly attack: AttackProfile;
-  readonly tags: readonly BehaviorTag[];
+  /** One or more attacks; the Enemy AI picks which to use against a target by range/LOS. */
+  readonly attacks: readonly AttackProfile[];
 }
 
 /** The breakdown of one resolved hit, returned by computeDamage and resolveAttack. */

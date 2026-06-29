@@ -1,5 +1,5 @@
 import { defineComponent, type ComponentType } from '../ecs/component';
-import type { AttackProfile, BehaviorTag } from './types';
+import type { AttackProfile } from './types';
 
 /**
  * Combat components (ADR-007). All persistent (the default): hp changes during combat and enemies must
@@ -18,27 +18,27 @@ export interface HealthData {
 
 /**
  * Defensive combat stats. `armor` is flat damage reduction with a min-1 floor (ADR-007). Lives on a
- * component (not derived from the archetype catalogue) so status effects (ADR-008) can modify it later.
- * Shield is a separate, status-granted absorb pool (ADR-008), not modelled yet — combat treats it as 0.
+ * component (not derived from the roster) so status effects (ADR-008) can modify it later. Shield is a
+ * separate, status-granted absorb pool (ADR-008), not modelled yet — combat treats it as 0.
  */
 export interface CombatStatsData {
   armor: number;
 }
 
-/** An entity's attack capability — its AttackProfile. Enemies receive theirs from their archetype. */
+/** An entity's attacks — one or more AttackProfiles. The Enemy AI selects which to use; resolveAttack
+ *  takes the chosen index. Enemies receive theirs from their definition. */
 export interface AttackData {
-  profile: AttackProfile;
+  profiles: AttackProfile[];
 }
 
 /**
- * Marks which archetype an enemy is and carries the per-enemy data the Enemy AI feature reads (movement
- * tiles/turn and behaviour tags). Base stats are materialised onto Health/CombatStats/Attack at spawn;
- * this keeps the archetype identity addressable for AI and debugging.
+ * Records which roster definition an enemy is and its movement (tiles/turn), both read by the Enemy AI
+ * feature. Base stats are materialised onto Health/CombatStats/Attack at spawn; this keeps the definition
+ * identity addressable for AI and debugging.
  */
 export interface ArchetypeData {
   defId: string;
   movement: number;
-  tags: BehaviorTag[];
 }
 
 export const Health: ComponentType<HealthData> = defineComponent<HealthData>('Health');

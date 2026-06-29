@@ -54,27 +54,30 @@ export function applyDamage(
 }
 
 /**
- * Resolve `attacker`'s attack on a chosen `target`: read the attacker's AttackProfile and the target's
- * armour + shield, compute the damage (deterministically), and apply it — emitting AttackResolved with the
- * breakdown plus the DamageDealt / EntityDied events from applyDamage. Returns the DamageResult, or
- * undefined when the attacker has no attack or the target has no health. Range and line-of-sight are the
- * caller's gate (see targeting.selectTarget); this assumes an already-validated target.
+ * Resolve one of `attacker`'s attacks on a chosen `target`. `attackIndex` selects which attack to use
+ * (the Enemy AI chooses which; defaults to the entity's primary attack, index 0). Reads the
+ * attack profile and the target's armour + shield, computes the damage (deterministically), and applies it
+ * — emitting AttackResolved (carrying the attack's name) plus the DamageDealt / EntityDied events from
+ * applyDamage. Returns the DamageResult, or undefined when the index is out of range or the target has no
+ * health. Range and line-of-sight are the caller's gate (see targeting); this assumes a valid target.
  */
 export function resolveAttack(
   world: World,
   attacker: EntityId,
   target: EntityId,
+  attackIndex = 0,
 ): DamageResult | undefined {
-  const atk = world.store(Attack).get(attacker);
+  const profile = world.store(Attack).get(attacker)?.profiles[attackIndex];
   const health = world.store(Health).get(target);
-  if (atk === undefined || health === undefined) return undefined;
+  if (profile === undefined || health === undefined) return undefined;
   const armor = world.store(CombatStats).get(target)?.armor ?? 0;
-  const result = computeDamage(atk.profile, armor, shieldOf(world, target));
+  const result = computeDamage(profile, armor, shieldOf(world, target));
   const { lethal } = applyDamage(world, target, result);
   world.emit({
     kind: 'AttackResolved',
     attacker,
     target,
+    attack: profile.name,
     hpLost: result.hpLost,
     shieldAbsorbed: result.shieldAbsorbed,
     lethal,

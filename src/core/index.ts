@@ -98,8 +98,6 @@ export { Player, Enemy } from './actors';
 // (hex range + line of sight), the enemy spawn factory, and the shared Health/CombatStats/Attack/Archetype
 // components (ADR-007). The scene animates off the emitted DamageDealt / AttackResolved / EntityDied events.
 export type {
-  BehaviorTag,
-  TargetRule,
   AttackProfile,
   EnemyDef,
   DamageResult,
@@ -119,8 +117,6 @@ export {
   resolveAttack,
   inAttackRange,
   hasAttackLineOfSight,
-  targetsInReach,
-  selectTarget,
   spawnEnemy,
 } from './combat';
 

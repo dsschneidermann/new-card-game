@@ -7,11 +7,11 @@ import type { EnemyDef } from './types';
 import { Health, CombatStats, Attack, Archetype } from './components';
 
 /**
- * Spawn an enemy of `def` onto `hex`, assembling the archetype as an ECS component bundle (ADR-007: data-
- * driven, not a subclass): the Enemy marker (+ art), position, Health at full, armour, attack, and the
- * archetype identity/movement/tags. Returns the new entity.
+ * Spawn an enemy of `def` onto `hex`, assembling the definition as an ECS component bundle (ADR-007: data-
+ * driven, not a subclass): the Enemy marker (+ its roster art), position, Health at full, armour, the
+ * definition's attacks, and the definition identity/movement. Returns the new entity.
  *
- * PLACEMENT — which archetypes, how many, and where — is the Level Progression feature's job (its enemy
+ * PLACEMENT — which enemies, how many, and where — is the Level Progression feature's job (its enemy
  * budget + reachable layout). This factory is the seam that feature calls; it does not decide placement.
  */
 export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
@@ -20,7 +20,7 @@ export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
   world.store(HexPosition).add(e, { hex });
   world.store(Health).add(e, { hp: def.maxHp, maxHp: def.maxHp });
   world.store(CombatStats).add(e, { armor: def.armor });
-  world.store(Attack).add(e, { profile: def.attack });
-  world.store(Archetype).add(e, { defId: def.id, movement: def.movement, tags: [...def.tags] });
+  world.store(Attack).add(e, { profiles: [...def.attacks] });
+  world.store(Archetype).add(e, { defId: def.id, movement: def.movement });
   return e;
 }
