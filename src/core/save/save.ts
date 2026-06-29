@@ -42,7 +42,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v14: the Defense & Shielding feature added a persistent Shield component (on the player + every enemy),
 // a selfShield field on CombatStats, item armour folded into CombatStats.armor, and seed-spawned forest
 // enemies — so the saved world shape changed again. Discard older saves (no migration, ADR-010).
-export const SAVE_VERSION = 14 as const;
+// v15: the Enemy AI (Movement & Telegraphed Attacks) feature added a persistent PlannedAttack component —
+// each enemy's locked telegraph (attackIndex + target hexes) — so a saved/resumed run keeps its in-flight
+// telegraphs. The saved world shape changed; discard older saves (no migration, ADR-010).
+export const SAVE_VERSION = 15 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

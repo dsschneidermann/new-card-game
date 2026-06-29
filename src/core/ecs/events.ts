@@ -21,6 +21,12 @@ export type GameEvent =
   // with which named attack, how much shield soaked it, and whether it was lethal — so the scene can
   // animate the specific attack and hit.
   | { kind: 'AttackResolved'; attacker: EntityId; target: EntityId; attack: string; hpLost: number; shieldAbsorbed: number; lethal: boolean }
+  // Enemy AI (Movement & Telegraphed Attacks). An enemy planned (telegraphed) an attack this enemy turn —
+  // carrying the attacker, the chosen attack index, and the FIXED target hex(es) it will strike at the end
+  // of the next player turn (Into-the-Breach). The damage is NOT applied now; it resolves later via the
+  // combat resolver (AttackResolved/DamageDealt). The scene reads PlannedAttack each frame to draw the
+  // light-red target hexes + hover line; this event is a discrete cue for any plan-time flash/sfx.
+  | { kind: 'AttackPlanned'; attacker: EntityId; attackIndex: number; hexes: readonly Hex[] }
   // A player attack CARD asks combat to resolve damage (Defense & Shielding): the card system emits this
   // from the card's Attack effect, carrying everything the resolver needs (attacker, the aimed hexes, the
   // card's damage/pierce and its id as the attack name) so combat resolves it WITHOUT importing the cards

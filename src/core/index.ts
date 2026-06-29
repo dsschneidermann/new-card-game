@@ -132,6 +132,12 @@ export {
   makeShieldSystem,
 } from './combat';
 
+// Enemy AI: Movement & Telegraphed Attacks (Into-the-Breach). The enemy-turn system (move + telegraph,
+// resolve last turn's telegraphs), the greedy per-enemy decision, and the persistent PlannedAttack telegraph
+// component the scene reads to draw the light-red target hexes + hover line.
+export type { PlannedAttackData, EnemyDecision } from './enemyai';
+export { PlannedAttack, decideEnemy, makeEnemyTurnSystem } from './enemyai';
+
 // Turn Engine: phases, resource economy, enemy-turn runner
 export type {
   Phase,

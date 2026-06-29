@@ -21,6 +21,7 @@ import {
   makeCardSystem,
   makeCardAttackSystem,
   makeShieldSystem,
+  makeEnemyTurnSystem,
   makeInteractSystem,
   DeckState,
   reshuffle,
@@ -66,6 +67,7 @@ import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 import { MovePlanner } from '@scenes/MovePlanner';
 import { MoveAnimator } from '@render/MoveAnimator';
+import { TelegraphOverlay } from '@render/TelegraphOverlay';
 import { makeLevel, type Level, type LevelBuildContext } from '@render/levels/level';
 
 /** Scene-start payload: Resume rebuilds the saved run; Restart Level replays the saved level from the start; otherwise a fresh run. */
@@ -192,6 +194,9 @@ export class WorldScene extends Phaser.Scene {
   // the per-frame hover refresh rebuilds it only when the hovered enemy or its stats change. null when hidden.
   private enemyCard: Phaser.GameObjects.Container | null = null;
   private enemyCardKey: string | null = null;
+  // The enemy attack-telegraph overlay (Enemy AI: Movement & Telegraphed Attacks): light-red threatened
+  // tiles + the red hover threat line, read from PlannedAttack each frame. Recreated per run (scene reuse).
+  private telegraph: TelegraphOverlay | null = null;
 
   constructor() {
     super('WorldScene');
@@ -266,6 +271,12 @@ export class WorldScene extends Phaser.Scene {
       );
     effectMaskShape.setScrollFactor(0);
     this.effectMask = effectMaskShape.createGeometryMask();
+
+    // Enemy attack-telegraph overlay: shares the visible-window mask so its threatened-tile fill + hover
+    // threat line clip to the board like every other effect layer. Drop a previous run's overlay first
+    // (this scene instance is reused across New Game / Resume / Restart).
+    this.telegraph?.destroy();
+    this.telegraph = new TelegraphOverlay(this, this.layout, this.effectMask);
 
     this.cards = new CardController({
       scene: this,
@@ -412,6 +423,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.maybeOpenChest();
     this.maybeRevealMimic();
+    this.telegraph?.refresh(this.world); // repaint the threatened-tile fill from this step's telegraphs
     this.refreshEnemyHover();
   }
 
@@ -456,15 +468,20 @@ export class WorldScene extends Phaser.Scene {
   private refreshEnemyHover(): void {
     if (this.cards.isOverlayOpen()) {
       this.hideEnemyCard(); // a modal overlay (pile / chest picker / equipment) owns the screen
+      this.telegraph?.refreshHover(this.world, null); // and no threat line while a modal owns the screen
       return;
     }
     const p = this.input.activePointer;
     const hex = pixelToHex(this.layout, p.worldX, p.worldY);
     const { x: ex, y: ey } = hexToPixel(this.layout, hex);
+    const onFrame = this.fullyInFrame(ex, ey);
+    // The hover threat line follows the same on-board hex as the inspect card, but shows for any TELEGRAPHING
+    // enemy (the overlay finds it on that hex) — independent of whether the inspect card itself has data.
+    this.telegraph?.refreshHover(this.world, onFrame ? hex : null);
     const data = enemyCardAt(this.world, hex);
     // Only inspect an enemy whose hex is actually on-screen (the same cull the sprites use), so an enemy in
     // the HUD margin around the board is never shown.
-    if (data === null || !this.fullyInFrame(ex, ey)) {
+    if (data === null || !onFrame) {
       this.hideEnemyCard();
       return;
     }
@@ -670,6 +687,12 @@ export class WorldScene extends Phaser.Scene {
     // TurnStarted; the movement system executes a same-step MoveTo; the card system (last) reacts to cards.
     this.world.addSystem(makeInteractSystem(this.grid));
     this.world.addSystem(makeTurnSystem(this.grid));
+    // The enemy-turn system runs AFTER the turn engine (so it sees TurnStarted{enemy}) and BEFORE the
+    // movement system (so each enemy MoveTo it submits resolves the SAME step) — and before the shield
+    // system below (so a telegraph resolves against the player's live Shield before TurnStarted{player}
+    // wipes it). On the enemy turn it resolves last turn's telegraphs, then moves + re-telegraphs each enemy
+    // (Enemy AI: Movement & Telegraphed Attacks). It fills the turn engine's empty runEnemyTurn seam.
+    this.world.addSystem(makeEnemyTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.addSystem(makeCardSystem(HAND_SIZE));
     // The card-attack system runs AFTER the card system so it sees the AttackRequested the card system emits
