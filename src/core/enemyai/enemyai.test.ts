@@ -230,6 +230,36 @@ describe('enemy turn — telegraph plan & deferred resolution', () => {
     expect(hexEquals(ha, PLAYER)).toBe(false);
     expect(hexEquals(hb, PLAYER)).toBe(false);
   });
+
+  it('never ends its move on a Health-less prop (chest / disguised mimic) — props are reserved too', () => {
+    // Discover where the goblin chooses to stand with the tile FREE...
+    const free = enemyPhaseWorld();
+    const freeGoblin = spawnEnemy(free.world, ARCHETYPES.goblin!, along(PLAYER, 2));
+    advance(free.world);
+    const chosen = enemyHex(free.world, freeGoblin);
+
+    // ...then drop a Health-less prop on that exact hex. A chest / disguised mimic has a HexPosition but NO
+    // Health; before the occupancy fix it was invisible to the no-stacking set, so the enemy stacked on it.
+    const { world } = enemyPhaseWorld();
+    const prop = world.createEntity();
+    world.store(HexPosition).add(prop, { hex: chosen });
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, along(PLAYER, 2));
+    advance(world);
+    expect(hexEquals(enemyHex(world, goblin), chosen)).toBe(false); // did NOT stack on the prop
+    expect(hexDistance(enemyHex(world, goblin), PLAYER)).toBe(1); // still closed to attack range elsewhere
+  });
+
+  it('a telegraph never hits another enemy — only the player (no friendly fire)', () => {
+    const { world } = enemyPhaseWorld();
+    const attacker = spawnEnemy(world, ARCHETYPES.goblin!, along(PLAYER, 6));
+    const bystander = spawnEnemy(world, ARCHETYPES.goblin!, along(PLAYER, 8));
+    const before = world.store(Health).get(bystander)!.hp;
+    // Hand-plant a telegraph from `attacker` locked onto the bystander's hex (NOT the player's). The enemy
+    // phase resolves pending telegraphs first; with player-only resolution the enemy must take no damage.
+    world.store(PlannedAttack).add(attacker, { attackIndex: 0, hexes: [enemyHex(world, bystander)] });
+    advance(world);
+    expect(world.store(Health).get(bystander)!.hp).toBe(before);
+  });
 });
 
 describe('enemy turn — integration with the Turn Engine (real wiring)', () => {

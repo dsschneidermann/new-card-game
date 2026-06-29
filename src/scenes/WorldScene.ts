@@ -697,7 +697,7 @@ export class WorldScene extends Phaser.Scene {
     // movement system (so each enemy MoveTo it submits resolves the SAME step) — and before the shield
     // system below (so a telegraph resolves against the player's live Shield before TurnStarted{player}
     // wipes it). On the enemy turn it resolves last turn's telegraphs, then moves + re-telegraphs each enemy
-    // (Enemy AI: Movement & Telegraphed Attacks). It fills the turn engine's empty runEnemyTurn seam.
+    // (Enemy AI: Movement & Telegraphed Attacks). The turn engine has no enemy-phase loop of its own.
     this.world.addSystem(makeEnemyTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.addSystem(makeCardSystem(HAND_SIZE));

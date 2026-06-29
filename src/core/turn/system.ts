@@ -4,7 +4,6 @@ import type { Hex } from '../hex/hex';
 import type { HexGrid } from '../hex/grid';
 import { HexPosition } from '../hex/movement';
 import { findPath } from '../hex/path';
-import { Enemy } from '../actors';
 import { TurnState, ResourcePool, MovementBudget, type TurnStateData } from './components';
 import { refillEnergy, regenMana, spendEnergy, spendMana } from './resources';
 
@@ -141,7 +140,9 @@ function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData): void {
   world.emit({ kind: 'TurnEnded', phase: 'player' });
   world.emit({ kind: 'TurnStarted', phase: 'enemy' });
 
-  runEnemyTurn(world);
+  // The enemy phase itself (move + telegraph + resolve last turn's telegraphs) is an event-driven system
+  // that reacts to the TurnStarted{enemy} just emitted — see makeEnemyTurnSystem (core/enemyai). The turn
+  // engine only brackets the phase with these events; it owns no per-enemy loop of its own.
 
   world.emit({ kind: 'TurnEnded', phase: 'enemy' });
   turn.phase = 'player';
@@ -160,17 +161,4 @@ function endPlayerTurn(world: World, te: EntityId, turn: TurnStateData): void {
 
   world.emit({ kind: 'RoundStarted', round: turn.round });
   world.emit({ kind: 'TurnStarted', phase: 'player', actor: te });
-}
-
-/**
- * Resolve enemies SEQUENTIALLY in deterministic ascending-id order (the brief's
- * decision: no simultaneous strike). isAlive is re-checked so an enemy removed
- * earlier in the turn is skipped. The per-enemy action is filled in by the Enemy
- * AI feature — this loop is the seam it plugs into.
- */
-function runEnemyTurn(world: World): void {
-  for (const enemy of world.entitiesWith(Enemy)) {
-    if (!world.isAlive(enemy)) continue;
-    // The Enemy AI feature resolves this enemy's action here.
-  }
 }

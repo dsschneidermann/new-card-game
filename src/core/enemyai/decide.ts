@@ -9,10 +9,12 @@ import { Attack, Archetype } from '../combat/components';
 import { inAttackRange, hasAttackLineOfSight } from '../combat/targeting';
 
 /**
- * Enemy AI decision (Movement & Telegraphed Attacks). PURE and DETERMINISTIC — a read-only function of the
- * World, the grid and the enemy; it reads no RNG and mutates nothing, so the enemy turn never perturbs the
- * save's rng stream and is fully unit-testable. The system (system.ts) is the only mutator: it applies the
- * returned decision by submitting the move and writing the telegraph.
+ * Enemy AI decision (Movement & Telegraphed Attacks). PURE — a read-only function of the World, the grid and
+ * the enemy; it reads no RNG and mutates nothing, so each decision is a deterministic function of its inputs
+ * and is trivially unit-testable. (Turn ORDER is seeded-random — the system shuffles with world.rng — but
+ * that draw is deterministic per seed and just as testable; the randomness simply doesn't live in this
+ * per-enemy decision.) The system (system.ts) is the only mutator: it applies the returned decision by
+ * submitting the move and writing the telegraph.
  *
  * Realizes the "greedy per-enemy utility scoring" decision: each enemy independently scores the hexes it
  * can reach this turn against the player and picks the best move + telegraph. Coordination is emergent —
