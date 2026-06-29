@@ -87,6 +87,15 @@ describe('makeShieldSystem reacts to the turn engine events (Defense & Shielding
     expect(world.store(Shield).get(player)?.shield).toBe(0);
   });
 
+  it('ShieldGainRequested grants the requested entity that much shield (a played Defend)', () => {
+    const world = createWorld(1);
+    const sys = makeShieldSystem();
+    const player = world.createEntity();
+    world.emit({ kind: 'ShieldGainRequested', entity: player, amount: 5 });
+    sys(world);
+    expect(world.store(Shield).get(player)?.shield).toBe(5);
+  });
+
   it('processes a full end-of-turn event burst in order: enemy shield reset then re-applied, player reset', () => {
     const world = createWorld(1);
     const sys = makeShieldSystem();

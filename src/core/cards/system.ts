@@ -1,7 +1,6 @@
 import type { System, World } from '../ecs/world';
 import type { EntityId } from '../ecs/entity';
 import type { Hex } from '../hex/hex';
-import { gainShield } from '../combat/shield';
 import {
   DeckState,
   Card,
@@ -144,9 +143,11 @@ function resolveEffect(
       break;
     }
     case 'GainShield': {
-      // Defend: grant the caster shield. The shield system resets it at the start of each player turn, so
-      // this banks block for the coming enemy turn (Defense & Shielding); stacks with further Defends.
-      gainShield(world, owner, effect.amount);
+      // Defend: ASK for the caster to gain shield; the shield system (which owns the pool) grants it the
+      // same step, then resets it at the start of each player turn — so this banks block for the coming
+      // enemy turn (Defense & Shielding); stacks with further Defends. Kept event-driven (mirroring the
+      // Attack effect) so the cards module never calls into combat.
+      world.emit({ kind: 'ShieldGainRequested', entity: owner, amount: effect.amount });
       break;
     }
     case 'Attack': {

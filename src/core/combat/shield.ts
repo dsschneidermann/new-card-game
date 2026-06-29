@@ -41,15 +41,19 @@ export function applyEnemySelfShields(world: World): void {
 }
 
 /**
- * The shield system (Defense & Shielding). Registered AFTER the turn engine, it reacts to THIS step's turn
- * events (same-step visible on the event bus, exactly like the card system) to run the shield lifecycle:
- *  - TurnEnded{player}:   wipe ALL enemy shield (it does not carry between rounds).
- *  - TurnStarted{enemy}:  each enemy self-shields (its only enemy-turn behaviour for now; the Enemy AI
- *                         feature owns target/attack selection in runEnemyTurn, which stays untouched).
- *  - TurnStarted{player}: wipe the player's shield (block from last round does not carry into a new turn).
- * The whole enemy phase resolves inside one EndTurn pass, so these fire in emission order within a single
- * advance() and net out to: enemies freshly self-shielded, player shield 0. Snapshot events first so we
- * never react to our own emissions (we emit none today, but this matches the card system's discipline).
+ * The shield system (Defense & Shielding). Registered AFTER the turn engine AND the card system, it reacts
+ * to THIS step's events (same-step visible on the event bus, exactly like the card system) to run the
+ * shield lifecycle:
+ *  - TurnEnded{player}:    wipe ALL enemy shield (it does not carry between rounds).
+ *  - TurnStarted{enemy}:   each enemy self-shields (its only enemy-turn behaviour for now; the Enemy AI
+ *                          feature owns target/attack selection in runEnemyTurn, which stays untouched).
+ *  - TurnStarted{player}:  wipe the player's shield (block from last round does not carry into a new turn).
+ *  - ShieldGainRequested:  grant the requested shield — a played Defend, emitted by the card system so the
+ *                          cards module never calls combat (this module owns the pool, so it applies it).
+ * The whole enemy phase resolves inside one EndTurn pass, so the turn events fire in emission order within a
+ * single advance() and net out to: enemies freshly self-shielded, player shield 0 (a GainShield request, by
+ * contrast, arrives on a PlayCard advance with no turn events, so the two never collide). Snapshot events
+ * first so we never react to our own emissions (we emit none, but this matches the card system's discipline).
  */
 export function makeShieldSystem(): System {
   return (world) => {
@@ -60,6 +64,8 @@ export function makeShieldSystem(): System {
         applyEnemySelfShields(world);
       } else if (ev.kind === 'TurnStarted' && ev.phase === 'player' && ev.actor !== undefined) {
         resetShield(world, ev.actor);
+      } else if (ev.kind === 'ShieldGainRequested') {
+        gainShield(world, ev.entity, ev.amount);
       }
     }
   };

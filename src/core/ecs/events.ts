@@ -26,6 +26,11 @@ export type GameEvent =
   // card's damage/pierce and its id as the attack name) so combat resolves it WITHOUT importing the cards
   // module. A combat system reacts the same step and produces the AttackResolved / DamageDealt outcome.
   | { kind: 'AttackRequested'; attacker: EntityId; hexes: readonly Hex[]; damage: number; pierce: number; attack: string }
+  // A played card (Defend) asks for its caster to gain shield (Defense & Shielding): the card system emits
+  // this from the card's GainShield effect so the shield module — which OWNS the Shield pool — applies it,
+  // keeping the cards module from calling into combat (mirrors AttackRequested). No paired "resolved" event:
+  // shield display reads the pool straight from the store, and nothing animates a shield gain today.
+  | { kind: 'ShieldGainRequested'; entity: EntityId; amount: number }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
   // Movement Resolution: a whole move resolves in ONE advance as a bracketed hop-log. MovementStarted
   // carries the planned path (start..end); a render MoveAnimator replays it over real time so the sprite

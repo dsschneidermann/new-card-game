@@ -9,9 +9,9 @@ import { Health, CombatStats, Attack, Shield } from './components';
 
 /**
  * Pure damage math (ADR-007). Flat-reduction armour with a min-1 floor; an optional pierce ignores part
- * of the armour before the floor; a Shield pool (status effects, ADR-008 — 0 until that lands) absorbs
- * what gets through before HP. Deterministic by design: no RNG rolls damage, so Restart Turn / undo
- * cannot be used to fish for better numbers (brief design constraint refining ADR-007).
+ * of the armour before the floor; the defender's Shield pool (ADR-008) absorbs what gets through before
+ * HP. Deterministic by design: no RNG rolls damage, so Restart Turn / undo cannot be used to fish for
+ * better numbers (brief design constraint refining ADR-007).
  */
 export function computeDamage(
   profile: AttackProfile,
