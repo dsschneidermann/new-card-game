@@ -28,7 +28,7 @@ const ITEM_ART_FALLBACK_SIZE = 256; // item-art native size if its descriptor is
 const ITEM_ART_TOP_HALF_INSET = 14; // inset around the top-half art window so it never touches the border
 // Lower-half text.
 const ITEM_NAME_OFFSET_Y = 14; // name inset below the vertical centre (just under the art half)
-const ITEM_NAME_FONT_PX = 22;
+const ITEM_NAME_FONT_PX = 18;
 const ITEM_NAME_COLOR = '#e5e7eb';
 const ITEM_SLOT_OFFSET_Y = 58; // 'Equip · kind' line inset below the centre
 const ITEM_SLOT_FONT_PX = 16;

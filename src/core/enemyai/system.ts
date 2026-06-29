@@ -19,8 +19,9 @@ import { decideEnemy } from './decide';
  * Registration is load-bearing (WorldScene.installSystems): turn -> THIS -> movement -> ... -> shield. After
  * the turn engine so it sees TurnStarted{enemy}; BEFORE the movement system so each enemy MoveTo resolves
  * the same advance; BEFORE the shield system so resolution reads the player's live Shield (a Defend played
- * that turn soaks the hit) before TurnStarted{player} wipes it. Pure-core (ADR-002): reads no RNG, so the
- * enemy turn is deterministic and never perturbs the save's rng stream.
+ * that turn soaks the hit) before TurnStarted{player} wipes it. Phaser-free core (ADR-002); the only
+ * randomness is the seeded world.rng draw that orders the enemies (see runEnemyTurn) — each enemy's
+ * DECISION stays pure — so the turn is still replay-deterministic for a given seed.
  */
 export function makeEnemyTurnSystem(grid: HexGrid): System {
   return (world) => {
@@ -31,7 +32,13 @@ export function makeEnemyTurnSystem(grid: HexGrid): System {
   };
 }
 
-/** Resolve due telegraphs, then move + re-telegraph every living enemy in deterministic ascending-id order. */
+/**
+ * Resolve due telegraphs, then move + re-telegraph every living enemy. Enemies act in a RANDOM order each
+ * turn (seeded world.rng) rather than ascending id: the first to decide reserves the best hex, so rotating
+ * who goes first keeps that greedy first-mover advantage from always favouring the lowest id — a fairer,
+ * more balanced choice. Still replay-deterministic — world.rng is seeded and a resumed/restarted run keeps
+ * the live rng, so the same run shuffles identically.
+ */
 function runEnemyTurn(world: World, grid: HexGrid): void {
   resolvePendingTelegraphs(world);
 
@@ -39,7 +46,7 @@ function runEnemyTurn(world: World, grid: HexGrid): void {
   // Each enemy's chosen destination is reserved as it decides, so no two enemies stack or land on the player.
   const blocked = occupancySet(world);
 
-  for (const enemy of world.entitiesWith(Enemy)) {
+  for (const enemy of shuffledEnemies(world)) {
     if (!world.isAlive(enemy)) continue; // an enemy removed earlier this turn is skipped
     const enemyPos = world.store(HexPosition).get(enemy)?.hex;
     if (enemyPos === undefined) continue;
@@ -57,6 +64,18 @@ function runEnemyTurn(world: World, grid: HexGrid): void {
 
     if (decision.kind === 'Act') planTelegraph(world, enemy, decision.attackIndex, decision.targetHexes);
   }
+}
+
+/** The living enemies in a random order, shuffled with the seeded world.rng (Fisher-Yates). */
+function shuffledEnemies(world: World): EntityId[] {
+  const enemies = world.entitiesWith(Enemy).filter((e) => world.isAlive(e));
+  for (let i = enemies.length - 1; i > 0; i -= 1) {
+    const j = world.rng.int(i + 1);
+    const tmp = enemies[i]!;
+    enemies[i] = enemies[j]!;
+    enemies[j] = tmp;
+  }
+  return enemies;
 }
 
 /** Hex keys occupied by living combatants (the player + every living enemy) — what movement must avoid. */

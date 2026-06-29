@@ -27,11 +27,11 @@ const CARD_RADIUS = 12; // rounded-corner radius
 const PORTRAIT_TOP_HALF_INSET = 14; // inset around the top-half window so it never touches the border
 // Lower-half text.
 const NAME_OFFSET_Y = 14; // name inset below the vertical centre (just under the portrait half)
-const NAME_FONT_PX = 22;
+const NAME_FONT_PX = 18;
 const NAME_COLOR = '#e5e7eb';
-const STATS_START_Y = 64; // first stat line inset below the centre
+const STATS_START_Y = 50; // first stat line inset below the centre
 const STAT_LINE_H = 30; // vertical step between successive stat lines
-const STAT_FONT_PX = 18;
+const STAT_FONT_PX = 16;
 const STAT_COLOR = '#cbd5e1';
 const TEXT_WRAP_INSET = 36; // horizontal inset for the wrapped name width
 

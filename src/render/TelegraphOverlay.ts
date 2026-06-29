@@ -3,9 +3,11 @@ import {
   PlannedAttack,
   Enemy,
   HexPosition,
+  Attack,
   hexToPixel,
   hexKey,
   hexEquals,
+  s,
   type World,
   type Hex,
   type HexLayout,
@@ -17,35 +19,34 @@ import {
 const FILL_DEPTH = -900;
 const FILL_COLOR = 0xff4d4d; // light red — the threatened tiles an enemy has locked onto
 const FILL_ALPHA = 0.32;
-// The hover threat LINE draws above the board + sprites so it reads as an overlay, but below the enemy
-// inspect card (900_000) and the HUD (2_000_000).
-const LINE_DEPTH = 850_000;
-const LINE_COLOR = 0xff2222;
-const LINE_ALPHA = 0.95;
-const LINE_WIDTH = 3;
-const TARGET_DOT_RADIUS = 5;
+// The hovered enemy's attack damage, drawn ON each threatened tile in the MovePlanner move-point style
+// (monospace), clipped to the visible window. Depth sits above the sprite band but BELOW the enemy inspect
+// card (ENEMY_CARD_DEPTH = 900_000 in WorldScene) and the HUD, so the card is never occluded by the number.
+const DMG_DEPTH = 800_000;
+const DMG_FONT_PX = 32;
+const DMG_COLOR = '#e5e7eb'; // white — the threat damage
 
 /**
  * Renders enemy attack TELEGRAPHS (Enemy AI: Movement & Telegraphed Attacks) — pure presentation read from
- * the core PlannedAttack component each frame, mirroring MovePlanner's world-space, mask-clipped overlay:
+ * the core PlannedAttack component, mirroring MovePlanner's world-space, mask-clipped overlay:
  *   - a light-red FILL on every tile any enemy has locked onto (so the player sees the danger zones), and
- *   - a red straight LINE from a hovered enemy to each of ITS locked target tiles (the threat it poses).
- * Both graphics are world-space (the camera scrolls them) and clipped to the visible window by the shared
- * effect mask, exactly like the reachable-range fill. It owns no game state and submits no commands.
+ *   - when a telegraphing enemy is hovered, that enemy's attack DAMAGE drawn on each of its target tiles
+ *     (styled like MovePlanner's move-point numbers).
+ * Both are world-space (the camera scrolls them) and clipped to the visible window by the shared effect
+ * mask, like the reachable-range fill. It owns no game state and submits no commands.
  */
 export class TelegraphOverlay {
   private readonly fill: Phaser.GameObjects.Graphics;
-  private readonly line: Phaser.GameObjects.Graphics;
+  private dmgLabels: Phaser.GameObjects.Text[] = [];
   private lastFillKey: string | null = null;
   private lastHoverKey: string | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly layout: HexLayout,
-    effectMask: Phaser.Display.Masks.GeometryMask,
+    private readonly effectMask: Phaser.Display.Masks.GeometryMask,
   ) {
     this.fill = scene.add.graphics().setDepth(FILL_DEPTH).setMask(effectMask);
-    this.line = scene.add.graphics().setDepth(LINE_DEPTH).setMask(effectMask);
   }
 
   /**
@@ -68,35 +69,38 @@ export class TelegraphOverlay {
   }
 
   /**
-   * Draw the red threat line(s) from the enemy hovered at `hoveredHex` to each of its locked target hexes, or
-   * clear the line when nothing telegraph-bearing is hovered. `hoveredHex` is the tile under the pointer
-   * (null clears) — the same hex WorldScene uses for the inspect card.
+   * When the enemy hovered at `hoveredHex` has a telegraph, draw its attack damage on each of its target
+   * hexes; otherwise clear the labels. `hoveredHex` is the tile under the pointer (null clears) — the same
+   * hex WorldScene uses for the inspect card. Damage shown is the attack's base damage (the stable telegraph
+   * number, like Into-the-Breach), not re-computed against the current occupant.
    */
   refreshHover(world: World, hoveredHex: Hex | null): void {
     const enemy = hoveredHex !== null ? this.telegraphingEnemyAt(world, hoveredHex) : undefined;
     const plan = enemy !== undefined ? world.store(PlannedAttack).get(enemy) : undefined;
-    const from = enemy !== undefined ? world.store(HexPosition).get(enemy)?.hex : undefined;
+    const damage =
+      enemy !== undefined && plan !== undefined
+        ? world.store(Attack).get(enemy)?.profiles[plan.attackIndex]?.baseDamage
+        : undefined;
 
-    // Cache so we only redraw when the hovered enemy or its telegraph changes.
+    // Cache so we only rebuild the labels when the hovered enemy, its target hexes, or its damage change.
     const key =
-      enemy !== undefined && plan !== undefined && from !== undefined
-        ? `${enemy}:${hexKey(from)}>${plan.hexes.map((h) => hexKey(h)).join(',')}`
+      plan !== undefined && damage !== undefined
+        ? `${enemy}:${damage}>${plan.hexes.map((h) => hexKey(h)).join(',')}`
         : null;
     if (key === this.lastHoverKey) return;
     this.lastHoverKey = key;
 
-    this.line.clear();
-    if (key === null || plan === undefined || from === undefined) return;
-    const a = hexToPixel(this.layout, from);
-    this.line.lineStyle(LINE_WIDTH, LINE_COLOR, LINE_ALPHA);
-    this.line.fillStyle(LINE_COLOR, LINE_ALPHA);
+    this.clearLabels();
+    if (key === null || plan === undefined || damage === undefined) return;
     for (const target of plan.hexes) {
-      const b = hexToPixel(this.layout, target);
-      this.line.beginPath();
-      this.line.moveTo(a.x, a.y);
-      this.line.lineTo(b.x, b.y);
-      this.line.strokePath();
-      this.line.fillCircle(b.x, b.y, TARGET_DOT_RADIUS); // mark the struck tile
+      const { x, y } = hexToPixel(this.layout, target);
+      this.dmgLabels.push(
+        this.scene.add
+          .text(x, y, String(damage), { fontFamily: 'monospace', fontSize: `${s(DMG_FONT_PX)}px`, color: DMG_COLOR })
+          .setOrigin(0.5)
+          .setDepth(DMG_DEPTH)
+          .setMask(this.effectMask),
+      );
     }
   }
 
@@ -126,9 +130,14 @@ export class TelegraphOverlay {
     this.fill.fillPath();
   }
 
-  /** Drop both graphics (scene reuse). */
+  private clearLabels(): void {
+    for (const t of this.dmgLabels) t.destroy();
+    this.dmgLabels = [];
+  }
+
+  /** Drop the fill graphics + any damage labels (scene reuse). */
   destroy(): void {
     this.fill.destroy();
-    this.line.destroy();
+    this.clearLabels();
   }
 }

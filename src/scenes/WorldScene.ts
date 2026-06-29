@@ -485,7 +485,12 @@ export class WorldScene extends Phaser.Scene {
       this.hideEnemyCard();
       return;
     }
-    const key = `${hex.q},${hex.r}|${data.name}|${data.hp}/${data.maxHp}|${data.shield}|${data.armor}`;
+    // Open the card to the LEFT of the enemy when the enemy is left of the player, otherwise to the RIGHT
+    // (the default) — so it sits toward open space rather than across the player. Compared in world pixels
+    // (enemy hex centre vs the player's). The side is part of the cache key so it re-lays out if it flips.
+    const playerPos = this.world.store(HexPosition).get(this.player)?.hex;
+    const enemyLeftOfPlayer = playerPos !== undefined && ex < hexToPixel(this.layout, playerPos).x;
+    const key = `${hex.q},${hex.r}|${data.name}|${data.hp}/${data.maxHp}|${data.shield}|${data.armor}|${enemyLeftOfPlayer ? 'L' : 'R'}`;
     if (this.enemyCard !== null && this.enemyCardKey === key) return; // unchanged: keep the current card
     this.hideEnemyCard();
     const card = buildEnemyCard(this, data);
@@ -494,9 +499,10 @@ export class WorldScene extends Phaser.Scene {
     const halfW = cardW / 2;
     const halfH = cardH / 2;
     const { width, height } = this.scale;
-    // Sit the card to the RIGHT of the enemy's hex (clear of its tall, bottom-anchored sprite), clamped so
-    // the whole card stays on-screen — mirrors EquipmentOverlay.showTooltip's beside-the-slot + clamp.
-    const rawX = ex - cam.scrollX + this.layout.width / 2 + s(ENEMY_CARD_GAP) + halfW;
+    // Sit the card beside the enemy's hex (clear of its tall, bottom-anchored sprite) on the chosen side,
+    // clamped so the whole card stays on-screen — mirrors EquipmentOverlay.showTooltip's beside-the-slot + clamp.
+    const offsetX = this.layout.width / 2 + s(ENEMY_CARD_GAP) + halfW;
+    const rawX = ex - cam.scrollX + (enemyLeftOfPlayer ? -offsetX : offsetX);
     const cx = Phaser.Math.Clamp(rawX, halfW + s(8), width - halfW - s(8));
     const cy = Phaser.Math.Clamp(ey - cam.scrollY, halfH + s(8), height - halfH - s(8));
     card.setPosition(cx, cy).setDepth(ENEMY_CARD_DEPTH);
