@@ -14,6 +14,7 @@ import {
   EQUIP_KINDS,
   cardDef,
   resolveKey,
+  CombatStats,
   type World,
   type EntityId,
   type DeckStateData,
@@ -132,6 +133,53 @@ describe('equipStartingItems (derived starting deck)', () => {
     const all = [...deck.drawPile, ...deck.hand, ...deck.discardPile];
     expect(new Set(all).size).toBe(all.length); // no duplicates
     for (const inst of all) expect(world.store(Card).get(inst)).toBeDefined(); // every id is a live card instance
+  });
+});
+
+describe('item armor (Defense & Shielding)', () => {
+  /** A player that is also a combatant (has CombatStats), so armour bonuses are observable. */
+  function combatPlayer(world: World, baseArmor = 0): EntityId {
+    const player = makePlayer(world);
+    world.store(CombatStats).add(player, { armor: baseArmor });
+    return player;
+  }
+
+  it('equipping an item with armour raises CombatStats.armor; unequip takes the bonus back', () => {
+    const world = createWorld(1);
+    const player = combatPlayer(world, 0);
+    equipItem(world, player, 'wooden_shield'); // armour 2
+    expect(world.store(CombatStats).get(player)?.armor).toBe(2);
+    unequipItem(world, player, 'shield');
+    expect(world.store(CombatStats).get(player)?.armor).toBe(0);
+  });
+
+  it('adds onto a non-zero base and stacks across several equipped items', () => {
+    const world = createWorld(2);
+    const player = combatPlayer(world, 1);
+    equipItem(world, player, 'wooden_shield'); // +2 -> 3
+    equipItem(world, player, 'leather_cap'); // +1 -> 4
+    expect(world.store(CombatStats).get(player)?.armor).toBe(4);
+  });
+
+  it('equipStartingItems sums the starters armour (Wooden Shield 2 + Leather Boots 1) onto the base', () => {
+    const world = createWorld(3);
+    const player = combatPlayer(world, 0);
+    equipStartingItems(world, player);
+    expect(world.store(CombatStats).get(player)?.armor).toBe(3); // sword + bow add 0
+  });
+
+  it('a weapon with no armour leaves CombatStats.armor unchanged', () => {
+    const world = createWorld(4);
+    const player = combatPlayer(world, 2);
+    equipItem(world, player, 'iron_sword');
+    expect(world.store(CombatStats).get(player)?.armor).toBe(2);
+  });
+
+  it('is a safe no-op when the equipping entity has no CombatStats', () => {
+    const world = createWorld(5);
+    const player = makePlayer(world); // no CombatStats
+    expect(() => equipItem(world, player, 'wooden_shield')).not.toThrow();
+    expect(world.store(CombatStats).get(player)).toBeUndefined();
   });
 });
 

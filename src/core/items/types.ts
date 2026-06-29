@@ -48,6 +48,9 @@ export interface ItemDef {
   readonly grantsCards: readonly string[];
   /** SpellDef ids a spellbook would grant — DEFERRED (not consumed yet; spellbooks are TBD). */
   readonly grantsSpells?: readonly string[];
+  /** Flat armour added to the player's CombatStats.armor while equipped (Defense & Shielding): added on
+   *  equip, removed on unequip/replace. Absent means 0 — weapons grant none. */
+  readonly armor?: number;
   /** Registered AssetKey of this item's equipment art (e.g. AssetKeys.itemArtIronSword): shown in the
    *  item rectangle's top half and in the equipped-items overlay slot. Mirrors CardDef.art / SpellDef.art. */
   readonly art: AssetKey;

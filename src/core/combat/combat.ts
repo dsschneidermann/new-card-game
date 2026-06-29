@@ -1,7 +1,11 @@
 import type { World } from '../ecs/world';
 import type { EntityId } from '../ecs/entity';
+import type { Hex } from '../hex/hex';
+import { hexEquals } from '../hex/hex';
+import { HexPosition } from '../hex/movement';
+import { Enemy } from '../actors';
 import type { AttackProfile, DamageResult } from './types';
-import { Health, CombatStats, Attack } from './components';
+import { Health, CombatStats, Attack, Shield } from './components';
 
 /**
  * Pure damage math (ADR-007). Flat-reduction armour with a min-1 floor; an optional pierce ignores part
@@ -22,11 +26,12 @@ export function computeDamage(
 }
 
 /**
- * A defender's current shield pool. Status effects (ADR-008) will grant this; until that feature lands
- * there is no shield, so this is always 0. Isolated here as the single seam status effects will fill.
+ * A defender's current shield pool (ADR-008): the absorb that soaks damage before HP. Read from the
+ * Shield component (Defense & Shielding); 0 when the target has no shield. The single seam computeDamage
+ * reads — applyDamage spends it down by what it absorbs.
  */
-function shieldOf(_world: World, _target: EntityId): number {
-  return 0;
+function shieldOf(world: World, target: EntityId): number {
+  return Math.max(0, world.store(Shield).get(target)?.shield ?? 0);
 }
 
 /**
@@ -42,6 +47,10 @@ export function applyDamage(
 ): { remainingHp: number; lethal: boolean } {
   const health = world.store(Health).get(target);
   if (health === undefined) return { remainingHp: 0, lethal: false };
+  // Spend the shield it soaked FIRST (so the pool depletes), then take the HP it could not stop. shieldOf
+  // already floored the pool at 0, so shieldAbsorbed never exceeds it — this can't push the shield negative.
+  const shield = world.store(Shield).get(target);
+  if (shield !== undefined) shield.shield = Math.max(0, shield.shield - result.shieldAbsorbed);
   health.hp = Math.max(0, health.hp - result.hpLost);
   const lethal = health.hp === 0;
   const remainingHp = health.hp;
@@ -83,4 +92,60 @@ export function resolveAttack(
     lethal,
   });
   return result;
+}
+
+/** The living enemy standing on `hex`, if any (an enemy without Health — e.g. a disguised mimic — is not
+ *  a valid combat target and is skipped). The player attacks enemies by the hex its card was aimed at. */
+function enemyAt(world: World, hex: Hex): EntityId | undefined {
+  for (const enemy of world.entitiesWith(Enemy)) {
+    if (world.store(Health).get(enemy) === undefined) continue; // not a combat target (e.g. disguised mimic)
+    const pos = world.store(HexPosition).get(enemy);
+    if (pos !== undefined && hexEquals(pos.hex, hex)) return enemy;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve a player attack CARD against the enemies on the aimed `hexes` (Defense & Shielding). The card
+ * supplies the damage (and optional pierce) — the player has no Attack component; its attacks are cards.
+ * For each hex with a living enemy it runs the same deterministic computeDamage/applyDamage path
+ * (armour, then shield, then HP) and emits AttackResolved (carrying the card name) + the DamageDealt /
+ * EntityDied events from applyDamage. A hex with no enemy is a harmless no-op (e.g. a Whirlwind hex that
+ * happens to be empty, or an attack aimed at bare ground). Range/LOS were gated by the caller (targeting);
+ * this only damages. Returns the per-hit DamageResults (for tests / future feedback).
+ */
+export function resolveCardAttack(
+  world: World,
+  attacker: EntityId,
+  hexes: readonly Hex[],
+  baseDamage: number,
+  pierce = 0,
+): DamageResult[] {
+  const profile: AttackProfile = {
+    name: 'attack',
+    minRange: 0,
+    maxRange: 0,
+    requiresLineOfSight: false,
+    baseDamage,
+    pierce,
+  };
+  const results: DamageResult[] = [];
+  for (const hex of hexes) {
+    const target = enemyAt(world, hex);
+    if (target === undefined) continue;
+    const armor = world.store(CombatStats).get(target)?.armor ?? 0;
+    const result = computeDamage(profile, armor, shieldOf(world, target));
+    const { lethal } = applyDamage(world, target, result);
+    world.emit({
+      kind: 'AttackResolved',
+      attacker,
+      target,
+      attack: profile.name,
+      hpLost: result.hpLost,
+      shieldAbsorbed: result.shieldAbsorbed,
+      lethal,
+    });
+    results.push(result);
+  }
+  return results;
 }

@@ -6,8 +6,15 @@
  */
 export type { AttackProfile, EnemyDef, DamageResult } from './types';
 export { ARCHETYPES } from './archetypes';
-export type { HealthData, CombatStatsData, AttackData, ArchetypeData } from './components';
-export { Health, CombatStats, Attack, Archetype } from './components';
-export { computeDamage, applyDamage, resolveAttack } from './combat';
+export type { HealthData, CombatStatsData, AttackData, ArchetypeData, ShieldData } from './components';
+export { Health, CombatStats, Attack, Archetype, Shield } from './components';
+export { computeDamage, applyDamage, resolveAttack, resolveCardAttack } from './combat';
 export { inAttackRange, hasAttackLineOfSight } from './targeting';
 export { spawnEnemy } from './spawn';
+export {
+  gainShield,
+  resetShield,
+  resetEnemyShields,
+  applyEnemySelfShields,
+  makeShieldSystem,
+} from './shield';

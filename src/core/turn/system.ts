@@ -104,6 +104,7 @@ export function makeTurnSystem(grid: HexGrid): System {
             cardId: cmd.cardId,
             ...(cmd.cardEntity !== undefined ? { cardEntity: cmd.cardEntity } : {}),
             ...(cmd.cardTargets !== undefined ? { cardTargets: cmd.cardTargets } : {}),
+            ...(cmd.targets !== undefined ? { targets: cmd.targets } : {}),
           });
           world.emit({ kind: 'ResourceChanged', entity: cmd.entity });
           break;

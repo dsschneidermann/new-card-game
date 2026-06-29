@@ -15,6 +15,7 @@ import {
   makeTurnSystem,
   makeMovementSystem,
   makeCardSystem,
+  makeShieldSystem,
   DeckState,
   Card,
   CardMods,
@@ -29,6 +30,11 @@ import {
   sortPileForDisplay,
   pickCandidates,
   isAttackCard,
+  spawnEnemy,
+  ARCHETYPES,
+  Health,
+  CombatStats,
+  Shield,
   type World,
   type EntityId,
   type HexLayout,
@@ -343,6 +349,100 @@ describe('pickCandidates (card-picker source)', () => {
     expect(pickCandidates(world, deck, { pile: 'discard' })).toEqual([defend, jump]);
     expect(pickCandidates(world, deck, { pile: 'draw', filter: (id) => isAttackCard(id) })).toEqual([melee, ranged]);
     expect(pickCandidates(world, deck, { pile: 'discard', filter: (id) => isAttackCard(id) })).toEqual([]);
+  });
+});
+
+/** Like setup(), but the player is a full combatant (Health/CombatStats/Shield) and the shield system is
+ *  registered too — the pipeline the Defense & Shielding feature runs end to end. */
+function setupCombat(deckIds: string[]): { world: World; player: EntityId } {
+  const grid = new HexGrid(12, 12);
+  const world = createWorld(1);
+  world.addSystem(makeTurnSystem(grid));
+  world.addSystem(makeMovementSystem(grid, LAYOUT));
+  world.addSystem(makeCardSystem(HAND));
+  world.addSystem(makeShieldSystem());
+  const player = world.createEntity();
+  world.store(Player).add(player, { isPlayer: true });
+  world.store(HexPosition).add(player, { hex: offsetToAxial({ col: 5, row: 5 }) });
+  world.store(FacingState).add(player, { facing: 'right' });
+  world.store(TurnState).add(player, { phase: 'player', round: 1, activeActor: player });
+  world.store(ResourcePool).add(player, { energy: 3, energyMax: 3, mana: 1, manaMax: 5, manaRegen: 1 });
+  world.store(MovementBudget).add(player, { remaining: 4, max: 4 });
+  world.store(Health).add(player, { hp: 30, maxHp: 30 });
+  world.store(CombatStats).add(player, { armor: 0 });
+  world.store(Shield).add(player, { shield: 0 });
+  const deck: DeckStateData = { drawPile: buildCardInstances(world, deckIds), hand: [], discardPile: [] };
+  world.store(DeckState).add(player, deck);
+  return { world, player };
+}
+
+describe('Defend → Shield (Defense & Shielding)', () => {
+  it('playing Defend grants the player 5 shield, and two Defends stack to 10', () => {
+    const { world, player } = setupCombat(['defend', 'defend', 'melee', 'jump', 'melee']);
+    advance(world, [{ kind: 'EndTurn', entity: player }]); // deal a hand (also resets shields to 0)
+    const deck = deckOf(world, player);
+    const defends = deck.hand.filter((e) => defOf(world, e) === 'defend');
+    expect(defends.length).toBe(2);
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'defend', energyCost: 1, cardEntity: defends[0]! }]);
+    expect(world.store(Shield).get(player)?.shield).toBe(5);
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'defend', energyCost: 1, cardEntity: defends[1]! }]);
+    expect(world.store(Shield).get(player)?.shield).toBe(10);
+  });
+
+  it("resets the player's shield at the start of the next player turn (block does not carry over)", () => {
+    const { world, player } = setupCombat(['defend', 'melee', 'jump', 'melee', 'melee']);
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+    const deck = deckOf(world, player);
+    const defend = deck.hand.find((e) => defOf(world, e) === 'defend')!;
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'defend', energyCost: 1, cardEntity: defend }]);
+    expect(world.store(Shield).get(player)?.shield).toBe(5);
+    advance(world, [{ kind: 'EndTurn', entity: player }]); // end turn -> enemy phase -> next player turn opens
+    expect(world.store(Shield).get(player)?.shield).toBe(0); // wiped at player-turn start
+  });
+});
+
+describe('enemy self-shield lifecycle (Defense & Shielding)', () => {
+  it('wipes all enemy shield at the end of the player turn, then re-applies each enemy its selfShield', () => {
+    const { world, player } = setupCombat(['melee', 'melee', 'jump', 'melee', 'melee']);
+    const orc = spawnEnemy(world, ARCHETYPES.orc!, { q: 0, r: 0 }); // selfShield 3
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, { q: 8, r: 0 }); // no selfShield
+    world.store(Shield).get(orc)!.shield = 99; // stale shield from a previous round
+    world.store(Shield).get(goblin)!.shield = 5;
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+    expect(world.store(Shield).get(orc)?.shield).toBe(ARCHETYPES.orc!.selfShield); // reset to 0, then self-shielded
+    expect(world.store(Shield).get(goblin)?.shield).toBe(0); // reset, no self-shield to re-apply
+  });
+});
+
+describe('player attack cards deal damage through the resolver (Defense & Shielding)', () => {
+  it('Melee aimed at an enemy hex damages that enemy by its card damage (through armour/shield)', () => {
+    const { world, player } = setupCombat(['melee', 'jump', 'melee', 'jump', 'melee']);
+    const enemyHex = offsetToAxial({ col: 6, row: 5 });
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, enemyHex); // 12 HP, 0 armour, 0 shield
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+    const deck = deckOf(world, player);
+    const melee = deck.hand.find((e) => defOf(world, e) === 'melee')!;
+    advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, cardEntity: melee, targets: [enemyHex] },
+    ]);
+    expect(world.store(Health).get(goblin)?.hp).toBe(12 - 6); // Melee deals 6
+  });
+
+  it('a self-shielded enemy soaks the hit on its shield before its HP', () => {
+    const { world, player } = setupCombat(['melee', 'jump', 'melee', 'jump', 'melee']);
+    const enemyHex = offsetToAxial({ col: 6, row: 5 });
+    const orc = spawnEnemy(world, ARCHETYPES.orc!, enemyHex); // 28 HP, armour 2, selfShield 3
+    advance(world, [{ kind: 'EndTurn', entity: player }]); // orc self-shields to 3 on its turn
+    expect(world.store(Shield).get(orc)?.shield).toBe(3);
+    const deck = deckOf(world, player);
+    const melee = deck.hand.find((e) => defOf(world, e) === 'melee')!;
+    const hpBefore = world.store(Health).get(orc)!.hp;
+    advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, cardEntity: melee, targets: [enemyHex] },
+    ]);
+    // Melee 6 - armour 2 = 4; shield 3 soaks 3; 1 reaches HP.
+    expect(world.store(Shield).get(orc)?.shield).toBe(0);
+    expect(world.store(Health).get(orc)?.hp).toBe(hpBefore - 1);
   });
 });
 

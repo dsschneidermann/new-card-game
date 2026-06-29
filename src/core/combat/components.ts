@@ -18,11 +18,24 @@ export interface HealthData {
 
 /**
  * Defensive combat stats. `armor` is flat damage reduction with a min-1 floor (ADR-007). Lives on a
- * component (not derived from the roster) so status effects (ADR-008) can modify it later. Shield is a
- * separate, status-granted absorb pool (ADR-008), not modelled yet — combat treats it as 0.
+ * component (not derived from the roster) so status effects (ADR-008) can modify it later. `selfShield`
+ * is the amount of Shield an entity grants ITSELF at the start of each of its own turns — an enemy
+ * ability (Defense & Shielding); absent/0 for the player and for enemies with no self-shield.
  */
 export interface CombatStatsData {
   armor: number;
+  selfShield?: number;
+}
+
+/**
+ * A defender's current Shield: a temporary absorb pool that soaks damage BEFORE HP (ADR-008), then is
+ * spent down by what it absorbs. The player gains it from Defend (and it resets at the start of each
+ * player turn); enemies grant it to themselves each enemy turn (and it resets at the end of the player
+ * turn). Shared by player and enemies so the one resolver consumes it for both. Persistent: shield in
+ * flight must survive save/resume mid-round.
+ */
+export interface ShieldData {
+  shield: number;
 }
 
 /** An entity's attacks — one or more AttackProfiles. The Enemy AI selects which to use; resolveAttack
@@ -45,3 +58,4 @@ export const Health: ComponentType<HealthData> = defineComponent<HealthData>('He
 export const CombatStats: ComponentType<CombatStatsData> = defineComponent<CombatStatsData>('CombatStats');
 export const Attack: ComponentType<AttackData> = defineComponent<AttackData>('Attack');
 export const Archetype: ComponentType<ArchetypeData> = defineComponent<ArchetypeData>('Archetype');
+export const Shield: ComponentType<ShieldData> = defineComponent<ShieldData>('Shield');

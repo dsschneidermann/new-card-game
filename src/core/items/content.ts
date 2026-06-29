@@ -9,16 +9,17 @@ import { AssetKeys } from '../assets/keys';
  */
 export const ITEM_DEFS: readonly ItemDef[] = [
   // The four basic starting items: each grants two basic cards. Their combined grants ARE the opening deck.
+  // Defensive pieces add a little flat armour (Defense & Shielding); the two weapons grant none.
   { id: 'iron_sword', name: 'Iron Sword', kind: 'weapon_melee', grantsCards: ['melee', 'melee'], art: AssetKeys.itemArtIronSword },
-  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'], art: AssetKeys.itemArtWoodenShield },
+  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'], armor: 2, art: AssetKeys.itemArtWoodenShield },
   { id: 'short_bow', name: 'Short Bow', kind: 'weapon_ranged', grantsCards: ['rangedshot', 'rangedshot'], art: AssetKeys.itemArtShortBow },
-  { id: 'leather_boots', name: 'Leather Boots', kind: 'boots', grantsCards: ['jump', 'jump'], art: AssetKeys.itemArtLeatherBoots },
+  { id: 'leather_boots', name: 'Leather Boots', kind: 'boots', grantsCards: ['jump', 'jump'], armor: 1, art: AssetKeys.itemArtLeatherBoots },
 
-  // One placeholder example per remaining kind (no card grants yet; stat bonuses are deferred).
+  // One placeholder example per remaining kind (no card grants yet). Armour pieces add a small flat bonus.
   { id: 'rusty_dagger', name: 'Rusty Dagger', kind: 'weapon_backup', grantsCards: [], art: AssetKeys.itemArtRustyDagger },
-  { id: 'leather_cap', name: 'Leather Cap', kind: 'armor_head', grantsCards: [], art: AssetKeys.itemArtLeatherCap },
-  { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [], art: AssetKeys.itemArtLeatherTunic },
-  { id: 'travelers_cape', name: "Traveler's Cape", kind: 'cape', grantsCards: [], art: AssetKeys.itemArtTravelersCape },
+  { id: 'leather_cap', name: 'Leather Cap', kind: 'armor_head', grantsCards: [], armor: 1, art: AssetKeys.itemArtLeatherCap },
+  { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [], armor: 1, art: AssetKeys.itemArtLeatherTunic },
+  { id: 'travelers_cape', name: "Traveler's Cape", kind: 'cape', grantsCards: [], armor: 1, art: AssetKeys.itemArtTravelersCape },
   { id: 'plain_amulet', name: 'Plain Amulet', kind: 'amulet', grantsCards: [], art: AssetKeys.itemArtPlainAmulet },
   // grantsSpells is illustrative only — spellbook -> spell granting is deferred (no player-spell collection yet).
   { id: 'apprentice_spellbook', name: 'Apprentice Spellbook', kind: 'spellbook', grantsCards: [], grantsSpells: ['blizzard'], art: AssetKeys.itemArtApprenticeSpellbook },

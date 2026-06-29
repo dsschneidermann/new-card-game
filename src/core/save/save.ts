@@ -39,7 +39,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v13: the Enemy Archetypes feature added persistent combat components — Health, CombatStats, Attack, and
 // Archetype on enemies, plus Health + CombatStats on the player — so the saved world shape changed.
 // Discard pre-combat saves so a resumed run has valid HP/armour state (no migration, ADR-010).
-export const SAVE_VERSION = 13 as const;
+// v14: the Defense & Shielding feature added a persistent Shield component (on the player + every enemy),
+// a selfShield field on CombatStats, item armour folded into CombatStats.armor, and seed-spawned forest
+// enemies — so the saved world shape changed again. Discard older saves (no migration, ADR-010).
+export const SAVE_VERSION = 14 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

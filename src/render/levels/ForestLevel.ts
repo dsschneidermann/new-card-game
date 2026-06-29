@@ -9,15 +9,19 @@ import {
   FacingState,
   spawnChest,
   spawnMimic,
+  spawnEnemy,
+  ARCHETYPES,
   applyObstacleEntities,
   forestTerrainTile,
   forestOverlay,
   forestLeaf,
   generateForestObstacles,
   generateForestChests,
+  generateForestEnemies,
   forestMimicIndex,
   forestPropFacing,
   forestStartHex,
+  hexKey,
   FOREST_COLS,
   FOREST_ROWS,
   FOREST_ID,
@@ -137,6 +141,18 @@ export class ForestLevel implements Level {
       if (i === mimicIndex) spawnMimic(world, c.hex);
       else spawnChest(world, c.hex);
     });
+    // Archetype enemies (Defense & Shielding): seed-deterministic placement, kept off obstacles/chests/start.
+    // spawnEnemy materialises each archetype's stats + art; the install() loop below renders them like any
+    // Enemy entity (idle anim + seed facing). On resume they persist, so reinstall needs no enemy logic.
+    const blocked = new Set<string>([
+      ...obstacles.map((o) => hexKey(o.hex)),
+      ...props.map((c) => hexKey(c.hex)),
+      hexKey(forestStartHex),
+    ]);
+    for (const spawn of generateForestEnemies(this.seed, blocked)) {
+      const def = ARCHETYPES[spawn.defId];
+      if (def !== undefined) spawnEnemy(world, def, spawn.hex);
+    }
     this.install(world, grid);
   }
 

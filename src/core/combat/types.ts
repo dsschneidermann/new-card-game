@@ -33,6 +33,9 @@ export interface EnemyDef {
   readonly armor: number;
   /** Tiles the enemy may move per turn (read by the Enemy AI feature). */
   readonly movement: number;
+  /** Shield this enemy grants itself at the start of each of its own turns (Defense & Shielding). Absent
+   *  means it has no self-shield ability. The whole pool is wiped at the end of each player turn first. */
+  readonly selfShield?: number;
   /** One or more attacks; the Enemy AI picks which to use against a target by range/LOS. */
   readonly attacks: readonly AttackProfile[];
 }

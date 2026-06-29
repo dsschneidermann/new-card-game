@@ -38,6 +38,7 @@ export const ARCHETYPES: Record<string, EnemyDef> = {
     maxHp: 28,
     armor: 2,
     movement: 3,
+    selfShield: 3, // raises its guard each turn (the forest's self-shielder)
     attacks: [{ name: 'cleave', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 7 }],
   },
   knight: {
@@ -47,6 +48,7 @@ export const ARCHETYPES: Record<string, EnemyDef> = {
     maxHp: 34,
     armor: 5,
     movement: 2,
+    selfShield: 4,
     attacks: [{ name: 'longsword', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 8, pierce: 1 }],
   },
   gorgon: {
@@ -92,6 +94,7 @@ export const ARCHETYPES: Record<string, EnemyDef> = {
     maxHp: 46,
     armor: 6,
     movement: 1,
+    selfShield: 6,
     attacks: [
       { name: 'magma_fist', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 9 },
       { name: 'lava_spit', minRange: 2, maxRange: 3, requiresLineOfSight: true, baseDamage: 7, pierce: 2 },

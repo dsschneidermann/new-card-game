@@ -26,7 +26,8 @@ export type TargetSpec =
 export type CardEffect =
   | { kind: 'DrawAndFree' }
   | { kind: 'ReduceRandomOtherCost'; amount: number }
-  | { kind: 'MoveToHand' }; // moves the picked card (cardTargets[0]) to hand from whichever pile holds it
+  | { kind: 'MoveToHand' } // moves the picked card (cardTargets[0]) to hand from whichever pile holds it
+  | { kind: 'GainShield'; amount: number }; // Defend: grants the caster `amount` shield (Defense & Shielding)
 
 /**
  * A card's optional card-pick: playing it opens a picker over `pile`, optionally narrowed by `filter`
@@ -53,6 +54,11 @@ export interface CardDef {
   readonly attack?: boolean;
   /** A heavier attack: plays the attack2 animation instead of the default attack1 (presentation-only). */
   readonly heavyAttack?: boolean;
+  /** Base damage an attack card deals to each enemy on its aimed hex(es) (Defense & Shielding). Resolved
+   *  through the combat resolver (armour, then shield, then HP). Only meaningful with `attack: true`. */
+  readonly damage?: number;
+  /** Armour this attack ignores before the min-1 floor (mirrors AttackProfile.pierce). Absent means 0. */
+  readonly pierce?: number;
   /** Mechanical effect resolved by the card system on play (skills like Quick Draw / Sharpen). */
   readonly effect?: CardEffect;
   /** If set, playing this card opens a card-picker on the chosen pile; the picked card becomes the play's cardTargets. */

@@ -7,7 +7,7 @@
 import { offsetToAxial, axialToOffset } from '../../hex/layout';
 import { hexKey, hexDistance, type Hex } from '../../hex/hex';
 import { hash01 } from '../../terrain/terrain';
-import type { ObstacleSpawn, ChestSpawn } from '../levels';
+import type { ObstacleSpawn, ChestSpawn, EnemySpawn } from '../levels';
 
 // The forest world is 52x42 (the Larger World feature): the camera follows the player and renders only a
 // small visible viewport of this larger map.
@@ -108,4 +108,47 @@ export function forestMimicIndex(seed: number, count: number): number | null {
 export function forestPropFacing(hex: Hex, seed: number): 'left' | 'right' {
   const { col, row } = axialToOffset(hex);
   return hash01(col, row, seed ^ FACING_SALT) < 0.5 ? 'left' : 'right';
+}
+
+// Enemy placement (tunable; surfaced at balance sign-off). A seed-deterministic count of archetype enemies
+// in [FOREST_ENEMY_MIN, FOREST_ENEMY_MAX] scattered on walkable tiles, never on a blocked hex (obstacle /
+// chest / start) and kept outside ENEMY_CLEAR_RADIUS of the start so the player isn't swarmed at spawn. Each
+// draws an archetype from the forest pool; all counts/positions/kinds come from decorrelated seed streams.
+export const FOREST_ENEMY_MIN = 3; // fewest enemies placed
+export const FOREST_ENEMY_MAX = 5; // most enemies placed
+const FOREST_ENEMY_POOL = ['goblin', 'slime', 'orc'] as const; // forest-tier archetype ids (orc self-shields)
+const ENEMY_CLEAR_RADIUS = 6; // keep enemies at least this many hexes from the start hex
+const ENEMY_CANDIDATE_RATE = 0.04; // fraction of free cells that become enemy candidates (then spread out)
+const ENEMY_PLACE_SALT = 0x0e5a01;
+const ENEMY_COUNT_SALT = 0x0e5a02; // decorrelated stream for the enemy COUNT
+const ENEMY_KIND_SALT = 0x0e5a03; // decorrelated stream for WHICH archetype each is
+
+/**
+ * The forest's enemies, generated deterministically from the run seed: a RANDOMIZED count in
+ * [FOREST_ENEMY_MIN, FOREST_ENEMY_MAX] of archetype enemies on walkable tiles, never on a `blocked` hex
+ * (the caller passes obstacle + chest + start hex keys) and never within ENEMY_CLEAR_RADIUS of the start.
+ * Candidates are sampled across the whole grid then taken evenly-spaced (spread out + distinct), mirroring
+ * the chest generator. Pure — the renderer turns each into an Enemy entity via spawnEnemy(ARCHETYPES[defId]).
+ */
+export function generateForestEnemies(seed: number, blocked: ReadonlySet<string>): EnemySpawn[] {
+  const candidates: Hex[] = [];
+  for (let row = 0; row < FOREST_ROWS; row += 1) {
+    for (let col = 0; col < FOREST_COLS; col += 1) {
+      const hex = offsetToAxial({ col, row });
+      if (blocked.has(hexKey(hex))) continue;
+      if (hexDistance(hex, forestStartHex) <= ENEMY_CLEAR_RADIUS) continue; // breathing room around the start
+      if (hash01(col, row, seed ^ ENEMY_PLACE_SALT) < ENEMY_CANDIDATE_RATE) candidates.push(hex);
+    }
+  }
+  const span = FOREST_ENEMY_MAX - FOREST_ENEMY_MIN + 1;
+  const wanted = FOREST_ENEMY_MIN + Math.floor(hash01(0, 0, seed ^ ENEMY_COUNT_SALT) * span);
+  const n = Math.min(wanted, candidates.length);
+  const enemies: EnemySpawn[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const hex = candidates[Math.floor((i * candidates.length) / n)]!; // evenly spaced -> spread + distinct
+    const { col, row } = axialToOffset(hex);
+    const pick = Math.floor(hash01(col, row, seed ^ ENEMY_KIND_SALT) * FOREST_ENEMY_POOL.length);
+    enemies.push({ defId: FOREST_ENEMY_POOL[Math.min(pick, FOREST_ENEMY_POOL.length - 1)]!, hex });
+  }
+  return enemies;
 }

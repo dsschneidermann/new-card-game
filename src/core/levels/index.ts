@@ -15,8 +15,11 @@ export {
   forestStartHex,
   generateForestObstacles,
   generateForestChests,
+  generateForestEnemies,
   forestMimicIndex,
   forestPropFacing,
   FOREST_CHEST_MIN,
   FOREST_CHEST_MAX,
+  FOREST_ENEMY_MIN,
+  FOREST_ENEMY_MAX,
 } from './forest/forest';

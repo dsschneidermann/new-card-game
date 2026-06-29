@@ -12,12 +12,14 @@ import {
   Player,
   Health,
   CombatStats,
+  Shield,
   TurnState,
   ResourcePool,
   MovementBudget,
   makeMovementSystem,
   makeTurnSystem,
   makeCardSystem,
+  makeShieldSystem,
   makeInteractSystem,
   DeckState,
   reshuffle,
@@ -607,6 +609,10 @@ export class WorldScene extends Phaser.Scene {
     this.world.addSystem(makeTurnSystem(this.grid));
     this.world.addSystem(makeMovementSystem(this.grid, this.layout));
     this.world.addSystem(makeCardSystem(HAND_SIZE));
+    // The shield system runs LAST so it sees the turn engine's same-step events (TurnEnded/TurnStarted) and
+    // the card system's Defend resolution: it resets the player's shield each player turn, wipes enemy shield
+    // each player-turn end, and self-shields enemies on the enemy turn (Defense & Shielding).
+    this.world.addSystem(makeShieldSystem());
     this.world.store(Renderable).add(this.player, {
       texture: AssetKeys.playerIdle,
       animBase: 'player',
@@ -672,8 +678,10 @@ export class WorldScene extends Phaser.Scene {
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
     // The player is a damageable combatant (ADR-007): full HP + armour, shared Health/CombatStats with
     // enemies so combat is symmetric. Reaching 0 HP (the loss condition) is the run-lifecycle feature (ADR-010).
+    // The Shield pool starts empty; Defend banks it (reset each player turn by the shield system) — Defense & Shielding.
     world.store(Health).add(this.player, { hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP });
     world.store(CombatStats).add(this.player, { armor: PLAYER_ARMOR });
+    world.store(Shield).add(this.player, { shield: 0 });
     // The deck is DERIVED from the player's starting equipment: equipping each basic item instantiates
     // its granted cards into the draw pile (sword -> 2 Melee Strike, shield -> 2 Defend, bow -> 2 Ranged
     // Shot, boots -> 2 Jump). There is no static starter collection any more.

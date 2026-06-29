@@ -9,7 +9,9 @@ import {
   AssetKeys,
   ARCHETYPES,
   computeDamage,
+  applyDamage,
   resolveAttack,
+  resolveCardAttack,
   spawnEnemy,
   inAttackRange,
   hasAttackLineOfSight,
@@ -17,6 +19,7 @@ import {
   CombatStats,
   Attack,
   Archetype,
+  Shield,
   type AttackProfile,
   type World,
   type EntityId,
@@ -183,6 +186,106 @@ describe('resolveAttack (ADR-007)', () => {
   });
 });
 
+describe('shield absorbs before HP and is spent down (Defense & Shielding, ADR-008)', () => {
+  it('applyDamage decrements the target shield by shieldAbsorbed AND HP by hpLost', () => {
+    const world = createWorld(1);
+    const target = world.createEntity();
+    world.store(Health).add(target, { hp: 20, maxHp: 20 });
+    world.store(Shield).add(target, { shield: 4 });
+    // base 6, armour 0 -> afterArmor 6; shield 4 soaks 4, 2 reaches HP.
+    applyDamage(world, target, computeDamage(profile({ baseDamage: 6 }), 0, 4));
+    expect(world.store(Shield).get(target)?.shield).toBe(0); // pool spent
+    expect(world.store(Health).get(target)?.hp).toBe(18); // 20 - 2
+  });
+
+  it('a hit fully soaked by shield leaves HP untouched and never drives the pool negative', () => {
+    const world = createWorld(1);
+    const target = world.createEntity();
+    world.store(Health).add(target, { hp: 20, maxHp: 20 });
+    world.store(Shield).add(target, { shield: 10 });
+    applyDamage(world, target, computeDamage(profile({ baseDamage: 6 }), 0, 10));
+    expect(world.store(Shield).get(target)?.shield).toBe(4); // 10 - 6
+    expect(world.store(Health).get(target)?.hp).toBe(20); // untouched
+  });
+
+  it('resolveAttack reads the target Shield component: shield soaks first, then HP, reporting shieldAbsorbed', () => {
+    const world = createWorld(1);
+    const a = world.createEntity();
+    world.store(Attack).add(a, { profiles: [profile({ name: 'cleave', baseDamage: 9 })] });
+    const target = world.createEntity();
+    world.store(Health).add(target, { hp: 20, maxHp: 20 });
+    world.store(CombatStats).add(target, { armor: 1 });
+    world.store(Shield).add(target, { shield: 5 });
+    // base 9 - armour 1 = 8; shield 5 soaks 5; 3 to HP.
+    const result = resolveAttack(world, a, target);
+    expect(result).toMatchObject({ afterArmor: 8, shieldAbsorbed: 5, hpLost: 3 });
+    expect(world.store(Shield).get(target)?.shield).toBe(0);
+    expect(world.store(Health).get(target)?.hp).toBe(17);
+    expect(world.events().find((e) => e.kind === 'AttackResolved')).toMatchObject({ shieldAbsorbed: 5, lethal: false });
+  });
+});
+
+describe('spawnEnemy attaches a Shield pool + the self-shield stat (Defense & Shielding)', () => {
+  it('every spawned enemy starts unshielded (Shield 0)', () => {
+    const world = createWorld(1);
+    const e = spawnEnemy(world, ARCHETYPES.goblin!, { q: 0, r: 0 });
+    expect(world.store(Shield).get(e)).toEqual({ shield: 0 });
+  });
+
+  it('materialises CombatStats.selfShield from the def — an Orc self-shields, a Goblin does not', () => {
+    const world = createWorld(1);
+    const orc = spawnEnemy(world, ARCHETYPES.orc!, { q: 0, r: 0 });
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, { q: 1, r: 0 });
+    expect(world.store(CombatStats).get(orc)?.selfShield).toBe(ARCHETYPES.orc!.selfShield);
+    expect(world.store(CombatStats).get(orc)?.selfShield).toBeGreaterThan(0);
+    expect(world.store(CombatStats).get(goblin)?.selfShield).toBeUndefined();
+  });
+});
+
+describe('resolveCardAttack — player attack cards damage enemies on the aimed hex(es)', () => {
+  it('damages the enemy standing on the aimed hex through armour, then shield, then HP', () => {
+    const world = createWorld(1);
+    const player = world.createEntity();
+    const orc = spawnEnemy(world, ARCHETYPES.orc!, { q: 2, r: 0 }); // armour 2
+    world.store(Shield).get(orc)!.shield = 3; // pretend it self-shielded this round
+    const startHp = world.store(Health).get(orc)!.hp;
+    // Long Strike damage 7 - armour 2 = 5; shield 3 soaks 3; 2 to HP.
+    resolveCardAttack(world, player, [{ q: 2, r: 0 }], 7);
+    expect(world.store(Shield).get(orc)?.shield).toBe(0);
+    expect(world.store(Health).get(orc)?.hp).toBe(startHp - 2);
+    expect(world.events().find((e) => e.kind === 'AttackResolved')).toMatchObject({ attacker: player, target: orc });
+  });
+
+  it('hits every enemy on the passed hexes (a Whirlwind-style burst)', () => {
+    const world = createWorld(1);
+    const player = world.createEntity();
+    const a = spawnEnemy(world, ARCHETYPES.goblin!, { q: 1, r: 0 });
+    const b = spawnEnemy(world, ARCHETYPES.goblin!, { q: 0, r: 1 });
+    const before = world.store(Health).get(a)!.hp;
+    resolveCardAttack(world, player, [{ q: 1, r: 0 }, { q: 0, r: 1 }], 5);
+    expect(world.store(Health).get(a)?.hp).toBe(before - 5);
+    expect(world.store(Health).get(b)?.hp).toBe(before - 5);
+  });
+
+  it('kills an enemy reduced to 0 HP (EntityDied + destroyed)', () => {
+    const world = createWorld(1);
+    const player = world.createEntity();
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, { q: 1, r: 0 }); // 12 HP, 0 armour
+    resolveCardAttack(world, player, [{ q: 1, r: 0 }], 99);
+    expect(world.isAlive(goblin)).toBe(false);
+    expect(world.events()).toContainEqual({ kind: 'EntityDied', entity: goblin });
+  });
+
+  it('an aimed hex with no enemy is a harmless no-op', () => {
+    const world = createWorld(1);
+    const player = world.createEntity();
+    spawnEnemy(world, ARCHETYPES.goblin!, { q: 1, r: 0 });
+    const results = resolveCardAttack(world, player, [{ q: 5, r: 5 }], 6); // empty tile
+    expect(results).toEqual([]);
+    expect(world.events().some((e) => e.kind === 'AttackResolved')).toBe(false);
+  });
+});
+
 describe('combat state persists across save/resume (ADR-010 round-trip)', () => {
   it('a multi-attack enemy survives serialize -> restore with HP, armour, attacks, definition and position', () => {
     const world = createWorld(7);
@@ -198,5 +301,16 @@ describe('combat state persists across save/resume (ADR-010 round-trip)', () => 
     expect(restored.store(Archetype).get(e)).toEqual({ defId: 'dragon', movement: ARCHETYPES.dragon!.movement });
     expect(restored.store(Enemy).get(e)?.art).toBe(ARCHETYPES.dragon!.spriteKey);
     expect(restored.store(HexPosition).get(e)).toEqual({ hex: { q: 3, r: -1 } });
+  });
+
+  it('an enemy carrying live Shield + selfShield round-trips (Defense & Shielding, v14)', () => {
+    const world = createWorld(7);
+    const e = spawnEnemy(world, ARCHETYPES.orc!, { q: 1, r: 2 });
+    world.store(Shield).get(e)!.shield = 3; // a mid-round shield value, not the spawn default
+
+    const restored = restoreWorld(serializeWorld(world));
+
+    expect(restored.store(Shield).get(e)).toEqual({ shield: 3 });
+    expect(restored.store(CombatStats).get(e)?.selfShield).toBe(ARCHETYPES.orc!.selfShield);
   });
 });

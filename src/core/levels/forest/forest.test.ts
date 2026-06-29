@@ -6,9 +6,13 @@ import {
   forestLeaf,
   generateForestObstacles,
   generateForestChests,
+  generateForestEnemies,
   forestStartHex,
   FOREST_COLS,
   FOREST_ROWS,
+  FOREST_ENEMY_MIN,
+  FOREST_ENEMY_MAX,
+  ARCHETYPES,
   HexGrid,
   applyObstacles,
   offsetToAxial,
@@ -151,6 +155,48 @@ describe('forest placement generation', () => {
       expect(hexKey(c.hex)).not.toBe(hexKey(forestStartHex));
       expect(seen.has(hexKey(c.hex))).toBe(false); // distinct
       seen.add(hexKey(c.hex));
+    }
+  });
+
+  // Defense & Shielding: the blocked set the renderer passes (obstacles + chests + the start hex).
+  const blockedFor = (seed: number): Set<string> => {
+    const obstacles = generateForestObstacles(seed);
+    const chests = generateForestChests(seed, obstacles);
+    return new Set<string>([
+      ...obstacles.map((o) => hexKey(o.hex)),
+      ...chests.map((c) => hexKey(c.hex)),
+      hexKey(forestStartHex),
+    ]);
+  };
+  const FOREST_ENEMY_POOL = ['goblin', 'slime', 'orc'];
+
+  it('generateForestEnemies is deterministic, sized in [MIN,MAX], off blocked hexes, clear of start, distinct, from the pool', () => {
+    const seed = 777;
+    const blocked = blockedFor(seed);
+    const a = generateForestEnemies(seed, blocked);
+    const b = generateForestEnemies(seed, blocked);
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThanOrEqual(FOREST_ENEMY_MIN);
+    expect(a.length).toBeLessThanOrEqual(FOREST_ENEMY_MAX);
+    const g = grid();
+    const seen = new Set<string>();
+    for (const e of a) {
+      expect(g.inBounds(e.hex)).toBe(true);
+      expect(blocked.has(hexKey(e.hex))).toBe(false); // never on an obstacle / chest / start
+      expect(hexDistance(e.hex, forestStartHex)).toBeGreaterThan(6); // ENEMY_CLEAR_RADIUS
+      expect(seen.has(hexKey(e.hex))).toBe(false); // distinct
+      seen.add(hexKey(e.hex));
+      expect(FOREST_ENEMY_POOL).toContain(e.defId); // forest-tier pool
+      expect(ARCHETYPES[e.defId]).toBeDefined(); // a real archetype
+    }
+  });
+
+  it('places enemies off blocked hexes across several seeds', () => {
+    for (const seed of [1, 42, 1000, 99999]) {
+      const blocked = blockedFor(seed);
+      for (const e of generateForestEnemies(seed, blocked)) {
+        expect(blocked.has(hexKey(e.hex))).toBe(false);
+      }
     }
   });
 });

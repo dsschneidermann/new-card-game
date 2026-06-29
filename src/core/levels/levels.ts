@@ -8,11 +8,12 @@ import type { ObstacleKind } from '../obstacles';
  */
 
 /**
- * A single enemy placed at level start: its art base (the renderer draws `${art}.idle`) and the hex it
- * stands on. The renderer turns each into an Enemy entity.
+ * A single enemy placed at level start: which roster archetype it is (defId, keyed into ARCHETYPES) and the
+ * hex it stands on. The renderer turns each into an Enemy entity via spawnEnemy, which materialises the
+ * archetype's stats (HP / armour / attacks / self-shield) and art onto components.
  */
 export interface EnemySpawn {
-  readonly art: string;
+  readonly defId: string;
   readonly hex: Hex;
 }
 

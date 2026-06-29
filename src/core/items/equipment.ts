@@ -2,6 +2,7 @@ import { defineComponent, type ComponentType } from '../ecs/component';
 import type { EntityId } from '../ecs/entity';
 import type { World } from '../ecs/world';
 import { DeckState, buildCardInstances, type DeckStateData } from '../cards/deck';
+import { CombatStats } from '../combat/components';
 import { itemDef, STARTER_EQUIPMENT } from './content';
 import type { EquipKind } from './types';
 
@@ -29,6 +30,14 @@ export interface EquipmentData {
 
 export const Equipment: ComponentType<EquipmentData> = defineComponent<EquipmentData>('Equipment');
 
+/** Add `delta` to the owner's flat armour (Defense & Shielding). No-op when the owner has no CombatStats
+ *  (e.g. a deck-only test fixture), so equipping never requires the player to be a full combatant. */
+function adjustArmor(world: World, owner: EntityId, delta: number): void {
+  if (delta === 0) return;
+  const stats = world.store(CombatStats).get(owner);
+  if (stats !== undefined) stats.armor = Math.max(0, stats.armor + delta);
+}
+
 /** Remove an instance id from whichever of the deck's three piles holds it (no-op if in none). */
 function removeFromPiles(deck: DeckStateData, inst: EntityId): void {
   for (const pile of [deck.drawPile, deck.hand, deck.discardPile]) {
@@ -55,6 +64,7 @@ export function equipItem(world: World, owner: EntityId, itemDefId: string): voi
   const deck = world.store(DeckState).get(owner);
   if (deck !== undefined) deck.drawPile.push(...granted);
   equipment.slots[def.kind] = { defId: def.id, grantedCards: granted };
+  adjustArmor(world, owner, def.armor ?? 0); // its flat armour bonus joins the player's CombatStats
 }
 
 /**
@@ -70,6 +80,7 @@ export function unequipItem(world: World, owner: EntityId, kind: EquipKind): voi
     if (deck !== undefined) removeFromPiles(deck, inst);
     world.destroyEntity(inst);
   }
+  adjustArmor(world, owner, -(itemDef(slot.defId)?.armor ?? 0)); // take its armour bonus back off
   delete equipment.slots[kind];
 }
 

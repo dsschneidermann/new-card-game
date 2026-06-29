@@ -75,10 +75,13 @@ export {
   forestStartHex,
   generateForestObstacles,
   generateForestChests,
+  generateForestEnemies,
   forestMimicIndex,
   forestPropFacing,
   FOREST_CHEST_MIN,
   FOREST_CHEST_MAX,
+  FOREST_ENEMY_MIN,
+  FOREST_ENEMY_MAX,
 } from './levels';
 
 // Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers
@@ -105,6 +108,7 @@ export type {
   CombatStatsData,
   AttackData,
   ArchetypeData,
+  ShieldData,
 } from './combat';
 export {
   ARCHETYPES,
@@ -112,12 +116,19 @@ export {
   CombatStats,
   Attack,
   Archetype,
+  Shield,
   computeDamage,
   applyDamage,
   resolveAttack,
+  resolveCardAttack,
   inAttackRange,
   hasAttackLineOfSight,
   spawnEnemy,
+  gainShield,
+  resetShield,
+  resetEnemyShields,
+  applyEnemySelfShields,
+  makeShieldSystem,
 } from './combat';
 
 // Turn Engine: phases, resource economy, enemy-turn runner

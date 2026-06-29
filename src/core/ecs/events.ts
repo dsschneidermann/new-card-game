@@ -10,8 +10,9 @@ export type GameEvent =
   // cardEntity (when present) is the played card-instance entity, echoed from the PlayCard command
   // so the card system can move it to the discard pile + resolve its effect, and the renderer can
   // animate that exact card out of the hand. cardTargets (when present) are picked card instances
-  // echoed for the effect (e.g. Recall's chosen discard card).
-  | { kind: 'CardPlayed'; entity: EntityId; cardId: string; cardEntity?: EntityId; cardTargets?: readonly EntityId[] }
+  // echoed for the effect (e.g. Recall's chosen discard card). targets (when present) are the aimed
+  // hex(es) — forwarded from the command so an attack card can damage the enemies standing on them.
+  | { kind: 'CardPlayed'; entity: EntityId; cardId: string; cardEntity?: EntityId; cardTargets?: readonly EntityId[]; targets?: readonly Hex[] }
   | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
