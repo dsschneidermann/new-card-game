@@ -60,6 +60,8 @@ import {
   type AnimStateData,
 } from '@render/characterViews';
 import { ItemRenderable, buildItemViews } from '@render/itemViews';
+import { enemyCardAt } from '@render/enemyCardData';
+import { buildEnemyCard, enemyCardSize } from '@render/enemyCard';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
 import { CardController } from '@scenes/CardController';
 import { MovePlanner } from '@scenes/MovePlanner';
@@ -117,6 +119,12 @@ const CHEST_OPENING_ANIM = `${AssetKeys.chest1Opening}.right`;
 // Beat between the chest opening animation starting and the reward picker opening, so the player sees the
 // chest open first. The 3-frame sheet runs ~250ms at 10fps, so the picker opens just as the lid finishes.
 const CHEST_OPEN_BEAT_MS = 350;
+
+// Enemy inspect card (Enemy Hover Card): the hovered enemy's name/HP/Shield/Armor card sits to the RIGHT of
+// its hex, clamped on-screen. Depth is above the world sprites but below the HUD + modal overlays, so an
+// open overlay (depth ~2_000_000) covers it. Tunable, surfaced at visual-QA.
+const ENEMY_CARD_DEPTH = 900_000;
+const ENEMY_CARD_GAP = 24; // base-px gap between the enemy's hex and the card's near edge
 
 /**
  * Gameplay scene (the InLevel state): wiring only. It owns a hex world grid
@@ -180,6 +188,10 @@ export class WorldScene extends Phaser.Scene {
   // True from when a chest's opening animation begins (after the move settles) until the player resolves the
   // reward picker. Locks input through the opening beat + the modal, and stops maybeOpenChest re-triggering.
   private chestOpening = false;
+  // The enemy inspect card currently shown on hover (Enemy Hover Card), and a cache key of what it shows so
+  // the per-frame hover refresh rebuilds it only when the hovered enemy or its stats change. null when hidden.
+  private enemyCard: Phaser.GameObjects.Container | null = null;
+  private enemyCardKey: string | null = null;
 
   constructor() {
     super('WorldScene');
@@ -199,6 +211,7 @@ export class WorldScene extends Phaser.Scene {
     this.pendingChest = null; // no chest pickup is queued at the start of a fresh/resumed run
     this.pendingMimicReveal = null; // nor a deferred mimic reveal
     this.chestOpening = false;
+    this.hideEnemyCard(); // drop any inspect card left over from a previous run of this reused scene
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.sync = new SceneSync(this, HOP_MS);
@@ -399,6 +412,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.maybeOpenChest();
     this.maybeRevealMimic();
+    this.refreshEnemyHover();
   }
 
   /**
@@ -430,6 +444,54 @@ export class WorldScene extends Phaser.Scene {
     const mimic = this.pendingMimicReveal;
     this.pendingMimicReveal = null;
     this.onMimicRevealed(mimic);
+  }
+
+  /**
+   * Per-frame hover inspect (Enemy Hover Card): if the active pointer rests on a living enemy's hex (and no
+   * modal overlay is open), show that enemy's inspect card to the RIGHT of its hex, clamped fully on-screen;
+   * otherwise hide it. Driven from update() off the active pointer so HP/Shield stay live during combat
+   * without needing a mouse move. Read-only — it submits no command and never touches world.rng. A cache key
+   * (hex + the shown stats) skips the rebuild while the same thing is hovered, so this is cheap every frame.
+   */
+  private refreshEnemyHover(): void {
+    if (this.cards.isOverlayOpen()) {
+      this.hideEnemyCard(); // a modal overlay (pile / chest picker / equipment) owns the screen
+      return;
+    }
+    const p = this.input.activePointer;
+    const hex = pixelToHex(this.layout, p.worldX, p.worldY);
+    const { x: ex, y: ey } = hexToPixel(this.layout, hex);
+    const data = enemyCardAt(this.world, hex);
+    // Only inspect an enemy whose hex is actually on-screen (the same cull the sprites use), so an enemy in
+    // the HUD margin around the board is never shown.
+    if (data === null || !this.fullyInFrame(ex, ey)) {
+      this.hideEnemyCard();
+      return;
+    }
+    const key = `${hex.q},${hex.r}|${data.name}|${data.hp}/${data.maxHp}|${data.shield}|${data.armor}`;
+    if (this.enemyCard !== null && this.enemyCardKey === key) return; // unchanged: keep the current card
+    this.hideEnemyCard();
+    const card = buildEnemyCard(this, data);
+    const cam = this.cameras.main;
+    const { w: cardW, h: cardH } = enemyCardSize();
+    const halfW = cardW / 2;
+    const halfH = cardH / 2;
+    const { width, height } = this.scale;
+    // Sit the card to the RIGHT of the enemy's hex (clear of its tall, bottom-anchored sprite), clamped so
+    // the whole card stays on-screen — mirrors EquipmentOverlay.showTooltip's beside-the-slot + clamp.
+    const rawX = ex - cam.scrollX + this.layout.width / 2 + s(ENEMY_CARD_GAP) + halfW;
+    const cx = Phaser.Math.Clamp(rawX, halfW + s(8), width - halfW - s(8));
+    const cy = Phaser.Math.Clamp(ey - cam.scrollY, halfH + s(8), height - halfH - s(8));
+    card.setPosition(cx, cy).setDepth(ENEMY_CARD_DEPTH);
+    this.enemyCard = card;
+    this.enemyCardKey = key;
+  }
+
+  /** Hide and drop the enemy inspect card, if any (Enemy Hover Card). */
+  private hideEnemyCard(): void {
+    this.enemyCard?.destroy();
+    this.enemyCard = null;
+    this.enemyCardKey = null;
   }
 
   /**
