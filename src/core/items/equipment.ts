@@ -30,12 +30,22 @@ export interface EquipmentData {
 
 export const Equipment: ComponentType<EquipmentData> = defineComponent<EquipmentData>('Equipment');
 
-/** Add `delta` to the owner's flat armour (Defense & Shielding). No-op when the owner has no CombatStats
- *  (e.g. a deck-only test fixture), so equipping never requires the player to be a full combatant. */
-function adjustArmor(world: World, owner: EntityId, delta: number): void {
-  if (delta === 0) return;
+/**
+ * Recompute the owner's total armour FROM SCRATCH: their intrinsic baseArmor plus the armour of every
+ * currently-equipped item. Called after any equip/unequip so CombatStats.armor is always derived from the
+ * live loadout — never an accumulated +=/-= delta that could drift out of sync over a long run if the two
+ * sides ever fall out of balance. Idempotent: running it twice yields the same total. No-op when the owner
+ * is not a combatant (no CombatStats) — equipping never requires the player to be a full combatant.
+ */
+function recomputeArmor(world: World, owner: EntityId): void {
   const stats = world.store(CombatStats).get(owner);
-  if (stats !== undefined) stats.armor = Math.max(0, stats.armor + delta);
+  const equipment = world.store(Equipment).get(owner);
+  if (stats === undefined || equipment === undefined) return;
+  let total = stats.baseArmor;
+  for (const slot of Object.values(equipment.slots)) {
+    if (slot !== undefined) total += itemDef(slot.defId)?.armor ?? 0;
+  }
+  stats.armor = Math.max(0, total);
 }
 
 /** Remove an instance id from whichever of the deck's three piles holds it (no-op if in none). */
@@ -64,7 +74,7 @@ export function equipItem(world: World, owner: EntityId, itemDefId: string): voi
   const deck = world.store(DeckState).get(owner);
   if (deck !== undefined) deck.drawPile.push(...granted);
   equipment.slots[def.kind] = { defId: def.id, grantedCards: granted };
-  adjustArmor(world, owner, def.armor ?? 0); // its flat armour bonus joins the player's CombatStats
+  recomputeArmor(world, owner); // re-derive total armour from the full loadout (never an incremental delta)
 }
 
 /**
@@ -80,8 +90,8 @@ export function unequipItem(world: World, owner: EntityId, kind: EquipKind): voi
     if (deck !== undefined) removeFromPiles(deck, inst);
     world.destroyEntity(inst);
   }
-  adjustArmor(world, owner, -(itemDef(slot.defId)?.armor ?? 0)); // take its armour bonus back off
   delete equipment.slots[kind];
+  recomputeArmor(world, owner); // re-derive total armour from the now-smaller loadout
 }
 
 /**

@@ -21,6 +21,7 @@ export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
   world.store(Health).add(e, { hp: def.maxHp, maxHp: def.maxHp });
   world.store(CombatStats).add(e, {
     armor: def.armor,
+    baseArmor: def.armor, // enemies never equip, so total armour == intrinsic armour
     ...(def.selfShield !== undefined ? { selfShield: def.selfShield } : {}),
   });
   world.store(Attack).add(e, { profiles: [...def.attacks] });

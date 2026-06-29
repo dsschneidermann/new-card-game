@@ -140,7 +140,7 @@ describe('item armor (Defense & Shielding)', () => {
   /** A player that is also a combatant (has CombatStats), so armour bonuses are observable. */
   function combatPlayer(world: World, baseArmor = 0): EntityId {
     const player = makePlayer(world);
-    world.store(CombatStats).add(player, { armor: baseArmor });
+    world.store(CombatStats).add(player, { armor: baseArmor, baseArmor });
     return player;
   }
 
@@ -166,6 +166,16 @@ describe('item armor (Defense & Shielding)', () => {
     const player = combatPlayer(world, 0);
     equipStartingItems(world, player);
     expect(world.store(CombatStats).get(player)?.armor).toBe(3); // sword + bow add 0
+  });
+
+  it('recomputes from the full loadout — re-equipping the same kind never double-counts (no drift)', () => {
+    const world = createWorld(6);
+    const player = combatPlayer(world, 1);
+    equipItem(world, player, 'wooden_shield'); // base 1 + 2 = 3
+    expect(world.store(CombatStats).get(player)?.armor).toBe(3);
+    equipItem(world, player, 'wooden_shield'); // same kind -> replace, recompute -> still 3 (not 5)
+    equipItem(world, player, 'wooden_shield');
+    expect(world.store(CombatStats).get(player)?.armor).toBe(3); // idempotent regardless of repeats
   });
 
   it('a weapon with no armour leaves CombatStats.armor unchanged', () => {

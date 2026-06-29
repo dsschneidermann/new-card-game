@@ -17,13 +17,17 @@ export interface HealthData {
 }
 
 /**
- * Defensive combat stats. `armor` is flat damage reduction with a min-1 floor (ADR-007). Lives on a
- * component (not derived from the roster) so status effects (ADR-008) can modify it later. `selfShield`
- * is the amount of Shield an entity grants ITSELF at the start of each of its own turns — an enemy
- * ability (Defense & Shielding); absent/0 for the player and for enemies with no self-shield.
+ * Defensive combat stats. `armor` is the entity's TOTAL flat damage reduction with a min-1 floor (ADR-007)
+ * — the value the resolver reads. `baseArmor` is its intrinsic armour BEFORE equipment; the player's
+ * total is recomputed as baseArmor + the armour of every equipped item whenever gear changes (see
+ * recomputeArmor), so `armor` is always derived from the live loadout rather than an accumulated delta.
+ * For an entity that never equips (every enemy), armor == baseArmor. `selfShield` is the amount of Shield
+ * an entity grants ITSELF at the start of each of its own turns — an enemy ability (Defense & Shielding);
+ * absent/0 for the player and for enemies with no self-shield.
  */
 export interface CombatStatsData {
   armor: number;
+  baseArmor: number;
   selfShield?: number;
 }
 

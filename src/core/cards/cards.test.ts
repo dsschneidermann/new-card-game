@@ -176,7 +176,8 @@ describe('starter content', () => {
       pickFrom: { pile: 'discard' },
       effect: { kind: 'MoveToHand' },
     });
-    expect(cardDef('melee')?.effect).toBeUndefined();
+    // attack cards carry their damage as an Attack effect (resolved via the event bus on play)
+    expect(cardDef('melee')).toMatchObject({ effect: { kind: 'Attack', damage: 6 } });
   });
 
   it('attack cards carry per-id art, costs, and their ranged target specs', () => {

@@ -1,7 +1,6 @@
 import type { System, World } from '../ecs/world';
 import type { EntityId } from '../ecs/entity';
 import type { Hex } from '../hex/hex';
-import { resolveCardAttack } from '../combat/combat';
 import { gainShield } from '../combat/shield';
 import {
   DeckState,
@@ -63,8 +62,16 @@ function startTurn(world: World, owner: EntityId, deck: DeckStateData, handSize:
   world.emit({ kind: 'HandDealt', entity: owner });
 }
 
-/** A played card leaves the hand -> discard (clearing temporaries), then it deals any attack damage and
- *  resolves any mechanical effect. `targetHexes` are the aimed hex(es) an attack card strikes. */
+/** What a card's effect resolves against: the picked card instances (pile-pick effects), the aimed hex(es)
+ *  (Attack), and the source card id (carried onto the AttackRequested event as the attack's name). */
+interface PlayContext {
+  readonly cardTargets: readonly EntityId[];
+  readonly targetHexes: readonly Hex[];
+  readonly sourceId: string;
+}
+
+/** A played card leaves the hand -> discard (clearing temporaries), then its mechanical effect resolves
+ *  (an Attack effect damages the enemies on the aimed hex(es) via the event bus; see resolveEffect). */
 function playCard(
   world: World,
   owner: EntityId,
@@ -80,13 +87,10 @@ function playCard(
   deck.discardPile.push(instance);
   const defId = world.store(Card).get(instance)?.defId;
   world.emit({ kind: 'CardDiscarded', entity: owner, instance, defId: defId ?? '' });
-  const def = defId !== undefined ? cardDef(defId) : undefined;
-  // An attack card damages the enemies on its aimed hex(es) through the combat resolver (armour, shield,
-  // then HP). Targeting/range/LOS were already gated by the CardController before the play was submitted.
-  if (def?.attack === true && def.damage !== undefined) {
-    resolveCardAttack(world, owner, targetHexes, def.damage, def.pierce ?? 0);
+  const effect = defId !== undefined ? cardDef(defId)?.effect : undefined;
+  if (effect !== undefined && defId !== undefined) {
+    resolveEffect(world, owner, deck, effect, { cardTargets, targetHexes, sourceId: defId });
   }
-  if (def?.effect !== undefined) resolveEffect(world, owner, deck, def.effect, cardTargets);
 }
 
 /** Clear any temporary in-hand modifiers from an instance (whenever it leaves the hand). */
@@ -104,7 +108,7 @@ function resolveEffect(
   owner: EntityId,
   deck: DeckStateData,
   effect: CardEffect,
-  cardTargets: readonly EntityId[],
+  play: PlayContext,
 ): void {
   switch (effect.kind) {
     case 'DrawAndFree': {
@@ -128,7 +132,7 @@ function resolveEffect(
       break;
     }
     case 'MoveToHand': {
-      const target = cardTargets[0];
+      const target = play.cardTargets[0];
       if (target === undefined) return; // no card was selected (defensive)
       // Remove it from whichever pile holds it (draw / discard); a hand pick is already there.
       for (const pile of [deck.drawPile, deck.discardPile]) {
@@ -143,6 +147,21 @@ function resolveEffect(
       // Defend: grant the caster shield. The shield system resets it at the start of each player turn, so
       // this banks block for the coming enemy turn (Defense & Shielding); stacks with further Defends.
       gainShield(world, owner, effect.amount);
+      break;
+    }
+    case 'Attack': {
+      // Hand combat the aimed hex(es) + the card's damage; a combat system fulfils AttackRequested the
+      // same step (armour, then shield, then HP) and emits AttackResolved. Kept event-driven so the cards
+      // module never calls the resolver directly. An empty hex list (e.g. a self-AOE with no enemies in
+      // reach) still emits — the combat side no-ops on hexes with no enemy.
+      world.emit({
+        kind: 'AttackRequested',
+        attacker: owner,
+        hexes: play.targetHexes,
+        damage: effect.damage,
+        pierce: effect.pierce ?? 0,
+        attack: play.sourceId,
+      });
       break;
     }
   }

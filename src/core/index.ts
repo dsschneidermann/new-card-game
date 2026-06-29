@@ -121,6 +121,7 @@ export {
   applyDamage,
   resolveAttack,
   resolveCardAttack,
+  makeCardAttackSystem,
   inAttackRange,
   hasAttackLineOfSight,
   spawnEnemy,

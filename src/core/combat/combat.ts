@@ -1,4 +1,4 @@
-import type { World } from '../ecs/world';
+import type { System, World } from '../ecs/world';
 import type { EntityId } from '../ecs/entity';
 import type { Hex } from '../hex/hex';
 import { hexEquals } from '../hex/hex';
@@ -109,10 +109,11 @@ function enemyAt(world: World, hex: Hex): EntityId | undefined {
  * Resolve a player attack CARD against the enemies on the aimed `hexes` (Defense & Shielding). The card
  * supplies the damage (and optional pierce) — the player has no Attack component; its attacks are cards.
  * For each hex with a living enemy it runs the same deterministic computeDamage/applyDamage path
- * (armour, then shield, then HP) and emits AttackResolved (carrying the card name) + the DamageDealt /
- * EntityDied events from applyDamage. A hex with no enemy is a harmless no-op (e.g. a Whirlwind hex that
- * happens to be empty, or an attack aimed at bare ground). Range/LOS were gated by the caller (targeting);
- * this only damages. Returns the per-hit DamageResults (for tests / future feedback).
+ * (armour, then shield, then HP) and emits AttackResolved (carrying `attackName`, the card's id) + the
+ * DamageDealt / EntityDied events from applyDamage. A hex with no enemy is a harmless no-op (e.g. a
+ * Whirlwind hex that happens to be empty, or an attack aimed at bare ground). Range/LOS were gated by the
+ * caller (targeting); this only damages. Invoked by makeCardAttackSystem off an AttackRequested event;
+ * exported for direct use in tests. Returns the per-hit DamageResults (for tests / future feedback).
  */
 export function resolveCardAttack(
   world: World,
@@ -120,9 +121,10 @@ export function resolveCardAttack(
   hexes: readonly Hex[],
   baseDamage: number,
   pierce = 0,
+  attackName = 'attack',
 ): DamageResult[] {
   const profile: AttackProfile = {
-    name: 'attack',
+    name: attackName,
     minRange: 0,
     maxRange: 0,
     requiresLineOfSight: false,
@@ -148,4 +150,22 @@ export function resolveCardAttack(
     results.push(result);
   }
   return results;
+}
+
+/**
+ * The card-attack system (Defense & Shielding). Registered AFTER the card system, it fulfils the
+ * AttackRequested events the card system emits from a played Attack card — resolving the damage against
+ * the enemies on the aimed hexes (resolveCardAttack) and emitting AttackResolved. This is the seam that
+ * keeps damage resolution in combat while the cards module only announces intent (it never calls the
+ * resolver), so neither module imports the other for attacks. Snapshot events first (same discipline as
+ * the card/shield systems) so we never react to AttackResolved we emit.
+ */
+export function makeCardAttackSystem(): System {
+  return (world) => {
+    for (const ev of [...world.events()]) {
+      if (ev.kind === 'AttackRequested') {
+        resolveCardAttack(world, ev.attacker, ev.hexes, ev.damage, ev.pierce, ev.attack);
+      }
+    }
+  };
 }

@@ -15,6 +15,7 @@ import {
   makeTurnSystem,
   makeMovementSystem,
   makeCardSystem,
+  makeCardAttackSystem,
   makeShieldSystem,
   DeckState,
   Card,
@@ -360,6 +361,7 @@ function setupCombat(deckIds: string[]): { world: World; player: EntityId } {
   world.addSystem(makeTurnSystem(grid));
   world.addSystem(makeMovementSystem(grid, LAYOUT));
   world.addSystem(makeCardSystem(HAND));
+  world.addSystem(makeCardAttackSystem());
   world.addSystem(makeShieldSystem());
   const player = world.createEntity();
   world.store(Player).add(player, { isPlayer: true });
@@ -369,7 +371,7 @@ function setupCombat(deckIds: string[]): { world: World; player: EntityId } {
   world.store(ResourcePool).add(player, { energy: 3, energyMax: 3, mana: 1, manaMax: 5, manaRegen: 1 });
   world.store(MovementBudget).add(player, { remaining: 4, max: 4 });
   world.store(Health).add(player, { hp: 30, maxHp: 30 });
-  world.store(CombatStats).add(player, { armor: 0 });
+  world.store(CombatStats).add(player, { armor: 0, baseArmor: 0 });
   world.store(Shield).add(player, { shield: 0 });
   const deck: DeckStateData = { drawPile: buildCardInstances(world, deckIds), hand: [], discardPile: [] };
   world.store(DeckState).add(player, deck);
@@ -422,10 +424,13 @@ describe('player attack cards deal damage through the resolver (Defense & Shield
     advance(world, [{ kind: 'EndTurn', entity: player }]);
     const deck = deckOf(world, player);
     const melee = deck.hand.find((e) => defOf(world, e) === 'melee')!;
-    advance(world, [
+    const evs = advance(world, [
       { kind: 'PlayCard', entity: player, cardId: 'melee', energyCost: 1, cardEntity: melee, targets: [enemyHex] },
     ]);
     expect(world.store(Health).get(goblin)?.hp).toBe(12 - 6); // Melee deals 6
+    // Event-driven: the card system announces the attack and the combat system fulfils it, naming the card.
+    expect(evs.some((e) => e.kind === 'AttackRequested')).toBe(true);
+    expect(evs.find((e) => e.kind === 'AttackResolved')).toMatchObject({ attacker: player, target: goblin, attack: 'melee' });
   });
 
   it('a self-shielded enemy soaks the hit on its shield before its HP', () => {

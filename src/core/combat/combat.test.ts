@@ -142,7 +142,7 @@ describe('resolveAttack (ADR-007)', () => {
     const a = attacker(world, profile({ name: 'cleave', baseDamage: 10 }));
     const target = world.createEntity();
     world.store(Health).add(target, { hp: 20, maxHp: 20 });
-    world.store(CombatStats).add(target, { armor: 3 });
+    world.store(CombatStats).add(target, { armor: 3, baseArmor: 3 });
 
     const result = resolveAttack(world, a, target);
     expect(result?.hpLost).toBe(7);
@@ -157,7 +157,7 @@ describe('resolveAttack (ADR-007)', () => {
     const a = attacker(world, profile({ name: 'jab', baseDamage: 4 }), profile({ name: 'smash', baseDamage: 12 }));
     const target = world.createEntity();
     world.store(Health).add(target, { hp: 30, maxHp: 30 });
-    world.store(CombatStats).add(target, { armor: 0 });
+    world.store(CombatStats).add(target, { armor: 0, baseArmor: 0 });
 
     resolveAttack(world, a, target, 1); // the second attack
     expect(world.store(Health).get(target)?.hp).toBe(18); // 30 - 12
@@ -177,7 +177,7 @@ describe('resolveAttack (ADR-007)', () => {
     const a = attacker(world, profile({ baseDamage: 10 }));
     const target = world.createEntity();
     world.store(Health).add(target, { hp: 6, maxHp: 30 });
-    world.store(CombatStats).add(target, { armor: 0 });
+    world.store(CombatStats).add(target, { armor: 0, baseArmor: 0 });
 
     resolveAttack(world, a, target);
     expect(world.isAlive(target)).toBe(false);
@@ -214,7 +214,7 @@ describe('shield absorbs before HP and is spent down (Defense & Shielding, ADR-0
     world.store(Attack).add(a, { profiles: [profile({ name: 'cleave', baseDamage: 9 })] });
     const target = world.createEntity();
     world.store(Health).add(target, { hp: 20, maxHp: 20 });
-    world.store(CombatStats).add(target, { armor: 1 });
+    world.store(CombatStats).add(target, { armor: 1, baseArmor: 1 });
     world.store(Shield).add(target, { shield: 5 });
     // base 9 - armour 1 = 8; shield 5 soaks 5; 3 to HP.
     const result = resolveAttack(world, a, target);

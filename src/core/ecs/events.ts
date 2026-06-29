@@ -21,6 +21,11 @@ export type GameEvent =
   // with which named attack, how much shield soaked it, and whether it was lethal — so the scene can
   // animate the specific attack and hit.
   | { kind: 'AttackResolved'; attacker: EntityId; target: EntityId; attack: string; hpLost: number; shieldAbsorbed: number; lethal: boolean }
+  // A player attack CARD asks combat to resolve damage (Defense & Shielding): the card system emits this
+  // from the card's Attack effect, carrying everything the resolver needs (attacker, the aimed hexes, the
+  // card's damage/pierce and its id as the attack name) so combat resolves it WITHOUT importing the cards
+  // module. A combat system reacts the same step and produces the AttackResolved / DamageDealt outcome.
+  | { kind: 'AttackRequested'; attacker: EntityId; hexes: readonly Hex[]; damage: number; pierce: number; attack: string }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
   // Movement Resolution: a whole move resolves in ONE advance as a bracketed hop-log. MovementStarted
   // carries the planned path (start..end); a render MoveAnimator replays it over real time so the sprite

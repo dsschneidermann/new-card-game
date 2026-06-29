@@ -17,7 +17,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     effectText: 'Deal 6 damage to an adjacent enemy.',
     target: { kind: 'singleHex', maxRange: 1 },
     attack: true,
-    damage: 6,
+    effect: { kind: 'Attack', damage: 6 },
   },
   {
     id: 'longstrike',
@@ -28,7 +28,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     target: { kind: 'singleHex', maxRange: 2 },
     attack: true,
     heavyAttack: true,
-    damage: 7,
+    effect: { kind: 'Attack', damage: 7 },
   },
   {
     id: 'rangedshot',
@@ -38,7 +38,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     effectText: 'Deal 5 damage to a target in line of sight (up to 5 hexes).',
     target: { kind: 'lineOfSight', maxRange: 5 },
     attack: true,
-    damage: 5,
+    effect: { kind: 'Attack', damage: 5 },
   },
   {
     id: 'defend',
@@ -91,7 +91,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     target: { kind: 'selfAoe', radius: 2 },
     attack: true,
     heavyAttack: true,
-    damage: 5,
+    effect: { kind: 'Attack', damage: 5 },
   },
   {
     // Demonstrator: a card-PICK skill — opens the discard pile as a picker and returns the chosen card
