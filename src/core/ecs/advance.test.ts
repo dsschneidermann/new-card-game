@@ -12,7 +12,9 @@ import {
 interface Hp {
   value: number;
 }
-const Health = defineComponent<Hp>('Health');
+// A throwaway component for these generic ECS tests. Named 'TestHealth' (not 'Health') so it does not
+// collide in the component registry with the real combat Health component (src/core/combat).
+const Health = defineComponent<Hp>('TestHealth');
 
 describe('CommandQueue', () => {
   it('drain() returns commands in FIFO order and empties the queue', () => {

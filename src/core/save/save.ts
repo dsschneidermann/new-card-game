@@ -36,7 +36,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v12: a chest's rolled reward offer is now PERSISTED (ChestOffer + OfferedItem flipped to persistent) so
 // re-opening an un-taken chest shows the same choices and the offer survives save/load — the saved shape
 // changed again; discard older saves.
-export const SAVE_VERSION = 12 as const;
+// v13: the Enemy Archetypes feature added persistent combat components — Health, CombatStats, Attack, and
+// Archetype on enemies, plus Health + CombatStats on the player — so the saved world shape changed.
+// Discard pre-combat saves so a resumed run has valid HP/armour state (no migration, ADR-010).
+export const SAVE_VERSION = 13 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

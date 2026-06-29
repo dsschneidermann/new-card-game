@@ -10,6 +10,8 @@ import {
   HexPosition,
   FacingState,
   Player,
+  Health,
+  CombatStats,
   TurnState,
   ResourcePool,
   MovementBudget,
@@ -99,6 +101,11 @@ const MANA_MAX = 5;
 const MANA_REGEN = 1;
 const MOVE_BUDGET = 5;
 const HAND_SIZE = 4;
+// Player combat stats (ADR-007). The player is a damageable combatant — shared Health/CombatStats with
+// enemies — so the player takes hits like anything else; the loss condition when HP reaches 0 is deferred
+// to the run-lifecycle feature (ADR-010). Tunable, persisted per-run.
+const PLAYER_MAX_HP = 30;
+const PLAYER_ARMOR = 0;
 // The opened chest shows the final frame of the 3-frame chest_1_opening sheet (frame 2 = fully open).
 const CHEST_OPENED_FRAME = 2;
 // The chest's opening animation: the auto-registered one-shot for the 3-frame chest_1_opening sheet
@@ -663,6 +670,10 @@ export class WorldScene extends Phaser.Scene {
       manaRegen: MANA_REGEN,
     });
     world.store(MovementBudget).add(this.player, { remaining: MOVE_BUDGET, max: MOVE_BUDGET });
+    // The player is a damageable combatant (ADR-007): full HP + armour, shared Health/CombatStats with
+    // enemies so combat is symmetric. Reaching 0 HP (the loss condition) is the run-lifecycle feature (ADR-010).
+    world.store(Health).add(this.player, { hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP });
+    world.store(CombatStats).add(this.player, { armor: PLAYER_ARMOR });
     // The deck is DERIVED from the player's starting equipment: equipping each basic item instantiates
     // its granted cards into the draw pile (sword -> 2 Melee Strike, shield -> 2 Defend, bow -> 2 Ranged
     // Shot, boots -> 2 Jump). There is no static starter collection any more.

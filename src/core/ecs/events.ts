@@ -15,6 +15,10 @@ export type GameEvent =
   | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
+  // Combat (Enemy Archetypes, ADR-007). DamageDealt above is the source-agnostic "target lost N HP" event
+  // (a future poison/DoT reuses it); AttackResolved adds the attack-specific breakdown — who struck whom,
+  // how much shield soaked it, and whether it was lethal — so the scene can animate the attacker and hit.
+  | { kind: 'AttackResolved'; attacker: EntityId; target: EntityId; hpLost: number; shieldAbsorbed: number; lethal: boolean }
   | { kind: 'EntityStepped'; entity: EntityId; q: number; r: number }
   // Movement Resolution: a whole move resolves in ONE advance as a bracketed hop-log. MovementStarted
   // carries the planned path (start..end); a render MoveAnimator replays it over real time so the sprite

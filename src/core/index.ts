@@ -94,6 +94,36 @@ export { facingFromIntent } from './sprite';
 export type { PlayerData, EnemyData } from './actors';
 export { Player, Enemy } from './actors';
 
+// Combat & enemy archetypes: data-driven archetypes, the deterministic damage resolver, attack targeting
+// (hex range + line of sight), the enemy spawn factory, and the shared Health/CombatStats/Attack/Archetype
+// components (ADR-007). The scene animates off the emitted DamageDealt / AttackResolved / EntityDied events.
+export type {
+  BehaviorTag,
+  TargetRule,
+  AttackProfile,
+  EnemyDef,
+  DamageResult,
+  HealthData,
+  CombatStatsData,
+  AttackData,
+  ArchetypeData,
+} from './combat';
+export {
+  ARCHETYPES,
+  Health,
+  CombatStats,
+  Attack,
+  Archetype,
+  computeDamage,
+  applyDamage,
+  resolveAttack,
+  inAttackRange,
+  hasAttackLineOfSight,
+  targetsInReach,
+  selectTarget,
+  spawnEnemy,
+} from './combat';
+
 // Turn Engine: phases, resource economy, enemy-turn runner
 export type {
   Phase,
