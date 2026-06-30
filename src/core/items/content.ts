@@ -21,8 +21,10 @@ export const ITEM_DEFS: readonly ItemDef[] = [
   { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [], armor: 1, art: AssetKeys.itemArtLeatherTunic },
   { id: 'travelers_cape', name: "Traveler's Cape", kind: 'cape', grantsCards: [], armor: 1, art: AssetKeys.itemArtTravelersCape },
   { id: 'plain_amulet', name: 'Plain Amulet', kind: 'amulet', grantsCards: [], art: AssetKeys.itemArtPlainAmulet },
-  // grantsSpells is illustrative only — spellbook -> spell granting is deferred (no player-spell collection yet).
-  { id: 'apprentice_spellbook', name: 'Apprentice Spellbook', kind: 'spellbook', grantsCards: [], grantsSpells: ['blizzard'], art: AssetKeys.itemArtApprenticeSpellbook },
+  // The spellbook grants the player's spells (Core Gaps: spellbook-granted spells). Equipping it makes its
+  // grantsSpells castable (derived into KnownSpells); the player starts with no spellbook and so no spells.
+  // The apprentice book teaches the full starter kit so one pickup demonstrates every spell effect.
+  { id: 'apprentice_spellbook', name: 'Apprentice Spellbook', kind: 'spellbook', grantsCards: [], grantsSpells: ['blizzard', 'selfheal', 'teleport'], art: AssetKeys.itemArtApprenticeSpellbook },
 ];
 
 /**

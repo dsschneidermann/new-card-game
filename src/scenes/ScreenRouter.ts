@@ -48,6 +48,7 @@ export class ScreenRouter {
       case 'MainMenu':
         mgr.stop('WorldScene');
         mgr.stop('PauseOverlay');
+        mgr.stop('GameOverOverlay');
         mgr.stop('SettingsScene');
         mgr.start('MainMenuScene');
         break;
@@ -56,8 +57,10 @@ export class ScreenRouter {
         mgr.start('SettingsScene');
         break;
       case 'InLevel':
-        if (from === 'Paused') {
-          mgr.stop('PauseOverlay');
+        if (from === 'Paused' || from === 'GameOver') {
+          // Both overlays run over a paused WorldScene. RestartLevel replays the SAME level from the start;
+          // Resume (only reachable from Paused) just un-pauses the live world.
+          mgr.stop(from === 'Paused' ? 'PauseOverlay' : 'GameOverOverlay');
           if (event === 'RestartLevel') {
             mgr.stop('WorldScene');
             mgr.start('WorldScene', { restart: true }); // replay the SAME level (same seed), reset to the start
@@ -75,6 +78,12 @@ export class ScreenRouter {
         if (from === 'InLevel') {
           mgr.pause('WorldScene');
           mgr.start('PauseOverlay'); // runs in parallel with the paused WorldScene (overlay)
+        }
+        break;
+      case 'GameOver':
+        if (from === 'InLevel') {
+          mgr.pause('WorldScene'); // freeze the level under the defeat overlay
+          mgr.start('GameOverOverlay'); // runs in parallel with the paused WorldScene
         }
         break;
       case 'AbandonConfirm':

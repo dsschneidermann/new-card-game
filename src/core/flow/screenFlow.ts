@@ -12,7 +12,10 @@ export type ScreenState =
   | 'Settings'
   | 'InLevel'
   | 'Paused'
-  | 'AbandonConfirm';
+  | 'AbandonConfirm'
+  // The player was defeated (0 HP) mid-level (Core Gaps: player health & defeat). A terminal-for-the-run
+  // screen offering Restart Level (replay the same level) or Back to Menu.
+  | 'GameOver';
 
 export type ScreenEvent =
   | 'NewGame'
@@ -24,7 +27,9 @@ export type ScreenEvent =
   | 'RestartLevel'
   | 'RequestAbandon'
   | 'ConfirmAbandon'
-  | 'CancelAbandon';
+  | 'CancelAbandon'
+  // Raised by the scene when the player's HP reaches 0 — the only edge into GameOver.
+  | 'PlayerDied';
 
 /** Injected query so the flow stays storage- and Phaser-agnostic (feature 12 provides the real one). */
 export interface SavePresence {
@@ -68,9 +73,23 @@ export function transition(state: ScreenState, event: ScreenEvent, ctx: FlowCont
         ? accept('MainMenu')
         : reject(`No transition for "${event}" from "Settings"`);
     case 'InLevel':
-      return event === 'Pause'
-        ? accept('Paused')
-        : reject(`No transition for "${event}" from "InLevel"`);
+      switch (event) {
+        case 'Pause':
+          return accept('Paused');
+        case 'PlayerDied':
+          return accept('GameOver');
+        default:
+          return reject(`No transition for "${event}" from "InLevel"`);
+      }
+    case 'GameOver':
+      switch (event) {
+        case 'RestartLevel':
+          return accept('InLevel');
+        case 'Back':
+          return accept('MainMenu');
+        default:
+          return reject(`No transition for "${event}" from "GameOver"`);
+      }
     case 'Paused':
       switch (event) {
         case 'Resume':

@@ -56,6 +56,7 @@ export const CARD_DEFS: readonly CardDef[] = [
     art: AssetKeys.cardArtJump,
     effectText: 'Refund your movement points.',
     target: { kind: 'self' },
+    effect: { kind: 'RefundMovement' },
   },
   {
     // Demonstrator: a TEMPORARY effect — draws a card and frees it (cost 0, shown green) until it
@@ -114,16 +115,18 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     name: 'Blizzard',
     cost: 3,
     art: AssetKeys.spellArtBlizzard,
-    effectText: 'Frost damage in a 3-hex area.',
+    effectText: 'Deal 6 frost damage to enemies in a 1-hex radius.',
     target: { kind: 'areaOfEffect', radius: 1 },
+    effect: { kind: 'Attack', damage: 6 },
   },
   {
     id: 'selfheal',
     name: 'Self Heal',
     cost: 2,
     art: AssetKeys.spellArtSelfheal,
-    effectText: 'Heal yourself.',
+    effectText: 'Heal yourself for 8 HP.',
     target: { kind: 'self' },
+    effect: { kind: 'Heal', amount: 8 },
   },
   {
     id: 'teleport',
@@ -132,6 +135,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     art: AssetKeys.spellArtTeleport,
     effectText: 'Teleport a target enemy to a chosen hex.',
     target: { kind: 'twoStep', first: { kind: 'singleHex' }, second: { kind: 'singleHex' } },
+    effect: { kind: 'TeleportEnemy' },
   },
 ];
 

@@ -20,6 +20,7 @@ import {
   makeTurnSystem,
   makeCardSystem,
   makeCardAttackSystem,
+  makeSpellSystem,
   makeShieldSystem,
   makeEnemyTurnSystem,
   makeInteractSystem,
@@ -27,6 +28,7 @@ import {
   reshuffle,
   drawUpTo,
   Equipment,
+  KnownSpells,
   equipStartingItems,
   Enemy,
   ChestOffer,
@@ -190,6 +192,9 @@ export class WorldScene extends Phaser.Scene {
   // True from when a chest's opening animation begins (after the move settles) until the player resolves the
   // reward picker. Locks input through the opening beat + the modal, and stops maybeOpenChest re-triggering.
   private chestOpening = false;
+  // True once the player has been defeated (0 HP) this run — set when PlayerDefeated drains, so the defeat
+  // screen is opened exactly once and further in-level input is locked while the overlay shows.
+  private defeated = false;
   // The enemy inspect card currently shown on hover (Enemy Hover Card), and a cache key of what it shows so
   // the per-frame hover refresh rebuilds it only when the hovered enemy or its stats change. null when hidden.
   private enemyCard: Phaser.GameObjects.Container | null = null;
@@ -216,6 +221,7 @@ export class WorldScene extends Phaser.Scene {
     this.pendingChest = null; // no chest pickup is queued at the start of a fresh/resumed run
     this.pendingMimicReveal = null; // nor a deferred mimic reveal
     this.chestOpening = false;
+    this.defeated = false; // a fresh/restarted/resumed run starts un-defeated (the scene instance is reused)
     this.hideEnemyCard(); // drop any inspect card left over from a previous run of this reused scene
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
@@ -420,6 +426,12 @@ export class WorldScene extends Phaser.Scene {
       // A disguised mimic was reached and woke (data flip already done in the sim): queue the sprite swap so
       // it lands after the move animation settles, not mid-slide. maybeRevealMimic performs it.
       else if (e.kind === 'MimicRevealed') this.pendingMimicReveal = e.mimic;
+      // The player reached 0 HP (the sim left the player entity intact): open the defeat screen once. The
+      // router pauses this scene under the GameOverOverlay; the defeated flag also locks any lingering input.
+      else if (e.kind === 'PlayerDefeated' && e.entity === this.player && !this.defeated) {
+        this.defeated = true;
+        (this.registry.get('router') as ScreenRouter).dispatch('PlayerDied');
+      }
     }
     this.maybeOpenChest();
     this.maybeRevealMimic();
@@ -580,6 +592,9 @@ export class WorldScene extends Phaser.Scene {
       delete r.anim;
     }
     this.cards.refreshPiles();
+    // A taken chest reward may have equipped a spellbook, changing the player's KnownSpells — rebuild the
+    // spell sidebar so newly-granted spells appear (and a swapped-out book's spells leave).
+    this.cards.refreshSpellSidebar();
     this.autosave();
   }
 
@@ -676,7 +691,12 @@ export class WorldScene extends Phaser.Scene {
    * intent completes before any new move / End Turn / Restart Turn is accepted. Esc/Pause stays live.
    */
   private get inputLocked(): boolean {
-    return this.moveAnimator.isMoving(this.player) || this.world.commands().length > 0 || this.chestOpening;
+    return (
+      this.moveAnimator.isMoving(this.player) ||
+      this.world.commands().length > 0 ||
+      this.chestOpening ||
+      this.defeated
+    );
   }
 
   /**
@@ -704,6 +724,9 @@ export class WorldScene extends Phaser.Scene {
     // The card-attack system runs AFTER the card system so it sees the AttackRequested the card system emits
     // from a played Attack card, and resolves the damage (Defense & Shielding).
     this.world.addSystem(makeCardAttackSystem());
+    // The spell system runs after the turn engine emitted SpellCast (and after the card system, mirroring it);
+    // it lands a cast spell's effect — area damage via the combat resolver, self heal, or enemy teleport.
+    this.world.addSystem(makeSpellSystem(this.grid));
     // The shield system runs LAST so it sees the turn engine's same-step events (TurnEnded/TurnStarted) and
     // the card system's Defend resolution: it resets the player's shield each player turn, wipes enemy shield
     // each player-turn end, and self-shields enemies on the enemy turn (Defense & Shielding).
@@ -784,7 +807,10 @@ export class WorldScene extends Phaser.Scene {
     const deck: DeckStateData = { drawPile: [], hand: [], discardPile: [] };
     world.store(DeckState).add(this.player, deck);
     world.store(Equipment).add(this.player, { slots: {} });
-    equipStartingItems(world, this.player); // populates the draw pile with the basics' granted cards
+    // Available spells are DERIVED from the equipped loadout (a spellbook grants them). Start empty; the
+    // starter equipment has no spellbook, so the player begins with no spells until one is picked up.
+    world.store(KnownSpells).add(this.player, { spellIds: [] });
+    equipStartingItems(world, this.player); // populates the draw pile + recomputes armour/known-spells
     reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
     drawUpTo(deck, HAND_SIZE, world.rng); // opening hand (later turns draw via the card system on TurnStarted)
     // The active level generates + spawns its content (obstacles, chests, enemies) as entities with their
@@ -845,6 +871,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private autosave(): void {
+    // Never checkpoint a DEFEATED run: if the player is at 0 HP, leaving the prior checkpoint (the start of
+    // the fatal turn, player alive) intact keeps Restart Level / Resume returning to a playable state.
+    if ((this.world.store(Health).get(this.player)?.hp ?? 1) <= 0) return;
     saveRun(this.storage, this.world);
   }
 
@@ -952,13 +981,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private refreshHud(): void {
-    const ts = this.world.store(TurnState).get(this.player);
+    const health = this.world.store(Health).get(this.player);
     const pool = this.world.store(ResourcePool).get(this.player);
     const budget = this.world.store(MovementBudget).get(this.player);
-    if (ts === undefined || pool === undefined || budget === undefined) return;
-    const phase = ts.phase === 'player' ? 'Your turn' : 'Enemy turn';
+    if (health === undefined || pool === undefined || budget === undefined) return;
+    // The player's HP leads the status line (it replaced the former 'Round N · Your turn' segment); the
+    // resource readouts follow. Refreshed every frame, so damage and heals show immediately.
     this.hud.setText(
-      `Round ${ts.round}  ·  ${phase}    Energy ${pool.energy}/${pool.energyMax}    ` +
+      `HP ${health.hp}/${health.maxHp}    Energy ${pool.energy}/${pool.energyMax}    ` +
         `Mana ${pool.mana}/${pool.manaMax}    Move ${budget.remaining}/${budget.max}`,
     );
   }

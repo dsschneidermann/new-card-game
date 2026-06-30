@@ -13,6 +13,7 @@ import {
 import { cardDef } from './content';
 import { cardEffectiveCost } from './queries';
 import type { CardEffect } from './types';
+import { MovementBudget } from '../turn/components';
 
 /** The deck owner (the player holds the singleton DeckState). */
 function deckOwner(world: World): EntityId | undefined {
@@ -163,6 +164,17 @@ function resolveEffect(
         pierce: effect.pierce ?? 0,
         attack: play.sourceId,
       });
+      break;
+    }
+    case 'RefundMovement': {
+      // Jump: restore the caster's movement for this turn — reset remaining to max (never above it). The
+      // turn engine already spent the points; this returns them. Emit ResourceChanged so the HUD's Move
+      // readout refreshes (the same event a move emits).
+      const budget = world.store(MovementBudget).get(owner);
+      if (budget !== undefined && budget.remaining < budget.max) {
+        budget.remaining = budget.max;
+        world.emit({ kind: 'ResourceChanged', entity: owner });
+      }
       break;
     }
   }

@@ -31,7 +31,23 @@ export type CardEffect =
   // An attack card's damage: dealt to the enemies on the play's aimed hex(es) through the combat resolver
   // (armour, then shield, then HP). Resolved via the event bus — the card system emits AttackRequested and a
   // combat system fulfils it — so the cards module never calls combat directly. `pierce` ignores armour.
-  | { kind: 'Attack'; damage: number; pierce?: number };
+  | { kind: 'Attack'; damage: number; pierce?: number }
+  // Jump: refund the caster's movement for this turn — resets MovementBudget.remaining back to its max, so
+  // movement spent before the play is returned. Resolved by the card system (it never exceeds max).
+  | { kind: 'RefundMovement' };
+
+/**
+ * A mechanical SPELL effect, resolved by the spell system (core/spells) when a spell is cast. Mirrors
+ * CardEffect (cards and spells are siblings), but spells live in their own module so the cards/deck module
+ * keeps its no-import-of-combat seam. Attack deals damage to the enemies on the cast's aimed hex(es) — for
+ * an areaOfEffect spell the disk is re-expanded from the recorded centre — through the same deterministic
+ * combat resolver as attack cards. Heal restores the caster's HP (clamped to maxHp). TeleportEnemy moves the
+ * living enemy on the first aimed hex to the second aimed hex (when that hex is free).
+ */
+export type SpellEffect =
+  | { kind: 'Attack'; damage: number; pierce?: number }
+  | { kind: 'Heal'; amount: number }
+  | { kind: 'TeleportEnemy' };
 
 /**
  * A card's optional card-pick: playing it opens a picker over `pile`, optionally narrowed by `filter`
@@ -73,6 +89,8 @@ export interface SpellDef {
   readonly art: AssetKey; // registered asset key of the spell's sidebar art (e.g. AssetKeys.spellArtBlizzard)
   readonly effectText: string;
   readonly target: TargetSpec;
+  /** Mechanical effect resolved by the spell system on cast (damage / heal / teleport). */
+  readonly effect?: SpellEffect;
 }
 
 /** Hexes to tint while targeting: primary (red) and secondary (yellow). */

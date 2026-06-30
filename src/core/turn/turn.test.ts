@@ -186,3 +186,23 @@ describe('restart turn & persistence', () => {
     expect(restored.store(MovementBudget).get(player)).toEqual({ remaining: 2, max: 4 });
   });
 });
+
+describe('PlaySpell -> SpellCast carries the aimed targets (Core Gaps: spell effects)', () => {
+  it('a valid PlaySpell spends mana and emits SpellCast with the spellId + the same targets', () => {
+    const { world, player } = setup();
+    const pool = world.store(ResourcePool).get(player) as { mana: number };
+    const targets = [{ q: 6, r: 5 }, { q: 7, r: 5 }];
+    const evs = advance(world, [{ kind: 'PlaySpell', entity: player, spellId: 'x', manaCost: 1, targets }]);
+    expect(pool.mana).toBe(0); // 1 - 1
+    expect(evs.find((e) => e.kind === 'SpellCast')).toMatchObject({ entity: player, spellId: 'x', targets });
+  });
+
+  it('an unaffordable PlaySpell is rejected and mutates nothing (no SpellCast)', () => {
+    const { world, player } = setup();
+    const pool = world.store(ResourcePool).get(player) as { mana: number };
+    const evs = advance(world, [{ kind: 'PlaySpell', entity: player, spellId: 'x', manaCost: 99 }]);
+    expect(kinds(evs)).toContain('ActionRejected');
+    expect(kinds(evs)).not.toContain('SpellCast');
+    expect(pool.mana).toBe(1); // unchanged
+  });
+});

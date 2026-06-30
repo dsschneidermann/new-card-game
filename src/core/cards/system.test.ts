@@ -470,3 +470,34 @@ describe('DeckState v3 persistence (feature 06 obligation)', () => {
     expect(restored.store(TempCardMods).get(h0)?.freeThisHand).toBe(true);
   });
 });
+
+describe('RefundMovement (Jump)', () => {
+  it('refunds the movement budget to max when played after movement was spent, emitting ResourceChanged', () => {
+    const { world, player } = setup(['jump', 'melee', 'rangedshot', 'defend']);
+    advance(world, [{ kind: 'EndTurn', entity: player }]); // opens a fresh turn: budget reset to max, hand drawn
+    const budget = world.store(MovementBudget).get(player) as { remaining: number; max: number };
+    const deck = deckOf(world, player);
+    const jump = deck.hand.find((e) => defOf(world, e) === 'jump') as EntityId;
+    // Spend a movement point by moving one hex east (col 5 -> 6, row 5); the move resolves the same step.
+    advance(world, [{ kind: 'RequestMove', entity: player, ...offsetToAxial({ col: 6, row: 5 }) }]);
+    expect(budget.remaining).toBeLessThan(budget.max);
+    const evs = advance(world, [
+      { kind: 'PlayCard', entity: player, cardId: 'jump', energyCost: 0, cardEntity: jump },
+    ]);
+    expect(budget.remaining).toBe(budget.max); // refunded to full
+    expect(kinds(evs)).toContain('ResourceChanged');
+  });
+
+  it('spends no energy and is a no-op refund when no movement was spent', () => {
+    const { world, player } = setup(['jump', 'melee', 'rangedshot', 'defend']);
+    advance(world, [{ kind: 'EndTurn', entity: player }]);
+    const pool = world.store(ResourcePool).get(player) as { energy: number };
+    const energyBefore = pool.energy;
+    const budget = world.store(MovementBudget).get(player) as { remaining: number; max: number };
+    const deck = deckOf(world, player);
+    const jump = deck.hand.find((e) => defOf(world, e) === 'jump') as EntityId;
+    advance(world, [{ kind: 'PlayCard', entity: player, cardId: 'jump', energyCost: 0, cardEntity: jump }]);
+    expect(pool.energy).toBe(energyBefore); // cost 0
+    expect(budget.remaining).toBe(budget.max); // already full -> stays full
+  });
+});

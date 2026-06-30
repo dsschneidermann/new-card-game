@@ -6,6 +6,7 @@ import {
   DeckState,
   Card,
   Equipment,
+  KnownSpells,
   equipItem,
   unequipItem,
   equipStartingItems,
@@ -190,6 +191,42 @@ describe('item armor (Defense & Shielding)', () => {
     const player = makePlayer(world); // no CombatStats
     expect(() => equipItem(world, player, 'wooden_shield')).not.toThrow();
     expect(world.store(CombatStats).get(player)).toBeUndefined();
+  });
+});
+
+describe('KnownSpells (spellbook-granted spells, derived from the loadout)', () => {
+  const known = (world: World, player: EntityId): string[] =>
+    world.store(KnownSpells).get(player)?.spellIds ?? [];
+
+  it('the starter equipment grants no spells (no spellbook -> empty)', () => {
+    const world = createWorld(1);
+    const player = makePlayer(world);
+    equipStartingItems(world, player);
+    expect(known(world, player)).toEqual([]);
+  });
+
+  it('equipping the apprentice spellbook makes its grantsSpells available', () => {
+    const world = createWorld(2);
+    const player = makePlayer(world);
+    equipItem(world, player, 'apprentice_spellbook');
+    expect(known(world, player).sort()).toEqual(itemDef('apprentice_spellbook')!.grantsSpells!.slice().sort());
+  });
+
+  it('unequipping the spellbook clears the granted spells (derived from the live loadout)', () => {
+    const world = createWorld(3);
+    const player = makePlayer(world);
+    equipItem(world, player, 'apprentice_spellbook');
+    expect(known(world, player).length).toBeGreaterThan(0);
+    unequipItem(world, player, 'spellbook');
+    expect(known(world, player)).toEqual([]);
+  });
+
+  it('round-trips through serialize / restore', () => {
+    const world = createWorld(4);
+    const player = makePlayer(world);
+    equipItem(world, player, 'apprentice_spellbook');
+    const restored = restoreWorld(serializeWorld(world));
+    expect(restored.store(KnownSpells).get(player)?.spellIds.slice().sort()).toEqual(known(world, player).slice().sort());
   });
 });
 

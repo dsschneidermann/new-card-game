@@ -117,7 +117,14 @@ export function makeTurnSystem(grid: HexGrid): System {
           }
           const pool = world.store(ResourcePool).get(cmd.entity);
           if (pool !== undefined) spendMana(pool, cost);
-          world.emit({ kind: 'SpellCast', entity: cmd.entity, spellId: cmd.spellId });
+          // Forward the aimed hex(es) onto the event so the spell system (registered after the card system)
+          // can land the spell's effect; cost + phase are this engine's only concern (mirrors PlayCard).
+          world.emit({
+            kind: 'SpellCast',
+            entity: cmd.entity,
+            spellId: cmd.spellId,
+            ...(cmd.targets !== undefined ? { targets: cmd.targets } : {}),
+          });
           world.emit({ kind: 'ResourceChanged', entity: cmd.entity });
           break;
         }

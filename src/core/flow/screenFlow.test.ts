@@ -52,4 +52,16 @@ describe('screen flow transition', () => {
       transition('Paused', 'RequestAbandon', SAVE),
     );
   });
+
+  it('player defeat opens GameOver, which offers Restart Level and Back to Menu (Core Gaps)', () => {
+    expect(transition('InLevel', 'PlayerDied', NO_SAVE)).toEqual({ ok: true, next: 'GameOver' });
+    expect(transition('GameOver', 'RestartLevel', NO_SAVE)).toEqual({ ok: true, next: 'InLevel' });
+    expect(transition('GameOver', 'Back', NO_SAVE)).toEqual({ ok: true, next: 'MainMenu' });
+  });
+
+  it('an undefined (GameOver, event) pair is rejected and never throws', () => {
+    expect(() => transition('GameOver', 'Pause', NO_SAVE)).not.toThrow();
+    expect(transition('GameOver', 'Pause', NO_SAVE).ok).toBe(false);
+    expect(transition('GameOver', 'Resume', NO_SAVE).ok).toBe(false);
+  });
 });

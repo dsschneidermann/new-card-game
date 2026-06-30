@@ -302,7 +302,7 @@ describe('persistence (ADR-010 round-trip)', () => {
     expect(restored.store(PlannedAttack).get(goblin)).toEqual({ attackIndex: 0, hexes: [{ q: 3, r: 1 }] });
   });
 
-  it('SAVE_VERSION is 15 (telegraphs added to the persisted shape)', () => {
-    expect(SAVE_VERSION).toBe(15);
+  it('SAVE_VERSION is at least 15 (telegraphs added to the persisted shape)', () => {
+    expect(SAVE_VERSION).toBeGreaterThanOrEqual(15);
   });
 });

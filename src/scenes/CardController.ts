@@ -15,7 +15,8 @@ import {
   pixelToHex,
   hexDistance,
   hexEquals,
-  SPELL_DEFS,
+  spellDef,
+  KnownSpells,
   s,
   AssetKeys,
   resolveKey,
@@ -174,6 +175,9 @@ export class CardController {
 
   private handCards: Phaser.GameObjects.Container[] = [];
   private spellCircles: Phaser.GameObjects.Container[] = [];
+  // The circular geometry-mask graphics for spell-icon art (one per spell with art). Tracked separately from
+  // the circle containers (they are not children of the container) so refreshSpellSidebar can destroy them.
+  private spellMasks: Phaser.GameObjects.Graphics[] = [];
   private painter!: TargetingPainter; // the ground-layer targeting tint + range outline (its own widget)
   private tooltip!: Phaser.GameObjects.Container;
   // The Deck/Discard/card-picker overlay (its own widget); CardController only opens/closes it.
@@ -907,38 +911,61 @@ export class CardController {
     bg.setStrokeStyle(on ? s(CARD_BORDER_WIDTH_ON) : s(CARD_BORDER_WIDTH_OFF), on ? CARD_BORDER_COLOR_SELECTED : (card.getData('frameColor') as number));
   }
 
+  /** The player's currently-available spells (derived from the equipped spellbook via KnownSpells), mapped to
+   *  their defs in known order. Empty until a spellbook is equipped (Core Gaps: spellbook-granted spells). */
+  private knownSpellDefs(): SpellDef[] {
+    const ids = this.ctx.world().store(KnownSpells).get(this.ctx.player())?.spellIds ?? [];
+    return ids.map((id) => spellDef(id)).filter((d): d is SpellDef => d !== undefined);
+  }
+
   private buildSpellSidebar(): void {
-    SPELL_DEFS.forEach((def, i) => {
-      const x = s(SPELL_SIDEBAR_X);
-      const y = s(SPELL_FIRST_Y) + i * s(SPELL_SPACING_Y);
-      const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
-      // Grey backing disc; the art (if any) fills it, and a stroke-only border rings it on top (also the selection highlight).
-      const fill = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), SPELL_DISC_COLOR);
-      const parts: Phaser.GameObjects.GameObject[] = [fill];
-      // Per-spell art keyed def.art, clipped to the ring by a circular geometry mask so it fills the disc. The mask is
-      // screen-fixed at the spell's pinned position (scrollFactor 0), mirroring PileOverlay's masked content.
-      if (this.scene.textures.exists(def.art)) {
-        const ad = resolveKey(def.art)?.descriptor;
-        const d = ad ? s(ad.size[0] * assetScale(ad)) : s(SPELL_ART_FALLBACK_SIZE);
-        const art = this.scene.add.image(0, 0, def.art).setOrigin(0.5).setDisplaySize(d, d);
-        const maskShape = this.scene.make.graphics({}, false);
-        maskShape.fillStyle(0xffffff).fillCircle(x, y, s(SPELL_DISC_RADIUS));
-        maskShape.setScrollFactor(0);
-        art.setMask(maskShape.createGeometryMask());
-        parts.push(art);
-      }
-      const border = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), 0x000000, 0).setStrokeStyle(s(SPELL_RING_WIDTH_OFF), SPELL_RING_COLOR_OFF);
-      parts.push(border);
-      circle.add(parts);
-      circle.setData('ring', border);
-      circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(SPELL_DISC_RADIUS)), Phaser.Geom.Circle.Contains);
-      circle.on('pointerover', () => {
-        if (this.armed === null) this.showTooltip(def, x + s(SPELL_TOOLTIP_DX), y);
-      });
-      circle.on('pointerout', () => this.tooltip.setVisible(false));
-      circle.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('spell', def, circle, p));
-      this.spellCircles.push(circle);
+    this.knownSpellDefs().forEach((def, i) => this.buildSpellCircle(def, i));
+  }
+
+  /**
+   * Rebuild the spell sidebar from the player's CURRENT KnownSpells. Called when the loadout changes mid-run
+   * (a spellbook taken from a chest), so newly-granted spells appear and a swapped-out book's spells leave.
+   * Destroys the existing circles and their mask graphics (masks are not container children) before rebuilding.
+   */
+  refreshSpellSidebar(): void {
+    for (const mask of this.spellMasks) mask.destroy();
+    this.spellMasks.length = 0;
+    for (const circle of this.spellCircles) circle.destroy();
+    this.spellCircles.length = 0;
+    this.buildSpellSidebar();
+  }
+
+  private buildSpellCircle(def: SpellDef, i: number): void {
+    const x = s(SPELL_SIDEBAR_X);
+    const y = s(SPELL_FIRST_Y) + i * s(SPELL_SPACING_Y);
+    const circle = this.scene.add.container(x, y).setDepth(HUD_DEPTH).setScrollFactor(0);
+    // Grey backing disc; the art (if any) fills it, and a stroke-only border rings it on top (also the selection highlight).
+    const fill = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), SPELL_DISC_COLOR);
+    const parts: Phaser.GameObjects.GameObject[] = [fill];
+    // Per-spell art keyed def.art, clipped to the ring by a circular geometry mask so it fills the disc. The mask is
+    // screen-fixed at the spell's pinned position (scrollFactor 0), mirroring PileOverlay's masked content.
+    if (this.scene.textures.exists(def.art)) {
+      const ad = resolveKey(def.art)?.descriptor;
+      const d = ad ? s(ad.size[0] * assetScale(ad)) : s(SPELL_ART_FALLBACK_SIZE);
+      const art = this.scene.add.image(0, 0, def.art).setOrigin(0.5).setDisplaySize(d, d);
+      const maskShape = this.scene.make.graphics({}, false);
+      maskShape.fillStyle(0xffffff).fillCircle(x, y, s(SPELL_DISC_RADIUS));
+      maskShape.setScrollFactor(0);
+      art.setMask(maskShape.createGeometryMask());
+      this.spellMasks.push(maskShape);
+      parts.push(art);
+    }
+    const border = this.scene.add.circle(0, 0, s(SPELL_DISC_RADIUS), 0x000000, 0).setStrokeStyle(s(SPELL_RING_WIDTH_OFF), SPELL_RING_COLOR_OFF);
+    parts.push(border);
+    circle.add(parts);
+    circle.setData('ring', border);
+    circle.setInteractive(new Phaser.Geom.Circle(0, 0, s(SPELL_DISC_RADIUS)), Phaser.Geom.Circle.Contains);
+    circle.on('pointerover', () => {
+      if (this.armed === null) this.showTooltip(def, x + s(SPELL_TOOLTIP_DX), y);
     });
+    circle.on('pointerout', () => this.tooltip.setVisible(false));
+    circle.on('pointerdown', (p: Phaser.Input.Pointer) => this.arm('spell', def, circle, p));
+    this.spellCircles.push(circle);
   }
 
   private setSpellSelected(circle: Phaser.GameObjects.Container, on: boolean): void {

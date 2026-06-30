@@ -6,6 +6,7 @@ import { MainMenuScene } from '@scenes/MainMenuScene';
 import { SettingsScene } from '@scenes/SettingsScene';
 import { WorldScene } from '@scenes/WorldScene';
 import { PauseOverlay } from '@scenes/PauseOverlay';
+import { GameOverOverlay } from '@scenes/GameOverOverlay';
 
 // Static bootstrap only. The canvas is created at the base size; BootScene then runs
 // applyDisplaySettings to configure the manual scale factor, native canvas size, and
@@ -27,7 +28,7 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, MainMenuScene, SettingsScene, WorldScene, PauseOverlay],
+  scene: [BootScene, PreloadScene, MainMenuScene, SettingsScene, WorldScene, PauseOverlay, GameOverOverlay],
 };
 
 new Phaser.Game(config);

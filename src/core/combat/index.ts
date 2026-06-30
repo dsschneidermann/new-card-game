@@ -8,7 +8,7 @@ export type { AttackProfile, EnemyDef, DamageResult } from './types';
 export { ARCHETYPES } from './archetypes';
 export type { HealthData, CombatStatsData, AttackData, ArchetypeData, ShieldData } from './components';
 export { Health, CombatStats, Attack, Archetype, Shield } from './components';
-export { computeDamage, applyDamage, resolveAttack, resolveCardAttack, makeCardAttackSystem } from './combat';
+export { computeDamage, applyDamage, applyHeal, resolveAttack, resolveCardAttack, makeCardAttackSystem } from './combat';
 export { inAttackRange, hasAttackLineOfSight } from './targeting';
 export { spawnEnemy } from './spawn';
 export {

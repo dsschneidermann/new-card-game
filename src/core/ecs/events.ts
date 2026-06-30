@@ -13,9 +13,18 @@ export type GameEvent =
   // echoed for the effect (e.g. Recall's chosen discard card). targets (when present) are the aimed
   // hex(es) — forwarded from the command so an attack card can damage the enemies standing on them.
   | { kind: 'CardPlayed'; entity: EntityId; cardId: string; cardEntity?: EntityId; cardTargets?: readonly EntityId[]; targets?: readonly Hex[] }
-  | { kind: 'SpellCast'; entity: EntityId; spellId?: string }
+  // SpellCast carries `targets` (the aimed hex(es), forwarded from the PlaySpell command) so the spell
+  // system can land the spell's effect — the AOE centre for an area spell, [enemyHex, destHex] for teleport.
+  | { kind: 'SpellCast'; entity: EntityId; spellId?: string; targets?: readonly Hex[] }
   | { kind: 'DamageDealt'; target: EntityId; amount: number }
   | { kind: 'EntityDied'; entity: EntityId }
+  // The caster was healed (Self Heal spell). Emitted by applyHeal carrying the HP actually restored (after
+  // the maxHp clamp), so the scene can refresh the HUD and float a heal number. Mirrors DamageDealt.
+  | { kind: 'Healed'; target: EntityId; amount: number }
+  // The PLAYER reached 0 HP (run-lifecycle loss condition, ADR-010). Unlike an enemy's EntityDied, the player
+  // entity is NOT destroyed (it owns TurnState/DeckState/Equipment); the scene reacts by opening the defeat
+  // screen. Emitted by applyDamage in place of EntityDied when the lethal target carries the Player marker.
+  | { kind: 'PlayerDefeated'; entity: EntityId }
   // Combat (Enemy Archetypes, ADR-007). DamageDealt above is the source-agnostic "target lost N HP" event
   // (a future poison/DoT reuses it); AttackResolved adds the attack-specific breakdown — who struck whom,
   // with which named attack, how much shield soaked it, and whether it was lethal — so the scene can

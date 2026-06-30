@@ -10,11 +10,13 @@ import {
   ARCHETYPES,
   computeDamage,
   applyDamage,
+  applyHeal,
   resolveAttack,
   resolveCardAttack,
   spawnEnemy,
   inAttackRange,
   hasAttackLineOfSight,
+  Player,
   Health,
   CombatStats,
   Attack,
@@ -312,5 +314,57 @@ describe('combat state persists across save/resume (ADR-010 round-trip)', () => 
 
     expect(restored.store(Shield).get(e)).toEqual({ shield: 3 });
     expect(restored.store(CombatStats).get(e)?.selfShield).toBe(ARCHETYPES.orc!.selfShield);
+  });
+});
+
+describe('applyHeal (Self Heal spell) — clamps to maxHp', () => {
+  it('restores HP up to maxHp, emits Healed with the amount restored, and never overheals', () => {
+    const world = createWorld(1);
+    const e = world.createEntity();
+    world.store(Health).add(e, { hp: 6, maxHp: 30 });
+    expect(applyHeal(world, e, 8)).toBe(14);
+    expect(world.store(Health).get(e)?.hp).toBe(14);
+    expect(world.events()).toContainEqual({ kind: 'Healed', target: e, amount: 8 });
+  });
+
+  it('clamps at maxHp (a near-full target heals only the remainder) and a full target stays put', () => {
+    const world = createWorld(1);
+    const e = world.createEntity();
+    world.store(Health).add(e, { hp: 28, maxHp: 30 });
+    expect(applyHeal(world, e, 8)).toBe(30); // only +2
+    expect(world.events()).toContainEqual({ kind: 'Healed', target: e, amount: 2 });
+    const full = world.createEntity();
+    world.store(Health).add(full, { hp: 30, maxHp: 30 });
+    expect(applyHeal(world, full, 8)).toBe(30);
+    expect(world.events().some((ev) => ev.kind === 'Healed' && ev.target === full)).toBe(false); // no Healed at full
+  });
+
+  it('is a no-op (returns 0) on an entity without Health', () => {
+    const world = createWorld(1);
+    const e = world.createEntity();
+    expect(applyHeal(world, e, 8)).toBe(0);
+  });
+});
+
+describe('player defeat — the player entity is never destroyed at 0 HP (ADR-010)', () => {
+  it('emits PlayerDefeated (not EntityDied) and keeps the player entity + its components', () => {
+    const world = createWorld(1);
+    const player = world.createEntity();
+    world.store(Player).add(player, { isPlayer: true });
+    world.store(Health).add(player, { hp: 5, maxHp: 30 });
+    applyDamage(world, player, computeDamage(profile({ baseDamage: 99 }), 0, 0)); // lethal
+    expect(world.isAlive(player)).toBe(true); // NOT destroyed
+    expect(world.store(Health).get(player)?.hp).toBe(0); // clamped at 0, still present
+    expect(world.events()).toContainEqual({ kind: 'PlayerDefeated', entity: player });
+    expect(world.events().some((ev) => ev.kind === 'EntityDied')).toBe(false);
+  });
+
+  it('an enemy at 0 HP still dies + is destroyed (no PlayerDefeated)', () => {
+    const world = createWorld(1);
+    const enemy = spawnEnemy(world, ARCHETYPES.goblin!, { q: 0, r: 0 });
+    applyDamage(world, enemy, computeDamage(profile({ baseDamage: 99 }), 0, 0));
+    expect(world.isAlive(enemy)).toBe(false);
+    expect(world.events()).toContainEqual({ kind: 'EntityDied', entity: enemy });
+    expect(world.events().some((ev) => ev.kind === 'PlayerDefeated')).toBe(false);
   });
 });

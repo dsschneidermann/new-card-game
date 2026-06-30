@@ -119,6 +119,7 @@ export {
   Shield,
   computeDamage,
   applyDamage,
+  applyHeal,
   resolveAttack,
   resolveCardAttack,
   makeCardAttackSystem,
@@ -202,14 +203,21 @@ export {
   pickCandidates,
 } from './cards';
 
-// Items & equipment: ItemDef/EquipKind, the content registry, the Equipment component + equip ops
-export type { EquipKind, ItemDef, EquippedItem, EquipmentData } from './items';
+// Spells: the spell-resolution system that lands a cast spell's effect (area damage / self heal / enemy
+// teleport), reacting to the turn engine's SpellCast event. Separate module from the cards/deck (no combat
+// import there); registered after the card system.
+export { makeSpellSystem } from './spells';
+
+// Items & equipment: ItemDef/EquipKind, the content registry, the Equipment component + equip ops, and the
+// derived KnownSpells (spellbook-granted spells, recomputed from the loadout like armour).
+export type { EquipKind, ItemDef, EquippedItem, EquipmentData, KnownSpellsData } from './items';
 export {
   EQUIP_KINDS,
   ITEM_DEFS,
   STARTER_EQUIPMENT,
   itemDef,
   Equipment,
+  KnownSpells,
   equipItem,
   unequipItem,
   equipStartingItems,

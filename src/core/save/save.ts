@@ -45,7 +45,9 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v15: the Enemy AI (Movement & Telegraphed Attacks) feature added a persistent PlannedAttack component —
 // each enemy's locked telegraph (attackIndex + target hexes) — so a saved/resumed run keeps its in-flight
 // telegraphs. The saved world shape changed; discard older saves (no migration, ADR-010).
-export const SAVE_VERSION = 15 as const;
+// v16: the Core Gaps feature added a persistent KnownSpells component on the player (the spellbook-derived
+// available spells), so the saved world shape changed. Discard older saves (no migration, ADR-010).
+export const SAVE_VERSION = 16 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

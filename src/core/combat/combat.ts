@@ -3,7 +3,7 @@ import type { EntityId } from '../ecs/entity';
 import type { Hex } from '../hex/hex';
 import { hexEquals } from '../hex/hex';
 import { HexPosition } from '../hex/movement';
-import { Enemy } from '../actors';
+import { Enemy, Player } from '../actors';
 import type { AttackProfile, DamageResult } from './types';
 import { Health, CombatStats, Attack, Shield } from './components';
 
@@ -56,10 +56,33 @@ export function applyDamage(
   const remainingHp = health.hp;
   world.emit({ kind: 'DamageDealt', target, amount: result.hpLost });
   if (lethal) {
-    world.emit({ kind: 'EntityDied', entity: target });
-    world.destroyEntity(target);
+    // The PLAYER is never destroyed on defeat: the player entity owns TurnState/DeckState/Equipment, so
+    // destroying it would break the run. Emit PlayerDefeated (the run-lifecycle loss condition, ADR-010) and
+    // leave the entity intact at 0 HP — the scene opens the defeat screen. Enemies still die + are destroyed.
+    if (world.store(Player).get(target) !== undefined) {
+      world.emit({ kind: 'PlayerDefeated', entity: target });
+    } else {
+      world.emit({ kind: 'EntityDied', entity: target });
+      world.destroyEntity(target);
+    }
   }
   return { remainingHp, lethal };
+}
+
+/**
+ * Heal `target` by `amount`, clamped to its maxHp (no overheal). Emits Healed carrying the HP actually
+ * restored (0 when already full or the amount is non-positive) and returns the resulting hp. A no-op (returns
+ * 0) on an entity without Health. Mutates the World, so it is only ever called from within a system during
+ * advance() — the Self Heal spell's effect resolves through here (see core/spells).
+ */
+export function applyHeal(world: World, target: EntityId, amount: number): number {
+  const health = world.store(Health).get(target);
+  if (health === undefined) return 0;
+  const before = health.hp;
+  health.hp = Math.min(health.maxHp, health.hp + Math.max(0, amount));
+  const restored = health.hp - before;
+  if (restored > 0) world.emit({ kind: 'Healed', target, amount: restored });
+  return health.hp;
 }
 
 /**
