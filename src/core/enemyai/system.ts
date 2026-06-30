@@ -4,7 +4,7 @@ import { type Hex, hexKey, hexEquals } from '../hex/hex';
 import type { HexGrid } from '../hex/grid';
 import { HexPosition } from '../hex/movement';
 import { Enemy, Player } from '../actors';
-import { Health, CombatStats, Attack, Shield, computeDamage, applyDamage } from '../combat';
+import { resolveAttack } from '../combat';
 import { PlannedAttack } from './components';
 import { decideEnemy } from './decide';
 
@@ -112,6 +112,12 @@ function planTelegraph(world: World, enemy: EntityId, attackIndex: number, hexes
  * standing on it. If the player stepped off every locked hex this turn the telegraph whiffs (a harmless
  * no-op); a dead attacker has no PlannedAttack (removed with the entity), so its telegraph is already
  * cancelled. The player occupies a single hex, so at most one hit lands per enemy. Cleared after it fires.
+ *
+ * A landed telegraph resolves through the SHARED combat resolver (resolveAttack: profile -> armor -> shield
+ * -> computeDamage -> applyDamage -> AttackResolved). applyDamage handles the player safely — at 0 HP it emits
+ * PlayerDefeated and leaves the player entity intact (it owns TurnState/DeckState) rather than destroying it
+ * (only enemies are destroyed), so the player CAN now be telegraphed to death and the scene opens the defeat
+ * screen (Core Gaps: player health & defeat). There is no longer a survive-at-1-HP floor.
  */
 function resolvePendingTelegraphs(world: World): void {
   const player = world.entitiesWith(Player)[0];
@@ -120,40 +126,8 @@ function resolvePendingTelegraphs(world: World): void {
     if (!world.isAlive(enemy)) continue;
     const plan = world.store(PlannedAttack).get(enemy)!;
     if (player !== undefined && playerHex !== undefined && plan.hexes.some((h) => hexEquals(h, playerHex))) {
-      resolveTelegraphHit(world, enemy, player, plan.attackIndex);
+      resolveAttack(world, enemy, player, plan.attackIndex);
     }
     world.store(PlannedAttack).remove(enemy);
   }
-}
-
-/**
- * Apply one telegraphed hit to the PLAYER (telegraphs never hit enemies, so there is no other branch). The
- * player is damaged but never killed: the loss condition / game-over is the run-lifecycle feature's job
- * (ADR-010) and is not built yet, so a telegraph floors the player's HP at 1 rather than destroying the
- * player entity (which would break the scene). Mirrors combat.resolveAttack (profile -> armor -> shield ->
- * computeDamage -> applyDamage) and emits AttackResolved like it so the scene animates the hit identically;
- * the HP floor is the only difference.
- */
-function resolveTelegraphHit(world: World, attacker: EntityId, player: EntityId, attackIndex: number): void {
-  const profile = world.store(Attack).get(attacker)?.profiles[attackIndex];
-  const health = world.store(Health).get(player);
-  if (profile === undefined || health === undefined) return;
-  const armor = world.store(CombatStats).get(player)?.armor ?? 0;
-  const shield = Math.max(0, world.store(Shield).get(player)?.shield ?? 0);
-  const computed = computeDamage(profile, armor, shield);
-  // Trim the HP loss so the player keeps at least 1 HP (shield absorb is unchanged). Until the run-lifecycle
-  // feature lands, the player cannot be telegraphed to death.
-  const survivableHpLoss = Math.max(0, health.hp - 1);
-  const result =
-    computed.hpLost > survivableHpLoss ? { ...computed, hpLost: survivableHpLoss } : computed;
-  applyDamage(world, player, result); // never lethal here, so the player entity is never destroyed
-  world.emit({
-    kind: 'AttackResolved',
-    attacker,
-    target: player,
-    attack: profile.name,
-    hpLost: result.hpLost,
-    shieldAbsorbed: result.shieldAbsorbed,
-    lethal: false,
-  });
 }

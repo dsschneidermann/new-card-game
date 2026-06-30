@@ -208,14 +208,17 @@ describe('enemy turn — telegraph plan & deferred resolution', () => {
     expect(playerHp(world, player)).toBe(28);
   });
 
-  it('a telegraph never kills the player — HP is floored at 1 (loss condition deferred, ADR-010)', () => {
+  it('a telegraph CAN kill the player — HP hits 0, PlayerDefeated fires, the player entity survives (Core Gaps)', () => {
     const { world, player } = enemyPhaseWorld();
     spawnEnemy(world, ARCHETYPES.dragon!, adjacent(PLAYER)); // bite 12
     world.store(Health).get(player)!.hp = 5;
     advance(world); // plan (bite, the highest-damage in-range attack)
-    const evs = advance(world); // resolve: 12 damage would kill, but is floored
-    expect(playerHp(world, player)).toBe(1);
+    const evs = advance(world); // resolve: a lethal telegraphed hit (no survive-at-1 floor any more)
+    expect(playerHp(world, player)).toBe(0);
+    // The player entity is NOT destroyed (it owns TurnState/DeckState/etc.) — the run-lifecycle branch in
+    // applyDamage emits PlayerDefeated instead of EntityDied, and the scene opens the defeat screen.
     expect(world.isAlive(player)).toBe(true);
+    expect(evs.some((e) => e.kind === 'PlayerDefeated' && e.entity === player)).toBe(true);
     expect(evs.some((e) => e.kind === 'EntityDied' && e.entity === player)).toBe(false);
   });
 

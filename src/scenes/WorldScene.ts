@@ -149,6 +149,9 @@ export class WorldScene extends Phaser.Scene {
   private player!: EntityId;
   private storage!: StorageAdapter;
   private hud!: Phaser.GameObjects.Text;
+  // Light-blue "+N" shield readout overlaid on the status line, right after the HP value (Core Gaps). Its own
+  // text object because Phaser cannot colour a substring of a single Text; positioned by monospace char width.
+  private shieldHud!: Phaser.GameObjects.Text;
   private toast!: Phaser.GameObjects.Text;
   private cards!: CardController;
   private moveAnimator!: MoveAnimator;
@@ -912,6 +915,12 @@ export class WorldScene extends Phaser.Scene {
       .text(textX, s(16), '', { fontFamily: 'monospace', fontSize: `${s(28)}px`, color: '#cbd5e1' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
+    // The shield "+N" rides on the same baseline as the HUD line, light blue; refreshHud positions it in the
+    // reserved gap after the HP value and blanks it when the player has no shield.
+    this.shieldHud = this.add
+      .text(textX, s(16), '', { fontFamily: 'monospace', fontSize: `${s(28)}px`, color: '#7dd3fc' })
+      .setDepth(1_000_000)
+      .setScrollFactor(0);
     this.toast = this.add
       .text(textX, s(96), '', { fontFamily: 'monospace', fontSize: `${s(26)}px`, color: '#f0a0a0' })
       .setDepth(1_000_000)
@@ -986,11 +995,20 @@ export class WorldScene extends Phaser.Scene {
     const budget = this.world.store(MovementBudget).get(this.player);
     if (health === undefined || pool === undefined || budget === undefined) return;
     // The player's HP leads the status line (it replaced the former 'Round N · Your turn' segment); the
-    // resource readouts follow. Refreshed every frame, so damage and heals show immediately.
+    // resource readouts follow. Refreshed every frame, so damage and heals show immediately. The wide gap
+    // after the HP value reserves room for the light-blue "+N" shield overlay drawn on top (see below).
+    const hpSegment = `HP ${health.hp}/${health.maxHp}`;
     this.hud.setText(
-      `HP ${health.hp}/${health.maxHp}    Energy ${pool.energy}/${pool.energyMax}    ` +
+      `${hpSegment}        Energy ${pool.energy}/${pool.energyMax}    ` +
         `Mana ${pool.mana}/${pool.manaMax}    Move ${budget.remaining}/${budget.max}`,
     );
+    // Overlay the shield as a light-blue "+N" right after the HP value (blank when 0). The HUD font is
+    // monospace, so every glyph is the same width — char width = total width / char count — and the overlay
+    // lands exactly on the column after `HP x/y ` regardless of the digit counts.
+    const shield = this.world.store(Shield).get(this.player)?.shield ?? 0;
+    const charWidth = this.hud.width / Math.max(1, this.hud.text.length);
+    this.shieldHud.setText(shield > 0 ? `+${shield}` : '');
+    this.shieldHud.setPosition(this.hud.x + charWidth * (hpSegment.length + 1), this.hud.y);
   }
 
   private flashRejected(reason: string): void {

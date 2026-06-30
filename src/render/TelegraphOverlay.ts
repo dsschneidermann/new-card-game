@@ -2,8 +2,11 @@ import Phaser from 'phaser';
 import {
   PlannedAttack,
   Enemy,
+  Player,
   HexPosition,
   Attack,
+  CombatStats,
+  computeDamage,
   hexToPixel,
   hexKey,
   hexEquals,
@@ -71,16 +74,21 @@ export class TelegraphOverlay {
   /**
    * When the enemy hovered at `hoveredHex` has a telegraph, draw its attack damage on each of its target
    * hexes; otherwise clear the labels. `hoveredHex` is the tile under the pointer (null clears) — the same
-   * hex WorldScene uses for the inspect card. Damage shown is the attack's base damage (the stable telegraph
-   * number, like Into-the-Breach), not re-computed against the current occupant.
+   * hex WorldScene uses for the inspect card. Damage shown is the actual hit the PLAYER would take — the
+   * attack's base damage with the player's ARMOUR subtracted (floored at 1, via the shared computeDamage),
+   * NOT the raw base damage. Shield is shown separately (the HUD's +N), so it is not subtracted here.
    */
   refreshHover(world: World, hoveredHex: Hex | null): void {
     const enemy = hoveredHex !== null ? this.telegraphingEnemyAt(world, hoveredHex) : undefined;
     const plan = enemy !== undefined ? world.store(PlannedAttack).get(enemy) : undefined;
-    const damage =
+    const profile =
       enemy !== undefined && plan !== undefined
-        ? world.store(Attack).get(enemy)?.profiles[plan.attackIndex]?.baseDamage
+        ? world.store(Attack).get(enemy)?.profiles[plan.attackIndex]
         : undefined;
+    // Post-armour damage to the player (shield excluded — the +N HUD shows that). computeDamage with a 0
+    // shield yields hpLost == the after-armour amount, the canonical floor-at-1 reduction the resolver uses.
+    const damage =
+      profile !== undefined ? computeDamage(profile, this.playerArmor(world), 0).hpLost : undefined;
 
     // Cache so we only rebuild the labels when the hovered enemy, its target hexes, or its damage change.
     const key =
@@ -102,6 +110,12 @@ export class TelegraphOverlay {
           .setMask(this.effectMask),
       );
     }
+  }
+
+  /** The player's total armour (CombatStats.armor), or 0 if absent — the flat reduction a telegraph subtracts. */
+  private playerArmor(world: World): number {
+    const player = world.entitiesWith(Player)[0];
+    return player !== undefined ? (world.store(CombatStats).get(player)?.armor ?? 0) : 0;
   }
 
   /** The living enemy standing on `hex` that has a telegraph, if any. */
