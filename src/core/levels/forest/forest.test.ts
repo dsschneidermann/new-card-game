@@ -4,10 +4,14 @@ import {
   forestTerrainTile,
   forestOverlay,
   forestLeaf,
+  forestHexTerrainClass,
   generateForestObstacles,
   generateForestChests,
   generateForestEnemies,
   forestStartHex,
+  forestObjectVariantIndex,
+  forestObjectFlipped,
+  FOREST_OBJECTS,
   FOREST_COLS,
   FOREST_ROWS,
   FOREST_ENEMY_MIN,
@@ -198,5 +202,87 @@ describe('forest placement generation', () => {
         expect(blocked.has(hexKey(e.hex))).toBe(false);
       }
     }
+  });
+});
+
+describe('forest object placement (registry-driven)', () => {
+  const SEEDS = [1, 42, 777, 1000, 99999, 314159];
+  const knownIds = new Set(FOREST_OBJECTS.map((d) => d.id));
+  const defOf = (id: string) => FOREST_OBJECTS.find((d) => d.id === id)!;
+
+  it('every spawn carries a known object variant whose kind matches its def', () => {
+    for (const seed of SEEDS)
+      for (const o of generateForestObstacles(seed)) {
+        expect(knownIds.has(o.variant)).toBe(true);
+        expect(o.kind).toBe(defOf(o.variant).kind);
+      }
+  });
+
+  it('honours each object terrain constraint (dirt-only sits on dirt, grass-only on grass)', () => {
+    for (const seed of SEEDS)
+      for (const o of generateForestObstacles(seed)) {
+        const def = defOf(o.variant);
+        if (def.terrain === 'any') continue;
+        expect(forestHexTerrainClass(o.hex, seed)).toBe(def.terrain);
+      }
+  });
+
+  it('never places two objects on the same hex', () => {
+    for (const seed of SEEDS) {
+      const seen = new Set<string>();
+      for (const o of generateForestObstacles(seed)) {
+        expect(seen.has(hexKey(o.hex))).toBe(false);
+        seen.add(hexKey(o.hex));
+      }
+    }
+  });
+
+  it('places at most one ruins (count 0..1), with both 0 and 1 occurring across seeds', () => {
+    let sawZero = false;
+    let sawOne = false;
+    for (const seed of SEEDS) {
+      const ruins = generateForestObstacles(seed).filter((o) => o.variant === 'ruins');
+      expect(ruins.length).toBeLessThanOrEqual(1);
+      if (ruins.length === 0) sawZero = true;
+      else sawOne = true;
+    }
+    expect(sawZero).toBe(true);
+    expect(sawOne).toBe(true);
+  });
+
+  it('reaches placement for the density objects incl. the dirt-only rock across seeds', () => {
+    const placed = new Set<string>();
+    for (const seed of SEEDS) for (const o of generateForestObstacles(seed)) placed.add(o.variant);
+    for (const id of ['tree', 'rock_grass', 'rock_dirt']) expect(placed.has(id)).toBe(true);
+  });
+
+  it('forestHexTerrainClass yields grass, dirt, and mixed across the map, deterministically', () => {
+    const classes = new Set<string>();
+    outer: for (const seed of SEEDS)
+      for (let row = 0; row < FOREST_ROWS; row += 1)
+        for (let col = 0; col < FOREST_COLS; col += 1) {
+          const hex = offsetToAxial({ col, row });
+          const c = forestHexTerrainClass(hex, seed);
+          expect(forestHexTerrainClass(hex, seed)).toBe(c); // deterministic
+          classes.add(c);
+          if (classes.size === 3) break outer;
+        }
+    expect(classes.has('grass')).toBe(true);
+    expect(classes.has('dirt')).toBe(true);
+    expect(classes.has('mixed')).toBe(true);
+  });
+
+  it('cosmetic variant/flip derivations are deterministic and in range', () => {
+    const SEED = 777;
+    for (let row = 0; row < 20; row += 1)
+      for (let col = 0; col < 20; col += 1) {
+        const hex = offsetToAxial({ col, row });
+        const idx = forestObjectVariantIndex(hex, SEED, 2);
+        expect(forestObjectVariantIndex(hex, SEED, 2)).toBe(idx); // deterministic
+        expect(idx).toBeGreaterThanOrEqual(0);
+        expect(idx).toBeLessThan(2);
+        expect(forestObjectVariantIndex(hex, SEED, 1)).toBe(0); // single-variant object -> always 0
+        expect(forestObjectFlipped(hex, SEED)).toBe(forestObjectFlipped(hex, SEED)); // deterministic
+      }
   });
 });

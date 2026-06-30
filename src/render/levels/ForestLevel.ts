@@ -20,6 +20,9 @@ import {
   generateForestEnemies,
   forestMimicIndex,
   forestPropFacing,
+  forestObjectVariantIndex,
+  forestObjectFlipped,
+  forestObjectDef,
   forestStartHex,
   hexKey,
   FOREST_COLS,
@@ -29,7 +32,6 @@ import {
   type AssetKey,
   type World,
   type Hex,
-  type ObstacleKind,
   type ForestTerrainKind,
   type ForestTerrainOverlay,
   type DecalShape,
@@ -105,10 +107,13 @@ const LEAF_SHAPES: readonly DecalShape[] = [
   [{ dx: 0, dy: 0, frame: 329 }],
 ];
 
-// Per obstacle KIND -> its prop art (a tree for tall, a boulder for low). The forest's own art.
-const OBSTACLE_ART: Record<ObstacleKind, AssetKey> = {
-  tall: AssetKeys.obstacleTreeGrass1,
-  low: AssetKeys.obstacleRockGrass1,
+// Per object id (FOREST_OBJECTS variant) -> its prop art variant list. The forest's own art; a multi-entry
+// list is a set of interchangeable sprites, with the one shown at a hex chosen by forestObjectVariantIndex.
+const OBSTACLE_ART: Record<string, readonly AssetKey[]> = {
+  tree: [AssetKeys.obstacleTreeGrass1],
+  rock_grass: [AssetKeys.obstacleRockGrass1, AssetKeys.obstacleRockGrass2],
+  rock_dirt: [AssetKeys.obstacleRockDirt1],
+  ruins: [AssetKeys.obstacleRuinsGrass1],
 };
 
 /**
@@ -129,7 +134,7 @@ export class ForestLevel implements Level {
     const obstacles = generateForestObstacles(this.seed);
     for (const o of obstacles) {
       const e = world.createEntity();
-      world.store(Obstacle).add(e, { kind: o.kind });
+      world.store(Obstacle).add(e, { kind: o.kind, variant: o.variant });
       world.store(HexPosition).add(e, { hex: o.hex });
     }
     // Reward props: a randomized number of positions, with zero or one of them instead a disguised mimic.
@@ -163,8 +168,19 @@ export class ForestLevel implements Level {
   /** Apply grid flags from the obstacle entities + (re-)attach Renderables for all forest content. */
   private install(world: World, grid: HexGrid): void {
     applyObstacleEntities(world, grid);
-    for (const [obstacle, { kind }] of world.store(Obstacle).entries()) {
-      world.store(Renderable).add(obstacle, { texture: OBSTACLE_ART[kind] });
+    // Each obstacle draws the art for its object `variant`. When the object has several art variants, which
+    // one shows is derived from seed + hex; when its def allows mirroring, a left flip is derived the same
+    // way (cosmetic, like chest facing) — so resume + Restart Level reproduce identical art + flips without
+    // persisting them. Grid flags already came from the entity's kind via applyObstacleEntities above.
+    for (const [obstacle, { variant }] of world.store(Obstacle).entries()) {
+      const arts = OBSTACLE_ART[variant] ?? [AssetKeys.obstacleTreeGrass1]; // unknown id -> safe default art
+      const at = world.store(HexPosition).get(obstacle);
+      const variantIndex = at !== undefined ? forestObjectVariantIndex(at.hex, this.seed, arts.length) : 0;
+      world.store(Renderable).add(obstacle, { texture: arts[variantIndex]! });
+      const def = forestObjectDef(variant);
+      if (def?.mirror === true && at !== undefined && forestObjectFlipped(at.hex, this.seed)) {
+        world.store(FacingState).add(obstacle, { facing: 'left' });
+      }
     }
     // Chests are PROPS, drawn by the item view system (ItemRenderable) with a seed-deterministic facing.
     // An unopened chest shows the closed art; an already-opened chest (restored from save) holds the final

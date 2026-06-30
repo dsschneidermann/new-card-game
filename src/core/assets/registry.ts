@@ -94,10 +94,12 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // Grass-leaf foliage tileset (the stairs_grass sheet, 21x17 = 357 tiles); the leaf detail layer reads decal frames.
   asset(AssetKeys.terrainStairsGrass, [16, 16], 'grass-leaf foliage tiles', 'Terrain: grass-leaf foliage tileset', { frameCount: 357 }),
 
-  // --- Obstacle props (per kind): bottom-anchored sprites standing on a hex. Placeholders until real art drops in. ---
+  // --- Obstacle props (per object): bottom-anchored sprites standing on a hex. Placeholders until real art drops in. ---
   asset(AssetKeys.obstacleTreeGrass1, [64, 64, 0.75], 'big tree', 'Obstacle: tree (blocks movement + line of sight)', { frameCount: 1, downPx: 0, forwardPx: -1 }),
   asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
   asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
+  asset(AssetKeys.obstacleRockDirt1, [64, 64, 0.5], 'big rock on dirt', 'Obstacle: low rock on dirt ground (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
+  asset(AssetKeys.obstacleRuinsGrass1, [64, 64, 0.75], 'ancient stone ruins on grass', 'Obstacle: ruins landmark on grass (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 0 }),
 
   // --- Chest prop: real 128x128 art. Unopened is static; opening is a 3-frame ONE-SHOT animation (no idle/walk/ready
   //     suffix -> animRepeat 0, so it plays once and holds its last frame = the opened chest). ---
@@ -337,6 +339,9 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
+  // New obstacle props whose real art is still pending — render as generated placeholders for now.
+  AssetKeys.obstacleRockDirt1,
+  AssetKeys.obstacleRuinsGrass1,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

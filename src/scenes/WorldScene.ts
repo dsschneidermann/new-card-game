@@ -45,6 +45,9 @@ import {
   selectLevelId,
   FOREST_ID,
   s,
+  BASE_HEX_LAYOUT,
+  FOREST_TILE_W,
+  FOREST_TILE_H,
   type Hex,
   type HexLayout,
   type EntityId,
@@ -94,8 +97,10 @@ const VIEW_CENTER_ROW = Math.floor(VIEW_ROWS / 2); // (10)
 // Ground-terrain tile FOOTPRINT (display): the level builds its terrain as world-sized TilemapLayer(s) at
 // this skewed tile size (width != height although the source art is a natural 16x16 square); WorldScene
 // passes the s()-scaled size into the level's buildTerrain and clips the returned layers to the hex frame.
-const TERRAIN_TILE_W = 24; // Desktop base px tile WIDTH
-const TERRAIN_TILE_H = 16; // Desktop base px tile HEIGHT -> vertical squish vs the 16x16 source
+// Forest-owned single source (src/core/levels/forest/terrain): the forest's terrain classifier reads the
+// same base tile size, so placement and rendering can't drift.
+const TERRAIN_TILE_W = FOREST_TILE_W; // Desktop base px tile WIDTH
+const TERRAIN_TILE_H = FOREST_TILE_H; // Desktop base px tile HEIGHT -> vertical squish vs the 16x16 source
 // Staggered follow: re-anchor the camera only after the player drifts this many hexes from the current
 // reference, so the camera pans every N hex instead of every hop (tunable; 2 = tighter).
 const CAMERA_STAGGER_HEXES = 2;
@@ -229,8 +234,15 @@ export class WorldScene extends Phaser.Scene {
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.sync = new SceneSync(this, HOP_MS);
-    // Hex layout in current-scale pixels (s() — must run here, not at module load).
-    this.layout = { width: s(64), height: s(48), rowPitch: s(36), originX: s(192), originY: s(76) };
+    // Hex layout in current-scale pixels (s() — must run here, not at module load). BASE_HEX_LAYOUT is the
+    // shared, unscaled source the forest's terrain classifier also reads (so they can't drift).
+    this.layout = {
+      width: s(BASE_HEX_LAYOUT.width),
+      height: s(BASE_HEX_LAYOUT.height),
+      rowPitch: s(BASE_HEX_LAYOUT.rowPitch),
+      originX: s(BASE_HEX_LAYOUT.originX),
+      originY: s(BASE_HEX_LAYOUT.originY),
+    };
     // Build the run's world. This is the SEAM: it picks the active level (the forest, via selectLevelId;
     // else the level recorded in the save), builds the grid from the level's size, populates a fresh
     // run's content / reinstalls a resumed one, and sets this.level / this.grid / this.player.

@@ -46,7 +46,7 @@ export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validate
 export type { Hex } from './hex/hex';
 export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } from './hex/hex';
 export type { HexLayout, Offset, WorldPixelBounds } from './hex/layout';
-export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds } from './hex/layout';
+export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds, BASE_HEX_LAYOUT } from './hex/layout';
 export { HexGrid } from './hex/grid';
 export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
@@ -61,7 +61,18 @@ export { hash01, valueNoise, warpedNoise, opened2x2, overlayFor, scatterDecal } 
 
 // Levels: shared content-placement types + the pure level seam — the active-level component, the level ids
 // + selection, and each level's pure terrain + procedural generators. The renderer pairs these with frames/art.
-export type { EnemySpawn, ObstacleSpawn, ChestSpawn, LevelStateData, ForestTerrainKind, ForestTerrainTile, ForestTerrainOverlay } from './levels';
+export type {
+  EnemySpawn,
+  ObstacleSpawn,
+  ChestSpawn,
+  LevelStateData,
+  ForestTerrainKind,
+  ForestTerrainTile,
+  ForestTerrainOverlay,
+  ForestObjectTerrain,
+  ForestObjectPlacement,
+  ForestObjectDef,
+} from './levels';
 export {
   LevelState,
   FOREST_ID,
@@ -70,6 +81,11 @@ export {
   forestTerrainTile,
   forestOverlay,
   forestLeaf,
+  forestHexTerrainClass,
+  FOREST_TILE_W,
+  FOREST_TILE_H,
+  FOREST_OBJECTS,
+  forestObjectDef,
   FOREST_COLS,
   FOREST_ROWS,
   forestStartHex,
@@ -78,6 +94,8 @@ export {
   generateForestEnemies,
   forestMimicIndex,
   forestPropFacing,
+  forestObjectVariantIndex,
+  forestObjectFlipped,
   FOREST_CHEST_MIN,
   FOREST_CHEST_MAX,
   FOREST_ENEMY_MIN,

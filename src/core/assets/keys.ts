@@ -58,10 +58,12 @@ export const AssetKeys = {
   // Grass-leaf foliage tileset (16x16 frame-indexed spritesheet) — the leaf detail layer reads its decal frames from it.
   terrainStairsGrass: 'terrain_stairs_grass',
 
-  // Obstacle props (per kind): rendered as bottom-anchored sprites standing on their hex.
+  // Obstacle props (per object): rendered as bottom-anchored sprites standing on their hex.
   obstacleTreeGrass1: 'obstacle_tree_grass_1',
   obstacleRockGrass1: 'obstacle_rock_grass_1',
   obstacleRockGrass2: 'obstacle_rock_grass_2',
+  obstacleRockDirt1: 'obstacle_rock_dirt_1',
+  obstacleRuinsGrass1: 'obstacle_ruins_grass_1',
 
   // Chest props (unopened, opening): a reward chest standing on a hex (bottom-anchored static sprite) and opening anim.
   chest1Unopened: 'chest_1_unopened',

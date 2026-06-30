@@ -7,6 +7,8 @@
 import { offsetToAxial, axialToOffset } from '../../hex/layout';
 import { hexKey, hexDistance, type Hex } from '../../hex/hex';
 import { hash01 } from '../../terrain/terrain';
+import { forestHexTerrainClass } from './terrain';
+import { FOREST_OBJECTS, type ForestObjectDef } from './objects';
 import type { ObstacleSpawn, ChestSpawn, EnemySpawn } from '../levels';
 
 // The forest world is 52x42 (the Larger World feature): the camera follows the player and renders only a
@@ -20,32 +22,102 @@ export const forestStartHex: Hex = offsetToAxial({
   row: Math.floor(FOREST_ROWS / 2),
 });
 
-// Obstacle placement (tunable; surfaced at visual-QA). A per-cell roll scatters trees (tall, block sight)
-// and rocks (low, fire over) across the map, kept clear of a radius around the start so the player isn't
-// boxed in. The fixed salts keep terrain, obstacles and chests on decorrelated streams of the run seed.
-const OBSTACLE_DENSITY = 0.05; // fraction of eligible cells that host an obstacle
-const TALL_FRACTION = 0.55; // of obstacles, the share that are tall trees (vs low rocks)
+// Obstacle placement (tunable; surfaced at visual-QA). Each placeable object is declared in FOREST_OBJECTS
+// (objects.ts) with its own kind, terrain constraint, mirroring, art-variant count, and placement amount;
+// generateForestObstacles walks that registry. Placement is deterministic from the run seed via pure
+// hashing (NEVER world.rng, so the gameplay RNG / deck shuffle is untouched), and a radius around the start
+// is always kept clear so the player isn't boxed in. The fixed base salts keep each object's placement
+// stream decorrelated from terrain, chests and enemies; per-object salts are mixed in from the object id.
 const START_CLEAR_RADIUS = 3; // keep this many hexes around the start clear of obstacles
-const OBSTACLE_PLACE_SALT = 0x0b57a1;
-const OBSTACLE_KIND_SALT = 0x0b57a2;
+const OBSTACLE_PLACE_SALT = 0x0b57a1; // base salt for a density object's per-cell roll
+const OBSTACLE_COUNT_SALT = 0x0b57a3; // base salt for a count object's quantity
+const OBSTACLE_COUNT_POS_SALT = 0x0b57a4; // base salt for a count object's spread start index
+const OBJECT_FLIP_SALT = 0x0b57a5; // cosmetic: a mirrored object's left/right flip
+const OBJECT_VARIANT_SALT = 0x0b57a6; // cosmetic: which art variant of a multi-variant object
+
+/** A stable per-object salt mixed from the object id, so adding an object needs no hand-picked salt. */
+function objectSalt(id: string, base: number): number {
+  let h = base | 0;
+  for (let i = 0; i < id.length; i += 1) h = Math.imul(h ^ id.charCodeAt(i), 0x01000193);
+  return h | 0;
+}
 
 /**
- * The forest's obstacles, generated deterministically from the run seed: trees (tall) and rocks (low)
- * scattered across the map, none within START_CLEAR_RADIUS of the start hex. Pure — the renderer turns
- * each into an Obstacle entity and draws the forest's tree/rock art for its kind.
+ * The forest's obstacles, generated deterministically from the run seed by walking FOREST_OBJECTS. COUNT
+ * objects are placed first (a rare landmark gets primo eligible hexes before dense scatter fills them), then
+ * DENSITY objects. A hex is eligible for an object when it is outside START_CLEAR_RADIUS, not already taken,
+ * and its terrain class matches the object's constraint (or the object is 'any'). Each spawn carries the
+ * object's `variant` id; no hex hosts two objects. Pure — the renderer turns each into an Obstacle entity
+ * and draws the art for its variant.
  */
 export function generateForestObstacles(seed: number): ObstacleSpawn[] {
   const out: ObstacleSpawn[] = [];
-  for (let row = 0; row < FOREST_ROWS; row += 1) {
-    for (let col = 0; col < FOREST_COLS; col += 1) {
-      const hex = offsetToAxial({ col, row });
-      if (hexDistance(hex, forestStartHex) <= START_CLEAR_RADIUS) continue; // breathing room around the start
-      if (hash01(col, row, seed ^ OBSTACLE_PLACE_SALT) >= OBSTACLE_DENSITY) continue;
-      const kind = hash01(col, row, seed ^ OBSTACLE_KIND_SALT) < TALL_FRACTION ? 'tall' : 'low';
-      out.push({ kind, hex });
-    }
+  const occupied = new Set<string>();
+
+  const eligible = (hex: Hex, def: ForestObjectDef): boolean => {
+    if (hexDistance(hex, forestStartHex) <= START_CLEAR_RADIUS) return false; // breathing room around the start
+    if (occupied.has(hexKey(hex))) return false; // one object per hex
+    if (def.terrain === 'any') return true;
+    return forestHexTerrainClass(hex, seed) === def.terrain; // grass-only / dirt-only honoured here
+  };
+  const place = (hex: Hex, def: ForestObjectDef): void => {
+    occupied.add(hexKey(hex));
+    out.push({ kind: def.kind, variant: def.id, hex });
+  };
+
+  // Pass 1: count objects — gather eligible hexes, seed-pick a quantity, take them at a seed-offset spread.
+  for (const def of FOREST_OBJECTS) {
+    if (def.placement.kind !== 'count') continue;
+    const candidates: Hex[] = [];
+    for (let row = 0; row < FOREST_ROWS; row += 1)
+      for (let col = 0; col < FOREST_COLS; col += 1) {
+        const hex = offsetToAxial({ col, row });
+        if (eligible(hex, def)) candidates.push(hex);
+      }
+    if (candidates.length === 0) continue;
+    const span = def.placement.max - def.placement.min + 1;
+    const wanted = def.placement.min + Math.floor(hash01(0, 0, seed ^ objectSalt(def.id, OBSTACLE_COUNT_SALT)) * span);
+    const n = Math.min(wanted, candidates.length);
+    if (n <= 0) continue;
+    const start = Math.floor(hash01(1, 0, seed ^ objectSalt(def.id, OBSTACLE_COUNT_POS_SALT)) * candidates.length);
+    const step = Math.max(1, Math.floor(candidates.length / n));
+    for (let i = 0; i < n; i += 1) place(candidates[(start + i * step) % candidates.length]!, def);
+  }
+
+  // Pass 2: density objects — roll a per-cell hash against the density on each remaining eligible hex.
+  for (const def of FOREST_OBJECTS) {
+    if (def.placement.kind !== 'density') continue;
+    const salt = objectSalt(def.id, OBSTACLE_PLACE_SALT);
+    for (let row = 0; row < FOREST_ROWS; row += 1)
+      for (let col = 0; col < FOREST_COLS; col += 1) {
+        const hex = offsetToAxial({ col, row });
+        if (!eligible(hex, def)) continue;
+        if (hash01(col, row, seed ^ salt) >= def.placement.density) continue;
+        place(hex, def);
+      }
   }
   return out;
+}
+
+/**
+ * Which art variant (0-based, < variants) a multi-variant object shows at this hex — derived deterministically
+ * from the hex + run seed (cosmetic; like forestPropFacing it uses the terrain hash, never world.rng). Stable
+ * across Resume / Restart Level, so an object's art reproduces without being persisted.
+ */
+export function forestObjectVariantIndex(hex: Hex, seed: number, variants: number): number {
+  if (variants <= 1) return 0;
+  const { col, row } = axialToOffset(hex);
+  return Math.min(variants - 1, Math.floor(hash01(col, row, seed ^ OBJECT_VARIANT_SALT) * variants));
+}
+
+/**
+ * Whether an object is horizontally mirrored at this hex — derived deterministically from the hex + run seed
+ * (cosmetic; the caller only consults it for objects whose def allows mirroring). Stable across Resume /
+ * Restart Level, so flips reproduce without being persisted.
+ */
+export function forestObjectFlipped(hex: Hex, seed: number): boolean {
+  const { col, row } = axialToOffset(hex);
+  return hash01(col, row, seed ^ OBJECT_FLIP_SALT) < 0.5;
 }
 
 // Reward-prop placement (tunable; surfaced at visual-QA). The forest places a RANDOMIZED number of reward

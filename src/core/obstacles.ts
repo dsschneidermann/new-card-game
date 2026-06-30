@@ -23,11 +23,14 @@ export const OBSTACLE_RULES: Record<ObstacleKind, ObstacleRule> = {
 };
 
 /**
- * An obstacle entity's data: its kind. Persisted (like Enemy) so resume restores each obstacle and its
- * art. The renderer maps the kind to a texture via the active level (e.g. the forest's tree/rock art).
+ * An obstacle entity's data: its behavioural kind and the level-defined object `variant` (an opaque art id,
+ * e.g. the forest's 'tree' / 'rock_grass' / 'rock_dirt' / 'ruins'). Persisted (like Enemy) so resume
+ * restores each obstacle, its grid flags (from kind), and its art (from variant). The renderer maps the
+ * variant to a texture via the active level; the shared rules below read ONLY kind.
  */
 export interface ObstacleData {
   readonly kind: ObstacleKind;
+  readonly variant: string;
 }
 
 export const Obstacle: ComponentType<ObstacleData> = defineComponent<ObstacleData>('Obstacle');

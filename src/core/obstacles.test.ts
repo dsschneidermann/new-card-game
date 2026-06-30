@@ -29,16 +29,17 @@ describe('applyObstacles', () => {
 });
 
 describe('Obstacle persistence', () => {
-  it('round-trips an obstacle entity with its kind', () => {
+  it('round-trips an obstacle entity with its kind and object variant', () => {
     const world = createWorld(1);
     const e = world.createEntity();
-    world.store(Obstacle).add(e, { kind: 'tall' });
+    world.store(Obstacle).add(e, { kind: 'low', variant: 'rock_dirt' });
     world.store(HexPosition).add(e, { hex: { q: 1, r: 2 } });
 
     const restored = restoreWorld(serializeWorld(world));
     const obstacles = [...restored.store(Obstacle).entries()];
     expect(obstacles).toHaveLength(1);
-    expect(obstacles[0]![1].kind).toBe('tall');
+    expect(obstacles[0]![1].kind).toBe('low');
+    expect(obstacles[0]![1].variant).toBe('rock_dirt');
   });
 });
 
@@ -61,7 +62,7 @@ describe('applyObstacleEntities (resume parity)', () => {
       ['low', low],
     ] as const) {
       const e = world.createEntity();
-      world.store(Obstacle).add(e, { kind });
+      world.store(Obstacle).add(e, { kind, variant: kind === 'tall' ? 'tree' : 'rock_grass' });
       world.store(HexPosition).add(e, { hex });
     }
     const restored = restoreWorld(serializeWorld(world));

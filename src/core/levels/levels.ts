@@ -19,11 +19,14 @@ export interface EnemySpawn {
 
 /**
  * A single obstacle placed on a level: its behavioural kind (tall/low — see OBSTACLE_RULES for what each
- * blocks) and the hex it occupies. The renderer turns each into an Obstacle entity, applies its
- * walkability/sight flags to the grid, and draws the level's art for its kind.
+ * blocks), the level-defined object `variant` (an opaque id the renderer maps to a specific prop art — e.g.
+ * the forest's 'tree' / 'rock_grass' / 'rock_dirt' / 'ruins'), and the hex it occupies. The renderer turns
+ * each into an Obstacle entity, applies its walkability/sight flags to the grid, and draws the art for its
+ * variant. `kind` stays the only field the shared grid-flag rules read.
  */
 export interface ObstacleSpawn {
   readonly kind: ObstacleKind;
+  readonly variant: string;
   readonly hex: Hex;
 }
 

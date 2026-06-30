@@ -17,6 +17,8 @@ import {
   type OverlayTile,
   type DecalShape,
 } from '../../terrain/terrain';
+import { BASE_HEX_LAYOUT, axialToOffset } from '../../hex/layout';
+import type { Hex } from '../../hex/hex';
 
 /** The forest ground kinds. */
 export type ForestTerrainKind = 'grass' | 'dirt';
@@ -93,4 +95,39 @@ const FOREST_LEAF: ScatterOptions = { slot: 3, density: 0.8, cluster: 0.35, scal
  */
 export function forestLeaf(col: number, row: number, seed: number, shapes: readonly DecalShape[]): number | null {
   return scatterDecal(col, row, seed, shapes, (c, r) => forestTerrainKind(c, r, seed) === 'grass', FOREST_LEAF);
+}
+
+// The forest's ground-terrain display tile size (BASE / unscaled px). WorldScene draws the terrain layers at
+// s()-scaled multiples of these (tileW = s(24), tileH = s(16)); the classifier below reads them unscaled.
+// The source art is a natural 16x16 square — the 24x16 display footprint is the forest's horizontal stretch.
+export const FOREST_TILE_W = 24;
+export const FOREST_TILE_H = 16;
+
+/**
+ * The terrain CLASS of a hex — 'grass' / 'dirt' (cleanly one kind) or 'mixed' — used by procedural object
+ * placement to keep grass-only / dirt-only props on matching ground. A hex covers several square terrain
+ * tiles, so this maps the hex (via BASE_HEX_LAYOUT) to its base-px footprint, then samples forestTerrainKind
+ * over every FOREST_TILE-sized tile under that footprint: all grass -> 'grass', all dirt -> 'dirt', any
+ * mix -> 'mixed'. EXACT (matches the drawn terrain) because the layout and tile size are both s()-scaled
+ * multiples of these base constants, so the scale cancels in the floor()/div. Pure + deterministic; a
+ * boundary hex reads 'mixed' (conservative — the safe reading of "cleanly grass/dirt").
+ */
+export function forestHexTerrainClass(hex: Hex, seed: number): ForestTerrainKind | 'mixed' {
+  const { col, row } = axialToOffset(hex);
+  const centerX = BASE_HEX_LAYOUT.originX + col * BASE_HEX_LAYOUT.width + (row & 1) * (BASE_HEX_LAYOUT.width / 2);
+  const centerY = BASE_HEX_LAYOUT.originY + row * BASE_HEX_LAYOUT.rowPitch;
+  const tx0 = Math.floor((centerX - BASE_HEX_LAYOUT.width / 2) / FOREST_TILE_W);
+  const tx1 = Math.floor((centerX + BASE_HEX_LAYOUT.width / 2 - 1) / FOREST_TILE_W);
+  const ty0 = Math.floor((centerY - BASE_HEX_LAYOUT.height / 2) / FOREST_TILE_H);
+  const ty1 = Math.floor((centerY + BASE_HEX_LAYOUT.height / 2 - 1) / FOREST_TILE_H);
+  let sawGrass = false;
+  let sawDirt = false;
+  for (let ty = ty0; ty <= ty1; ty += 1) {
+    for (let tx = tx0; tx <= tx1; tx += 1) {
+      if (forestTerrainKind(tx, ty, seed) === 'dirt') sawDirt = true;
+      else sawGrass = true;
+      if (sawGrass && sawDirt) return 'mixed'; // a mix of kinds under the footprint
+    }
+  }
+  return sawDirt ? 'dirt' : 'grass';
 }

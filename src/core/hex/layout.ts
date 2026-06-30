@@ -14,6 +14,21 @@ export interface HexLayout {
   readonly originY: number;
 }
 
+/**
+ * The BASE (unscaled) hex layout. WorldScene renders the board at s()-scaled multiples of these values
+ * (this.layout = { width: s(64), height: s(48), ... }); the forest's terrain classifier reads them
+ * UNSCALED. Because the hex layout and the terrain tile size are both s()-scaled by the SAME factor, the
+ * s() cancels in tile-index math — so a hex's terrain class computed from these base values matches what
+ * is drawn. Kept here as the single source so the renderer and the classifier can never drift.
+ */
+export const BASE_HEX_LAYOUT: HexLayout = {
+  width: 64,
+  height: 48,
+  rowPitch: 36,
+  originX: 192,
+  originY: 76,
+};
+
 /** Offset (col,row) of a hex within an odd-r grid. */
 export interface Offset {
   readonly col: number;
