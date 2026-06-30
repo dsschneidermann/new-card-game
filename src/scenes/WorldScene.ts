@@ -24,6 +24,7 @@ import {
   makeShieldSystem,
   makeEnemyTurnSystem,
   makeInteractSystem,
+  playerMoveBlockers,
   DeckState,
   reshuffle,
   drawUpTo,
@@ -734,7 +735,9 @@ export class WorldScene extends Phaser.Scene {
     // wipes it). On the enemy turn it resolves last turn's telegraphs, then moves + re-telegraphs each enemy
     // (Enemy AI: Movement & Telegraphed Attacks). The turn engine has no enemy-phase loop of its own.
     this.world.addSystem(makeEnemyTurnSystem(this.grid));
-    this.world.addSystem(makeMovementSystem(this.grid, this.layout));
+    // playerMoveBlockers makes a living enemy a LOW obstacle for the PLAYER's move resolution (route around it),
+    // while every enemy MoveTo resolves unblocked — the enemy AI's path-through is untouched (player-only scope).
+    this.world.addSystem(makeMovementSystem(this.grid, this.layout, playerMoveBlockers));
     this.world.addSystem(makeCardSystem(HAND_SIZE));
     // The card-attack system runs AFTER the card system so it sees the AttackRequested the card system emits
     // from a played Attack card, and resolves the damage (Defense & Shielding).

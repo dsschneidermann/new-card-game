@@ -7,6 +7,7 @@ import {
   hexKey,
   HexPosition,
   MovementBudget,
+  enemyOccupiedHexes,
   unopenedChestAt,
   disguisedMimicAt,
   s,
@@ -143,7 +144,7 @@ export class MovePlanner {
     if (!this.reachable.has(key)) return; // not a valid destination — show the reachable area only
     const from = this.playerHex();
     if (from === null) return;
-    const path = findPath(this.ctx.grid, from, hex);
+    const path = findPath(this.ctx.grid, from, hex, enemyOccupiedHexes(this.ctx.world())); // detour around enemies
     // An interact prop is a zero-cost interact: the move stops on the hex BEFORE it (the prop's last step is
     // free), so number the route only up to that preceding hex — the prop tile itself carries no step number.
     const numberedSteps = this.interactAt(hex) !== null ? path.length - 1 : path.length;
@@ -208,8 +209,11 @@ export class MovePlanner {
    * adjacent prop is still openable.)
    */
   private computeReachable(from: Hex): Map<string, Hex> {
-    const reachable = hexesReachable(this.ctx.grid, from, this.budget());
-    const expanded = hexesReachable(this.ctx.grid, from, this.budget() + 1);
+    // Living enemies are low obstacles for the player: exclude their hexes (and anything reachable only through
+    // them) from both the reachable area and the +1 interact ring, matching the turn/movement resolution.
+    const blocked = enemyOccupiedHexes(this.ctx.world());
+    const reachable = hexesReachable(this.ctx.grid, from, this.budget(), blocked);
+    const expanded = hexesReachable(this.ctx.grid, from, this.budget() + 1, blocked);
     for (const [key, hex] of expanded) {
       if (!reachable.has(key) && this.interactAt(hex) !== null) reachable.set(key, hex);
     }

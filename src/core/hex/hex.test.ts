@@ -142,6 +142,53 @@ describe('findPath (BFS)', () => {
       if (i > 0) expect(hexDistance(path[i - 1] as Hex, path[i] as Hex)).toBe(1); // contiguous
     }
   });
+
+  it('routes around a `blocked` wall (longer path) and never steps onto a blocked hex', () => {
+    const grid = new HexGrid(12, 12);
+    const from = offsetToAxial({ col: 2, row: 6 });
+    const to = offsetToAxial({ col: 9, row: 6 });
+    // The same column-5 wall as the tall-obstacle case, but expressed via the dynamic blocked SET (e.g. enemies)
+    // rather than grid walkability — a single gap at row 0 forces a detour over the top.
+    const blocked = new Set<string>();
+    for (let row = 1; row < 12; row += 1) blocked.add(hexKey(offsetToAxial({ col: 5, row })));
+    const path = findPath(grid, from, to, blocked);
+    expect(path.length).toBeGreaterThan(hexDistance(from, to) + 1); // had to detour
+    expect(path[0]).toEqual(from);
+    expect(path[path.length - 1]).toEqual(to);
+    for (const h of path) expect(blocked.has(hexKey(h))).toBe(false); // never through a blocked hex
+  });
+
+  it('returns [] when the destination is blocked — cannot stop ON a blocked hex', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 1, row: 1 });
+    const to = offsetToAxial({ col: 4, row: 1 });
+    expect(findPath(grid, from, to).length).toBeGreaterThan(0); // reachable when not blocked
+    expect(findPath(grid, from, to, new Set([hexKey(to)]))).toEqual([]); // blocked destination
+  });
+
+  it('returns [] when blockers wall off the target (every approach blocked)', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 1, row: 1 });
+    const to = offsetToAxial({ col: 4, row: 4 });
+    const blocked = new Set(neighbors(to).map(hexKey)); // ring all six approaches; the target tile itself is open
+    expect(findPath(grid, from, to, blocked)).toEqual([]);
+  });
+
+  it('never blocks the origin: a `blocked` set containing `from` still computes a route', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 1, row: 1 });
+    const to = offsetToAxial({ col: 4, row: 1 });
+    const path = findPath(grid, from, to, new Set([hexKey(from)]));
+    expect(path[0]).toEqual(from);
+    expect(path[path.length - 1]).toEqual(to);
+  });
+
+  it('an empty `blocked` set is identical to passing none', () => {
+    const grid = new HexGrid(10, 10);
+    const from = offsetToAxial({ col: 1, row: 1 });
+    const to = offsetToAxial({ col: 7, row: 5 });
+    expect(findPath(grid, from, to, new Set())).toEqual(findPath(grid, from, to));
+  });
 });
 
 describe('hexesReachable', () => {
@@ -163,6 +210,26 @@ describe('hexesReachable', () => {
     grid.setWalkable(obstacle, false);
     expect(hexesReachable(grid, from, 2).has(hexKey(obstacle))).toBe(false);
     expect(hexesReachable(grid, from, 0).size).toBe(0);
+  });
+
+  it('a `blocked` hex is excluded, and so is anything reachable only through it; other routes remain', () => {
+    const grid = new HexGrid(10, 10);
+    const from = offsetToAxial({ col: 3, row: 3 });
+    const baseline = hexesReachable(grid, from, 2);
+    const neighbour = grid.walkableNeighbors(from)[0] as Hex;
+    const reach = hexesReachable(grid, from, 2, new Set([hexKey(neighbour)]));
+    expect(reach.has(hexKey(neighbour))).toBe(false); // the blocked hex itself is unreachable
+    expect(reach.size).toBeLessThan(baseline.size); // it (and anything only reachable through it) drop out
+    const other = grid.walkableNeighbors(from)[1] as Hex;
+    expect(reach.has(hexKey(other))).toBe(true); // an unblocked neighbour is still reachable
+  });
+
+  it('an empty `blocked` set is identical to passing none', () => {
+    const grid = new HexGrid(8, 8);
+    const from = offsetToAxial({ col: 3, row: 3 });
+    expect([...hexesReachable(grid, from, 2, new Set()).keys()].sort()).toEqual(
+      [...hexesReachable(grid, from, 2).keys()].sort(),
+    );
   });
 });
 
@@ -237,6 +304,30 @@ describe('movement system', () => {
     const b = run();
     expect(a.pos).toEqual(b.pos);
     expect(a.evs).toEqual(b.evs);
+  });
+
+  it('routes a mover around hexes from the injected blockersFor; no resolver leaves the straight path', () => {
+    const grid = new HexGrid(10, 10);
+    const from = offsetToAxial({ col: 1, row: 3 });
+    const to = offsetToAxial({ col: 5, row: 3 });
+    const mid = findPath(grid, from, to)[2] as Hex; // a hex partway along the straight (unblocked) route
+    const startedPath = (evs: readonly GameEvent[]): readonly Hex[] =>
+      (evs.find((e) => e.kind === 'MovementStarted') as { path: readonly Hex[] }).path;
+
+    const blockedWorld = createWorld(1);
+    blockedWorld.addSystem(makeMovementSystem(grid, LAYOUT, () => new Set([hexKey(mid)])));
+    const a = blockedWorld.createEntity();
+    blockedWorld.store(HexPosition).add(a, { hex: from });
+    const blockedPath = startedPath(advance(blockedWorld, [{ kind: 'MoveTo', entity: a, q: to.q, r: to.r }]));
+    expect(blockedPath.some((h) => hexKey(h) === hexKey(mid))).toBe(false); // detoured around the blocked hex
+    expect((blockedWorld.store(HexPosition).get(a) as { hex: Hex }).hex).toEqual(to); // still reaches the target
+
+    const openWorld = createWorld(1);
+    openWorld.addSystem(makeMovementSystem(grid, LAYOUT)); // no resolver
+    const b = openWorld.createEntity();
+    openWorld.store(HexPosition).add(b, { hex: from });
+    const openPath = startedPath(advance(openWorld, [{ kind: 'MoveTo', entity: b, q: to.q, r: to.r }]));
+    expect(openPath.some((h) => hexKey(h) === hexKey(mid))).toBe(true); // unchanged: straight through the hex
   });
 });
 

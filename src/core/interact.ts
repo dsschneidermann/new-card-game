@@ -5,6 +5,7 @@ import { hexEquals, type Hex } from './hex/hex';
 import type { HexGrid } from './hex/grid';
 import { findPath } from './hex/path';
 import { HexPosition } from './hex/movement';
+import { enemyOccupiedHexes } from './occupancy';
 import { Chest, ChestOffer, rollChestRewardOffer, takeChestReward } from './chest';
 import { Mimic, revealMimic } from './mimic';
 
@@ -40,9 +41,18 @@ export const PendingInteraction: ComponentType<PendingInteractionData> =
  * adjacent to (or standing on) it. Also returns `from` for an UNREACHABLE target, so a caller that has not
  * already gated on reachability must check findPath separately. The single source of the "stop before the
  * prop" rule, shared by makeInteractSystem and the move planner's route numbering.
+ *
+ * `blocked` is the mover's movement blockers (for the player, enemy-occupied hexes), so the approach detours
+ * around an enemy in the way and the chosen stop hex matches the RequestMove the system then issues. A prop hex
+ * is never itself in `blocked`, so the path still reaches the prop and stops on the tile before it.
  */
-export function interactStopHex(grid: HexGrid, from: Hex, targetHex: Hex): Hex {
-  const path = findPath(grid, from, targetHex);
+export function interactStopHex(
+  grid: HexGrid,
+  from: Hex,
+  targetHex: Hex,
+  blocked?: ReadonlySet<string>,
+): Hex {
+  const path = findPath(grid, from, targetHex, blocked);
   if (path.length < 2) return from; // unreachable, standing on it, or adjacent: no travel hex before it
   return path[path.length - 2] as Hex;
 }
@@ -113,8 +123,11 @@ export function makeInteractSystem(grid: HexGrid): System {
         const targetHex = positions.get(cmd.target)?.hex;
         if (from === undefined || targetHex === undefined) continue; // missing entity/target (defensive)
         if (!isInteractable(world, cmd.target)) continue; // opened chest / revealed mimic: not a target
-        if (findPath(grid, from, targetHex).length === 0) continue; // unreachable (defensive)
-        const stop = interactStopHex(grid, from, targetHex);
+        // The approach (a player gesture) routes around enemies just like a free move, so the chosen stop hex
+        // matches the RequestMove issued below. A prop hex is never an enemy hex, so the path still reaches it.
+        const blocked = enemyOccupiedHexes(world);
+        if (findPath(grid, from, targetHex, blocked).length === 0) continue; // unreachable (defensive)
+        const stop = interactStopHex(grid, from, targetHex, blocked);
         if (hexEquals(stop, from)) {
           resolveInteract(world, cmd.entity, cmd.target); // already adjacent
           continue;

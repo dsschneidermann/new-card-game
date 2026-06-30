@@ -43,6 +43,7 @@ import {
   itemDef,
   offsetToAxial,
   hexDistance,
+  hexKey,
   findPath,
   generateForestObstacles,
   generateForestChests,
@@ -284,6 +285,17 @@ describe('interactStopHex', () => {
 
   it('returns `from` for an unreachable target (caller must gate on reachability)', () => {
     expect(interactStopHex(grid, from, { q: 999, r: 999 })).toEqual(from);
+  });
+
+  it('routes the approach around a blocked hex on the direct line to the prop (low-obstacle enemy)', () => {
+    const target = offsetToAxial({ col: 9, row: 5 });
+    const wall = findPath(grid, from, target)[2] as Hex; // a hex partway along the unblocked approach
+    const blocked = new Set([hexKey(wall)]);
+    const stop = interactStopHex(grid, from, target, blocked);
+    expect(hexDistance(stop, target)).toBe(1); // still stops on a tile adjacent to the prop (interact resolves)
+    const route = findPath(grid, from, stop, blocked);
+    expect(route.length).toBeGreaterThan(0); // reachable around the blocker
+    expect(route.some((h) => hexKey(h) === hexKey(wall))).toBe(false); // the approach never crosses it
   });
 });
 

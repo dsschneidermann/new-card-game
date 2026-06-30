@@ -1,10 +1,19 @@
 import { type Hex, hexEquals, hexKey, hexDistance } from './hex';
 import type { HexGrid } from './grid';
 
+/** Shared empty set so the no-`blocked` callers neither allocate nor change behaviour. */
+const NO_BLOCKED: ReadonlySet<string> = new Set<string>();
+
 /**
  * Deterministic shortest path over walkable, in-bounds hexes, inclusive of both
  * endpoints. Returns [] if either endpoint is not walkable or `to` is
  * unreachable; returns [from] when from == to.
+ *
+ * `blocked` is an optional set of extra non-walkable hex KEYS layered on top of grid
+ * walkability (e.g. enemy-occupied tiles, which block the PLAYER's movement — see
+ * src/core/occupancy.ts). A blocked hex is never traversed, and a blocked `to` returns []
+ * (you cannot STOP on it); the origin `from` is never tested against `blocked`, so a mover
+ * always starts where it stands. With the default empty set, behaviour is exactly as before.
  *
  * A* with a lexicographic cost (min steps, then min accumulated distance from
  * the straight start->goal line). Among equally-short paths it picks the one
@@ -13,9 +22,10 @@ import type { HexGrid } from './grid';
  * line-distance is the |cross product| of (node-from) and (goal-from) in axial
  * space; a fixed insertion-order tie-break keeps the result reproducible (no RNG).
  */
-export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
+export function findPath(grid: HexGrid, from: Hex, to: Hex, blocked: ReadonlySet<string> = NO_BLOCKED): Hex[] {
   if (!grid.isWalkable(from) || !grid.isWalkable(to)) return [];
   if (hexEquals(from, to)) return [from];
+  if (blocked.has(hexKey(to))) return []; // cannot END on a blocked hex (e.g. an enemy)
 
   const dq = to.q - from.q;
   const dr = to.r - from.r;
@@ -65,6 +75,7 @@ export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
     if (cur.steps !== bestSteps.get(ck) || cur.line !== bestLine.get(ck)) continue; // stale
     if (hexEquals(cur.hex, to)) break;
     for (const next of grid.walkableNeighbors(cur.hex)) {
+      if (blocked.has(hexKey(next))) continue; // route around blocked hexes (the blocked `to` already returned [])
       relax(next, cur.steps + 1, cur.line + lineDist(next), cur.hex);
     }
   }
@@ -84,8 +95,17 @@ export function findPath(grid: HexGrid, from: Hex, to: Hex): Hex[] {
  * to the Hex itself (so the overlay can paint it). Breadth-first over walkable neighbours; the origin
  * is excluded and obstacles / out-of-bounds hexes never appear. Drives the movement reachable-range
  * overlay and validates a release target (reachable iff its hexKey is present in the result).
+ *
+ * `blocked` is the same optional extra-non-walkable hex-key set as findPath: a blocked hex is neither
+ * reachable nor traversable, so any hex reachable ONLY through it (within the budget) drops out too. The
+ * default empty set leaves behaviour exactly as before.
  */
-export function hexesReachable(grid: HexGrid, from: Hex, maxSteps: number): Map<string, Hex> {
+export function hexesReachable(
+  grid: HexGrid,
+  from: Hex,
+  maxSteps: number,
+  blocked: ReadonlySet<string> = NO_BLOCKED,
+): Map<string, Hex> {
   const reached = new Map<string, Hex>();
   if (maxSteps <= 0 || !grid.isWalkable(from)) return reached;
   const seen = new Set<string>([hexKey(from)]);
@@ -95,7 +115,7 @@ export function hexesReachable(grid: HexGrid, from: Hex, maxSteps: number): Map<
     for (const h of frontier) {
       for (const nb of grid.walkableNeighbors(h)) {
         const k = hexKey(nb);
-        if (seen.has(k)) continue;
+        if (seen.has(k) || blocked.has(k)) continue; // skip blocked tiles and anything reachable only through them
         seen.add(k);
         reached.set(k, nb);
         next.push(nb);

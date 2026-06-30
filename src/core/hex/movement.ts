@@ -1,5 +1,6 @@
 import { defineComponent, type ComponentType } from '../ecs/component';
-import type { System } from '../ecs/world';
+import type { System, World } from '../ecs/world';
+import type { EntityId } from '../ecs/entity';
 import { facingFromIntent, type Facing } from '../sprite';
 import type { Hex } from './hex';
 import type { HexGrid } from './grid';
@@ -29,6 +30,13 @@ export function facingToward(layout: HexLayout, prev: Facing, from: Hex, to: Hex
 }
 
 /**
+ * Injected occupancy policy: the extra non-walkable hex keys `entity` must route around this move. Defined here
+ * (rather than imported) so makeMovementSystem stays decoupled from combat/actors — the composition root supplies
+ * the concrete policy (src/core/occupancy.ts: playerMoveBlockers).
+ */
+export type MoveBlockers = (world: World, entity: EntityId) => ReadonlySet<string>;
+
+/**
  * Movement Intent (ADR-006 select-destination; Movement Resolution feature). A MoveTo resolves a
  * WHOLE move in ONE advance(): plan the shortest path, set facing ONCE from the overall intent
  * (start->target horizontal delta, so a vertical zigzag never flickers the facing), commit
@@ -40,8 +48,13 @@ export function facingToward(layout: HexLayout, prev: Facing, from: Hex, to: Hex
  * Trap/Status seam: a future system runs AFTER this planning, reads the planned path, and truncates
  * it at the first trap/status hex (setting MovementStarted.interruptIndex + MovementEnded.interrupted).
  * None exists yet, so the full path resolves. The grid + layout are injected to keep the system pure.
+ *
+ * `blockersFor` is an optional, injected occupancy policy: the extra non-walkable hex keys a given mover must
+ * route around (src/core/occupancy.ts wires the player to enemy-occupied hexes — low-obstacle blocking — and
+ * every other mover to none). Kept as an injected callback so the foundational hex layer never imports
+ * combat/actors; omit it and movement resolves exactly as before (no actor blocks any move).
  */
-export function makeMovementSystem(grid: HexGrid, layout: HexLayout): System {
+export function makeMovementSystem(grid: HexGrid, layout: HexLayout, blockersFor?: MoveBlockers): System {
   return (world) => {
     const positions = world.store(HexPosition);
     const facings = world.store(FacingState);
@@ -50,7 +63,7 @@ export function makeMovementSystem(grid: HexGrid, layout: HexLayout): System {
       const pos = positions.get(cmd.entity);
       if (pos === undefined) continue;
       const target: Hex = { q: cmd.q, r: cmd.r };
-      const path = findPath(grid, pos.hex, target);
+      const path = findPath(grid, pos.hex, target, blockersFor?.(world, cmd.entity));
       if (path.length < 2) continue; // unreachable, blocked, or already there — no move
       const prev = facings.get(cmd.entity)?.facing ?? 'right';
       facings.add(cmd.entity, { facing: facingToward(layout, prev, pos.hex, target) });

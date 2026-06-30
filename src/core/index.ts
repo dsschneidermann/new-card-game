@@ -52,8 +52,13 @@ export { findPath, hexesReachable } from './hex/path';
 export { hexLine, hexesWithinRange } from './hex/range';
 export type { LineOfSightResult } from './hex/los';
 export { hasLineOfSight, lineOfSightPath } from './hex/los';
-export type { HexPositionData, FacingData } from './hex/movement';
+export type { HexPositionData, FacingData, MoveBlockers } from './hex/movement';
 export { HexPosition, FacingState, makeMovementSystem, facingToward } from './hex/movement';
+
+// Movement occupancy (Enemies Block Movement): a living enemy is a LOW obstacle for the PLAYER's movement —
+// enemyOccupiedHexes are the tiles to route around; playerMoveBlockers gates that to the player so enemy moves
+// stay unblocked. The pure POLICY the hex queries' optional `blocked` set consumes (see occupancy.ts).
+export { enemyOccupiedHexes, playerMoveBlockers } from './occupancy';
 
 // Procedural-terrain ALGORITHM helpers (level-agnostic; levels compose them — grass/dirt live in the forest).
 export type { WarpOptions, OverlayTile, EdgeNeighbours, DecalShape, DecalShapeTile, ScatterOptions } from './terrain/terrain';

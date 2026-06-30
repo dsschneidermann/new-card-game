@@ -4,6 +4,7 @@ import type { Hex } from '../hex/hex';
 import type { HexGrid } from '../hex/grid';
 import { HexPosition } from '../hex/movement';
 import { findPath } from '../hex/path';
+import { playerMoveBlockers } from '../occupancy';
 import { TurnState, ResourcePool, MovementBudget, type TurnStateData } from './components';
 import { refillEnergy, regenMana, spendEnergy, spendMana } from './resources';
 
@@ -22,11 +23,15 @@ function isPlayerPhase(world: World): boolean {
   return te !== undefined && world.store(TurnState).get(te)?.phase === 'player';
 }
 
-/** Tiles a move would cost (path length − 1); 0 if already there, −1 if unreachable. */
+/**
+ * Tiles a move would cost (path length − 1); 0 if already there, −1 if unreachable. The route is computed with
+ * the mover's movement blockers (for the player, enemy-occupied hexes — low-obstacle blocking), so the cost
+ * charged matches the around-route actually walked and a hex occupied by an enemy is unreachable.
+ */
 function moveTiles(world: World, grid: HexGrid, entity: EntityId, to: Hex): number {
   const pos = world.store(HexPosition).get(entity);
   if (pos === undefined) return -1;
-  const route = findPath(grid, pos.hex, to);
+  const route = findPath(grid, pos.hex, to, playerMoveBlockers(world, entity));
   if (route.length === 0) return -1;
   return route.length - 1;
 }
