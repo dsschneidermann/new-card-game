@@ -112,6 +112,7 @@ const LEAF_SHAPES: readonly DecalShape[] = [
 const OBSTACLE_ART: Record<string, readonly AssetKey[]> = {
   tall_grass: [
     AssetKeys.obstacleTreeGrass1,
+    AssetKeys.obstacleTreeGrass2,
     AssetKeys.obstacleTreeGrass3,
     AssetKeys.obstacleTreeGrass4,
     AssetKeys.obstacleTreeGrass5,
@@ -152,6 +153,7 @@ const OBSTACLE_ART: Record<string, readonly AssetKey[]> = {
     AssetKeys.obstacleDecalsGrass6,
     AssetKeys.obstacleDecalsGrass7,
     AssetKeys.obstacleDecalsGrass8,
+    AssetKeys.obstacleDecalsGrass9,
   ],
   decals_dirt: [
     AssetKeys.obstacleDecalsDirt1,

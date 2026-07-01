@@ -135,6 +135,7 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.obstacleDecalsGrass6, [32, 32, 0.5], 'decals grass 6', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
   asset(AssetKeys.obstacleDecalsGrass7, [32, 32, 0.5], 'decals grass 7', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
   asset(AssetKeys.obstacleDecalsGrass8, [32, 32, 0.5], 'decals grass 8', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass9, [32, 32, 0.5], 'decals grass 9', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
 
   asset(AssetKeys.obstacleDecalsDirt1, [32, 32, 0.5], 'decals dirt 1', 'Obstacle: decal on dirt', { frameCount: 1, downPx: 6 }),
   asset(AssetKeys.obstacleDecalsDirt2, [32, 32, 0.5], 'decals dirt 2', 'Obstacle: decal on dirt', { frameCount: 1, downPx: 6 }),
