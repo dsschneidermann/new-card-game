@@ -110,10 +110,54 @@ const LEAF_SHAPES: readonly DecalShape[] = [
 // Per object id (FOREST_OBJECTS variant) -> its prop art variant list. The forest's own art; a multi-entry
 // list is a set of interchangeable sprites, with the one shown at a hex chosen by forestObjectVariantIndex.
 const OBSTACLE_ART: Record<string, readonly AssetKey[]> = {
-  tree: [AssetKeys.obstacleTreeGrass1],
-  rock_grass: [AssetKeys.obstacleRockGrass1, AssetKeys.obstacleRockGrass2],
-  rock_dirt: [AssetKeys.obstacleRockDirt1],
-  ruins: [AssetKeys.obstacleRuinsGrass1],
+  tall_grass: [
+    AssetKeys.obstacleTreeGrass1,
+    AssetKeys.obstacleTreeGrass3,
+    AssetKeys.obstacleTreeGrass4,
+    AssetKeys.obstacleTreeGrass5,
+    AssetKeys.obstacleTreeGrass6,
+    AssetKeys.obstacleTreeGrass7,
+    AssetKeys.obstacleTreeGrass8,
+    AssetKeys.obstacleTreeGrass9,
+    AssetKeys.obstacleTreeGrass10,
+    AssetKeys.obstacleTreeGrass11,
+    AssetKeys.obstacleTreeGrass12,
+    AssetKeys.obstacleTreeGrass13,
+    AssetKeys.obstacleTreeGrass14
+  ],
+  low_grass: [
+    AssetKeys.obstacleBushGrass1,
+    AssetKeys.obstacleBushGrass2,
+    AssetKeys.obstacleBushGrass3,
+    AssetKeys.obstacleBushGrass4,
+    AssetKeys.obstacleBushGrass5,
+    AssetKeys.obstacleRockGrass1,
+    AssetKeys.obstacleRockGrass2,
+    AssetKeys.obstacleTreetrunkGrass1,
+    AssetKeys.obstacleTreetrunkGrass2,
+  ],
+  low_dirt: [
+    AssetKeys.obstacleRockDirt1
+  ],
+  ruins: [
+    AssetKeys.obstacleRuinsGrass1,
+    AssetKeys.obstacleRuinsGrass2,
+  ],
+  decals_grass: [
+    AssetKeys.obstacleDecalsGrass1,
+    AssetKeys.obstacleDecalsGrass2,
+    AssetKeys.obstacleDecalsGrass3,
+    AssetKeys.obstacleDecalsGrass4,
+    AssetKeys.obstacleDecalsGrass5,
+    AssetKeys.obstacleDecalsGrass6,
+    AssetKeys.obstacleDecalsGrass7,
+    AssetKeys.obstacleDecalsGrass8,
+  ],
+  decals_dirt: [
+    AssetKeys.obstacleDecalsDirt1,
+    AssetKeys.obstacleDecalsDirt2,
+    AssetKeys.obstacleDecalsDirt3,
+  ],
 };
 
 /**
@@ -173,7 +217,9 @@ export class ForestLevel implements Level {
     // way (cosmetic, like chest facing) — so resume + Restart Level reproduce identical art + flips without
     // persisting them. Grid flags already came from the entity's kind via applyObstacleEntities above.
     for (const [obstacle, { variant }] of world.store(Obstacle).entries()) {
-      const arts = OBSTACLE_ART[variant] ?? [AssetKeys.obstacleTreeGrass1]; // unknown id -> safe default art
+      const mappedArts = OBSTACLE_ART[variant];
+      if (mappedArts === undefined) console.error(`ForestLevel: no art mapped for obstacle variant '${variant}'`);
+      const arts = mappedArts ?? [AssetKeys.obstacleTreeGrass1]; // unknown id -> safe default art
       const at = world.store(HexPosition).get(obstacle);
       const variantIndex = at !== undefined ? forestObjectVariantIndex(at.hex, this.seed, arts.length) : 0;
       world.store(Renderable).add(obstacle, { texture: arts[variantIndex]! });

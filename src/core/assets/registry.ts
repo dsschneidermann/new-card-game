@@ -95,11 +95,50 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.terrainStairsGrass, [16, 16], 'grass-leaf foliage tiles', 'Terrain: grass-leaf foliage tileset', { frameCount: 357 }),
 
   // --- Obstacle props (per object): bottom-anchored sprites standing on a hex. Placeholders until real art drops in. ---
-  asset(AssetKeys.obstacleTreeGrass1, [64, 64, 0.75], 'big tree', 'Obstacle: tree (blocks movement + line of sight)', { frameCount: 1, downPx: 0, forwardPx: -1 }),
-  asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
-  asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'low mossy boulder', 'Obstacle: low rock (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
-  asset(AssetKeys.obstacleRockDirt1, [64, 64, 0.5], 'big rock on dirt', 'Obstacle: low rock on dirt ground (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 10 }),
-  asset(AssetKeys.obstacleRuinsGrass1, [64, 64, 0.75], 'ancient stone ruins on grass', 'Obstacle: ruins landmark on grass (blocks movement, ranged fires over it)', { frameCount: 1, downPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass1, [64, 64, 0.7], 'tree grass 1', 'Obstacle: tree', { frameCount: 1, downPx: 0, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass2, [64, 64, 0.7], 'tree grass 2', 'Obstacle: tree', { frameCount: 1, downPx: 0, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass3, [64, 64, 0.7], 'tree grass 3', 'Obstacle: tree', { frameCount: 1, downPx: 0, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass4, [64, 64, 0.7], 'tree grass 4', 'Obstacle: tree', { frameCount: 1, downPx: 8, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass5, [128, 128, 0.7], 'tree grass 5', 'Obstacle: tree', { frameCount: 1, downPx: 12, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass6, [128, 128, 0.7], 'tree grass 6', 'Obstacle: tree', { frameCount: 1, downPx: 12, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass7, [128, 128, 0.7], 'tree grass 7', 'Obstacle: tree', { frameCount: 1, downPx: 12, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass8, [128, 128, 0.7], 'tree grass 8', 'Obstacle: tree', { frameCount: 1, downPx: 12, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass9, [128, 128, 0.7], 'tree grass 9', 'Obstacle: tree', { frameCount: 1, downPx: 12, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass10, [128, 128, 0.7], 'tree grass 10', 'Obstacle: tree', { frameCount: 1, downPx: 16, forwardPx: 0 }),
+  asset(AssetKeys.obstacleTreeGrass11, [64, 64, 0.7], 'tree grass 11', 'Obstacle: tree', { frameCount: 1, downPx: 8, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass12, [64, 64, 0.7], 'tree grass 12', 'Obstacle: tree', { frameCount: 1, downPx: 8, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass13, [64, 64, 0.7], 'tree grass 13', 'Obstacle: tree', { frameCount: 1, downPx: 0, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreeGrass14, [64, 64, 0.7], 'tree grass 14', 'Obstacle: tree', { frameCount: 1, downPx: 8, forwardPx: -1 }),
+
+  asset(AssetKeys.obstacleBushGrass1, [32, 32, 0.5], 'bush grass 1', 'Obstacle: low bush', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleBushGrass2, [32, 32, 0.5], 'bush grass 2', 'Obstacle: low bush', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleBushGrass3, [64, 64, 0.5], 'bush grass 3', 'Obstacle: low bush', { frameCount: 1, downPx: 12 }),
+  asset(AssetKeys.obstacleBushGrass4, [64, 64, 0.5], 'bush grass 4', 'Obstacle: low bush', { frameCount: 1, downPx: 12 }),
+  asset(AssetKeys.obstacleBushGrass5, [64, 64, 0.5], 'bush grass 5', 'Obstacle: low bush', { frameCount: 1, downPx: 12 }),
+
+  asset(AssetKeys.obstacleRockGrass1, [64, 64, 0.5], 'rock grass 1', 'Obstacle: low rock', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleRockGrass2, [64, 64, 0.5], 'rock grass 2', 'Obstacle: low rock', { frameCount: 1, downPx: 10 }),
+
+  asset(AssetKeys.obstacleRockDirt1, [64, 64, 0.5], 'rock dirt 1', 'Obstacle: low rock on dirt ground', { frameCount: 1, downPx: 10 }),
+
+  asset(AssetKeys.obstacleTreetrunkGrass1, [64, 64, 0.5], 'treetrunk grass 1', 'Obstacle: low treetrunk', { frameCount: 1, downPx: 12, forwardPx: -1 }),
+  asset(AssetKeys.obstacleTreetrunkGrass2, [128, 128, 0.35], 'treetrunk grass 2', 'Obstacle: low treetrunk', { frameCount: 1, downPx: 16, forwardPx: -1 }),
+
+  asset(AssetKeys.obstacleRuinsGrass1, [64, 64, 0.5], 'ruins grass 1', 'Obstacle: ruins landmark on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleRuinsGrass2, [128, 128, 0.5], 'ruins grass 2', 'Obstacle: ruins landmark on grass', { frameCount: 1, downPx: 16 }),
+
+  asset(AssetKeys.obstacleDecalsGrass1, [32, 32, 0.5], 'decals grass 1', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass2, [32, 32, 0.5], 'decals grass 2', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass3, [32, 32, 0.5], 'decals grass 3', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass4, [32, 32, 0.5], 'decals grass 4', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass5, [32, 32, 0.5], 'decals grass 5', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass6, [32, 32, 0.5], 'decals grass 6', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass7, [32, 32, 0.5], 'decals grass 7', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsGrass8, [32, 32, 0.5], 'decals grass 8', 'Obstacle: decal on grass', { frameCount: 1, downPx: 6 }),
+
+  asset(AssetKeys.obstacleDecalsDirt1, [32, 32, 0.5], 'decals dirt 1', 'Obstacle: decal on dirt', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsDirt2, [32, 32, 0.5], 'decals dirt 2', 'Obstacle: decal on dirt', { frameCount: 1, downPx: 6 }),
+  asset(AssetKeys.obstacleDecalsDirt3, [32, 32, 0.5], 'decals dirt 3', 'Obstacle: decal on dirt', { frameCount: 1, downPx: 6 }),
 
   // --- Chest prop: real 128x128 art. Unopened is static; opening is a 3-frame ONE-SHOT animation (no idle/walk/ready
   //     suffix -> animRepeat 0, so it plays once and holds its last frame = the opened chest). ---
@@ -339,9 +378,6 @@ const PLACEHOLDER_KEYS: ReadonlySet<string> = new Set<string>([
   AssetKeys.uiMenuBackground,
   AssetKeys.uiButton,
   AssetKeys.uiPanel,
-  // New obstacle props whose real art is still pending — render as generated placeholders for now.
-  AssetKeys.obstacleRockDirt1,
-  AssetKeys.obstacleRuinsGrass1,
 ]);
 
 export const REAL_ASSET_KEYS: ReadonlySet<string> = new Set<string>(

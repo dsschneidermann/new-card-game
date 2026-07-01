@@ -33,8 +33,6 @@ export interface ForestObjectDef {
   readonly terrain: ForestObjectTerrain;
   /** Whether it may be randomly horizontally mirrored (the renderer derives the flip per hex + seed). */
   readonly mirror: boolean;
-  /** Count of interchangeable art variants (the renderer derives WHICH per hex + seed). >= 1. */
-  readonly variants: number;
   /** How many to place, and by what rule. */
   readonly placement: ForestObjectPlacement;
 }
@@ -46,14 +44,12 @@ export interface ForestObjectDef {
  * total scatter near the old ~0.05/cell; all values are tunable and surfaced at the visual-review gate.
  */
 export const FOREST_OBJECTS: readonly ForestObjectDef[] = [
-  // A rare ruins landmark: at most one per run, only on cleanly-grass ground, never mirrored.
-  { id: 'ruins', kind: 'low', terrain: 'grass', mirror: false, variants: 1, placement: { kind: 'count', min: 0, max: 1 } },
-  // Big trees: tall (block sight), scattered anywhere, randomly mirrored.
-  { id: 'tree', kind: 'tall', terrain: 'any', mirror: true, variants: 1, placement: { kind: 'density', density: 0.022 } },
-  // Grass boulders: low, anywhere, two interchangeable art variants under ONE shared density, mirrored.
-  { id: 'rock_grass', kind: 'low', terrain: 'any', mirror: true, variants: 2, placement: { kind: 'density', density: 0.022 } },
-  // A dirt-specific boulder: low, ONLY on cleanly-dirt ground, mirrored.
-  { id: 'rock_dirt', kind: 'low', terrain: 'dirt', mirror: true, variants: 1, placement: { kind: 'density', density: 0.03 } },
+  { id: 'tall_grass', kind: 'tall', terrain: 'grass', mirror: true, placement: { kind: 'density', density: 0.075 } },
+  { id: 'low_grass', kind: 'low', terrain: 'grass', mirror: true, placement: { kind: 'density', density: 0.10 } },
+  { id: 'low_dirt', kind: 'low', terrain: 'dirt', mirror: true, placement: { kind: 'density', density: 0.05 } },
+  { id: 'ruins', kind: 'low', terrain: 'grass', mirror: true, placement: { kind: 'count', min: 1, max: 4 } },
+  { id: 'decals_grass', kind: 'none', terrain: 'grass', mirror: true, placement: { kind: 'density', density: 0.075 } },
+  { id: 'decals_dirt', kind: 'none', terrain: 'dirt', mirror: true, placement: { kind: 'density', density: 0.20 } },
 ];
 
 /** The object def for an id, or undefined if unknown (e.g. an obstacle from a since-removed object). */

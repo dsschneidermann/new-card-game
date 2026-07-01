@@ -125,7 +125,7 @@ describe('forest placement generation', () => {
     const startKey = hexKey(forestStartHex);
     for (const o of a) {
       expect(g.inBounds(o.hex)).toBe(true);
-      expect(o.kind === 'tall' || o.kind === 'low').toBe(true);
+      expect(['tall', 'low', 'none']).toContain(o.kind); // 'none' = non-blocking visual decal
       expect(hexKey(o.hex)).not.toBe(startKey);
       expect(hexDistance(o.hex, forestStartHex)).toBeGreaterThan(3); // START_CLEAR_RADIUS
     }
@@ -136,7 +136,7 @@ describe('forest placement generation', () => {
     const obstacles = generateForestObstacles(777);
     applyObstacles(g, obstacles);
     for (const o of obstacles) {
-      expect(g.isWalkable(o.hex)).toBe(false);
+      expect(g.isWalkable(o.hex)).toBe(o.kind === 'none'); // only 'none' decals stay walkable; tall/low block move
       expect(g.blocksSight(o.hex)).toBe(o.kind === 'tall');
     }
     expect(g.isWalkable(forestStartHex)).toBe(true);
@@ -237,23 +237,19 @@ describe('forest object placement (registry-driven)', () => {
     }
   });
 
-  it('places at most one ruins (count 0..1), with both 0 and 1 occurring across seeds', () => {
-    let sawZero = false;
-    let sawOne = false;
+  it('places 1..4 ruins per run (count min/max), each on cleanly-grass ground', () => {
     for (const seed of SEEDS) {
       const ruins = generateForestObstacles(seed).filter((o) => o.variant === 'ruins');
-      expect(ruins.length).toBeLessThanOrEqual(1);
-      if (ruins.length === 0) sawZero = true;
-      else sawOne = true;
+      expect(ruins.length).toBeGreaterThanOrEqual(1);
+      expect(ruins.length).toBeLessThanOrEqual(4);
+      for (const r of ruins) expect(forestHexTerrainClass(r.hex, seed)).toBe('grass');
     }
-    expect(sawZero).toBe(true);
-    expect(sawOne).toBe(true);
   });
 
   it('reaches placement for the density objects incl. the dirt-only rock across seeds', () => {
     const placed = new Set<string>();
     for (const seed of SEEDS) for (const o of generateForestObstacles(seed)) placed.add(o.variant);
-    for (const id of ['tree', 'rock_grass', 'rock_dirt']) expect(placed.has(id)).toBe(true);
+    for (const id of ['tall_grass', 'low_grass', 'low_dirt']) expect(placed.has(id)).toBe(true);
   });
 
   it('forestHexTerrainClass yields grass, dirt, and mixed across the map, deterministically', () => {

@@ -9,7 +9,7 @@ import type { World } from './ecs/world';
  * movement only, so ranged attacks fire over it. New kinds (e.g. a sight-only bush) are one entry here
  * plus its rule below.
  */
-export type ObstacleKind = 'tall' | 'low';
+export type ObstacleKind = 'tall' | 'low' | 'none';
 
 /** What an obstacle kind blocks. Pure rules — shared by the grid-flag application (and any AI later). */
 export interface ObstacleRule {
@@ -20,12 +20,12 @@ export interface ObstacleRule {
 export const OBSTACLE_RULES: Record<ObstacleKind, ObstacleRule> = {
   tall: { blocksMove: true, blocksSight: true },
   low: { blocksMove: true, blocksSight: false },
+  none: { blocksMove: false, blocksSight: false },
 };
 
 /**
- * An obstacle entity's data: its behavioural kind and the level-defined object `variant` (an opaque art id,
- * e.g. the forest's 'tree' / 'rock_grass' / 'rock_dirt' / 'ruins'). Persisted (like Enemy) so resume
- * restores each obstacle, its grid flags (from kind), and its art (from variant). The renderer maps the
+ * An obstacle entity's data: its behavioural kind and the level-defined object `variant`. Persisted (like Enemy)
+ * so resume restores each obstacle, its grid flags (from kind), and its art (from variant). The renderer maps the
  * variant to a texture via the active level; the shared rules below read ONLY kind.
  */
 export interface ObstacleData {

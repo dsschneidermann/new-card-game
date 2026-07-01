@@ -60,10 +60,48 @@ export const AssetKeys = {
 
   // Obstacle props (per object): rendered as bottom-anchored sprites standing on their hex.
   obstacleTreeGrass1: 'obstacle_tree_grass_1',
+  obstacleTreeGrass2: 'obstacle_tree_grass_2',
+  obstacleTreeGrass3: 'obstacle_tree_grass_3',
+  obstacleTreeGrass4: 'obstacle_tree_grass_4',
+  obstacleTreeGrass5: 'obstacle_tree_grass_5',
+  obstacleTreeGrass6: 'obstacle_tree_grass_6',
+  obstacleTreeGrass7: 'obstacle_tree_grass_7',
+  obstacleTreeGrass8: 'obstacle_tree_grass_8',
+  obstacleTreeGrass9: 'obstacle_tree_grass_9',
+  obstacleTreeGrass10: 'obstacle_tree_grass_10',
+  obstacleTreeGrass11: 'obstacle_tree_grass_11',
+  obstacleTreeGrass12: 'obstacle_tree_grass_12',
+  obstacleTreeGrass13: 'obstacle_tree_grass_13',
+  obstacleTreeGrass14: 'obstacle_tree_grass_14',
+
+  obstacleBushGrass1: 'obstacle_bush_grass_1',
+  obstacleBushGrass2: 'obstacle_bush_grass_2',
+  obstacleBushGrass3: 'obstacle_bush_grass_3',
+  obstacleBushGrass4: 'obstacle_bush_grass_4',
+  obstacleBushGrass5: 'obstacle_bush_grass_5',
+
+  obstacleTreetrunkGrass1: 'obstacle_treetrunk_grass_1',
+  obstacleTreetrunkGrass2: 'obstacle_treetrunk_grass_2',
+
   obstacleRockGrass1: 'obstacle_rock_grass_1',
   obstacleRockGrass2: 'obstacle_rock_grass_2',
+
   obstacleRockDirt1: 'obstacle_rock_dirt_1',
+
   obstacleRuinsGrass1: 'obstacle_ruins_grass_1',
+  obstacleRuinsGrass2: 'obstacle_ruins_grass_2',
+
+  obstacleDecalsGrass1: 'obstacle_decals_grass_1',
+  obstacleDecalsGrass2: 'obstacle_decals_grass_2',
+  obstacleDecalsGrass3: 'obstacle_decals_grass_3',
+  obstacleDecalsGrass4: 'obstacle_decals_grass_4',
+  obstacleDecalsGrass5: 'obstacle_decals_grass_5',
+  obstacleDecalsGrass6: 'obstacle_decals_grass_6',
+  obstacleDecalsGrass7: 'obstacle_decals_grass_7',
+  obstacleDecalsGrass8: 'obstacle_decals_grass_8',
+  obstacleDecalsDirt1: 'obstacle_decals_dirt_1',
+  obstacleDecalsDirt2: 'obstacle_decals_dirt_2',
+  obstacleDecalsDirt3: 'obstacle_decals_dirt_3',
 
   // Chest props (unopened, opening): a reward chest standing on a hex (bottom-anchored static sprite) and opening anim.
   chest1Unopened: 'chest_1_unopened',
