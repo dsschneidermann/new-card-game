@@ -99,6 +99,7 @@ export const AssetKeys = {
   obstacleDecalsGrass6: 'obstacle_decals_grass_6',
   obstacleDecalsGrass7: 'obstacle_decals_grass_7',
   obstacleDecalsGrass8: 'obstacle_decals_grass_8',
+  obstacleDecalsGrass9: 'obstacle_decals_grass_9',
   obstacleDecalsDirt1: 'obstacle_decals_dirt_1',
   obstacleDecalsDirt2: 'obstacle_decals_dirt_2',
   obstacleDecalsDirt3: 'obstacle_decals_dirt_3',
