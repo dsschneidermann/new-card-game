@@ -9,8 +9,11 @@ import {
   findPath,
   hexesReachable,
   hexKey,
+  hexAdd,
   neighbors,
   hexDistance,
+  hexDirectionToward,
+  HEX_DIRECTIONS,
   hexToPixel,
   pixelToHex,
   offsetToAxial,
@@ -35,6 +38,22 @@ describe('hex coordinates', () => {
     for (const nb of neighbors({ q: 2, r: -1 })) expect(hexDistance({ q: 2, r: -1 }, nb)).toBe(1);
     expect(hexDistance({ q: 0, r: 0 }, { q: 3, r: 0 })).toBe(3);
     expect(hexDistance({ q: 0, r: 0 }, { q: -2, r: 1 })).toBe(2);
+  });
+
+  it('hexDirectionToward points along each straight axis, and is stable for degenerate/diagonal inputs', () => {
+    const origin: Hex = { q: 5, r: 5 };
+    // A point several steps along direction d resolves back to d exactly.
+    for (const d of HEX_DIRECTIONS) {
+      const far = hexAdd(hexAdd(hexAdd(origin, d), d), d); // origin + 3*d
+      expect(hexDirectionToward(origin, far)).toEqual(d);
+    }
+    // from == to: no direction -> the first canonical direction (deterministic, never throws).
+    expect(hexDirectionToward(origin, origin)).toEqual(HEX_DIRECTIONS[0]);
+    // A vector between two axes returns one of the two adjacent directions, and the SAME one every call.
+    const diagonal: Hex = { q: origin.q + 2, r: origin.r - 1 };
+    const dir = hexDirectionToward(origin, diagonal);
+    expect([HEX_DIRECTIONS[0], HEX_DIRECTIONS[1]]).toContainEqual(dir);
+    expect(hexDirectionToward(origin, diagonal)).toEqual(dir);
   });
 });
 

@@ -29,10 +29,13 @@ const PORTRAIT_TOP_HALF_INSET = 14; // inset around the top-half window so it ne
 const NAME_OFFSET_Y = 14; // name inset below the vertical centre (just under the portrait half)
 const NAME_FONT_PX = 18;
 const NAME_COLOR = '#e5e7eb';
-const STATS_START_Y = 50; // first stat line inset below the centre
-const STAT_LINE_H = 30; // vertical step between successive stat lines
+const STATS_START_Y = 44; // first stat line inset below the centre
+const STAT_LINE_H = 26; // vertical step between successive stat lines (fits up to 4: HP/Shield/Armor/Attack)
 const STAT_FONT_PX = 16;
 const STAT_COLOR = '#cbd5e1';
+// The telegraphed-attack line: soft red to tie it to the light-red telegraph fill on the board, so the
+// player learns 'this name = that pattern' (Enemy Attack Patterns). Only drawn when an attack is telegraphed.
+const ATTACK_COLOR = '#f7a1a1';
 const TEXT_WRAP_INSET = 36; // horizontal inset for the wrapped name width
 
 /**
@@ -103,14 +106,23 @@ export function buildEnemyCard(
     .setOrigin(0.5, 0);
   layers.push(name);
 
-  const statLines = [`HP ${data.hp}/${data.maxHp}`, `Shield ${data.shield}`, `Armor ${data.armor}`];
+  const statLines: { text: string; color: string }[] = [
+    { text: `HP ${data.hp}/${data.maxHp}`, color: STAT_COLOR },
+    { text: `Shield ${data.shield}`, color: STAT_COLOR },
+    { text: `Armor ${data.armor}`, color: STAT_COLOR },
+  ];
+  // The currently-telegraphed attack's name, appended (soft red) when the enemy has an active telegraph.
+  if (data.attackName !== null) {
+    statLines.push({ text: `Attack: ${data.attackName}`, color: ATTACK_COLOR });
+  }
   statLines.forEach((line, i) => {
     const stat = scene.add
-      .text(0, s(STATS_START_Y + i * STAT_LINE_H), line, {
+      .text(0, s(STATS_START_Y + i * STAT_LINE_H), line.text, {
         fontFamily: 'monospace',
         fontSize: `${s(STAT_FONT_PX)}px`,
-        color: STAT_COLOR,
+        color: line.color,
         align: 'center',
+        wordWrap: { width: w - s(TEXT_WRAP_INSET) },
       })
       .setOrigin(0.5, 0);
     layers.push(stat);

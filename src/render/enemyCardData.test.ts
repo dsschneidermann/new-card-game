@@ -9,6 +9,7 @@ import {
   CombatStats,
   Archetype,
   HexPosition,
+  PlannedAttack,
   type Hex,
 } from '@core/index';
 import { enemyCardData, enemyCardAt } from '@render/enemyCardData';
@@ -24,8 +25,19 @@ describe('enemyCardData', () => {
       maxHp: 12,
       shield: 0,
       armor: 0,
+      attackName: null, // no active telegraph on a freshly spawned enemy
       portraitTexture: `${ARCHETYPES.goblin!.spriteKey}.idle`,
     });
+  });
+
+  it('surfaces the currently-telegraphed attack name, and null when there is no telegraph', () => {
+    const world = createWorld(1);
+    const goblin = spawnEnemy(world, ARCHETYPES.goblin!, { q: 0, r: 0 });
+
+    expect(enemyCardData(world, goblin)?.attackName).toBeNull(); // no PlannedAttack yet
+    // Telegraph the goblin's second attack (index 1 = 'pounce'); the card names it so the player can learn it.
+    world.store(PlannedAttack).add(goblin, { attackIndex: 1, hexes: [{ q: 0, r: 0 }] });
+    expect(enemyCardData(world, goblin)?.attackName).toBe(ARCHETYPES.goblin!.attacks[1]!.name);
   });
 
   it('reflects live HP / shield / armor changes', () => {

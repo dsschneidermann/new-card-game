@@ -44,7 +44,7 @@ export { GAME_ASSETS, manifest, AssetKeys, USED_ASSET_KEYS, resolveKey, validate
 
 // Hex grid, pathfinding & movement
 export type { Hex } from './hex/hex';
-export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, HEX_DIRECTIONS } from './hex/hex';
+export { hexKey, hexEquals, hexAdd, neighbors, hexDistance, hexDirectionToward, HEX_DIRECTIONS } from './hex/hex';
 export type { HexLayout, Offset, WorldPixelBounds } from './hex/layout';
 export { hexToPixel, pixelToHex, axialToOffset, offsetToAxial, worldPixelBounds, BASE_HEX_LAYOUT } from './hex/layout';
 export { HexGrid } from './hex/grid';
@@ -125,11 +125,14 @@ export { Player, Enemy } from './actors';
 // components (ADR-007). The scene animates off the emitted DamageDealt / AttackResolved / EntityDied events.
 export type {
   AttackProfile,
+  AttackPattern,
+  AttackPatternKind,
   EnemyDef,
   DamageResult,
   HealthData,
   CombatStatsData,
   AttackData,
+  AttackCooldownsData,
   ArchetypeData,
   ShieldData,
 } from './combat';
@@ -138,8 +141,10 @@ export {
   Health,
   CombatStats,
   Attack,
+  AttackCooldowns,
   Archetype,
   Shield,
+  attackPatternHexes,
   computeDamage,
   applyDamage,
   applyHeal,

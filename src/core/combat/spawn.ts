@@ -4,7 +4,7 @@ import type { Hex } from '../hex/hex';
 import { Enemy } from '../actors';
 import { HexPosition } from '../hex/movement';
 import type { EnemyDef } from './types';
-import { Health, CombatStats, Attack, Archetype, Shield } from './components';
+import { Health, CombatStats, Attack, Archetype, Shield, AttackCooldowns } from './components';
 
 /**
  * Spawn an enemy of `def` onto `hex`, assembling the definition as an ECS component bundle (ADR-007: data-
@@ -25,6 +25,9 @@ export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
     ...(def.selfShield !== undefined ? { selfShield: def.selfShield } : {}),
   });
   world.store(Attack).add(e, { profiles: [...def.attacks] });
+  // Every attack available at spawn; the enemy-turn system ticks these down and sets a profile's cooldown
+  // when it telegraphs that attack (Enemy Attack Patterns). Parallel to Attack.profiles.
+  world.store(AttackCooldowns).add(e, { remaining: def.attacks.map(() => 0) });
   world.store(Archetype).add(e, { defId: def.id, movement: def.movement });
   // Starts the round unshielded; gains its selfShield on its own turn (and is wiped each player turn).
   world.store(Shield).add(e, { shield: 0 });

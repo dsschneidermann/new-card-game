@@ -44,3 +44,30 @@ export function hexDistance(a: Hex, b: Hex): number {
   const dr = a.r - b.r;
   return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
 }
+
+/**
+ * The axial neighbour direction (one of HEX_DIRECTIONS) that best points from `from` toward `to`: the
+ * direction whose cube vector is most aligned (largest dot product) with the from→to vector. Used to orient
+ * a directional attack pattern (a line/beam) from an attacker toward its target. When from == to there is no
+ * direction, so it returns the first canonical direction; ties resolve to the earliest HEX_DIRECTIONS entry,
+ * so the result is deterministic (no RNG). Pure.
+ */
+export function hexDirectionToward(from: Hex, to: Hex): Hex {
+  const vq = to.q - from.q;
+  const vr = to.r - from.r;
+  if (vq === 0 && vr === 0) return HEX_DIRECTIONS[0]!;
+  // Cube coords (x=q, z=r, y=-q-r): the dot product in cube space ranks how aligned each direction is.
+  const vx = vq;
+  const vz = vr;
+  const vy = -vq - vr;
+  let best = HEX_DIRECTIONS[0]!;
+  let bestDot = -Infinity;
+  for (const d of HEX_DIRECTIONS) {
+    const dot = d.q * vx + (-d.q - d.r) * vy + d.r * vz;
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = d;
+    }
+  }
+  return best;
+}

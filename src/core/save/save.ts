@@ -50,7 +50,10 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v17: the Forest Object Decals feature added a `variant` field to the persisted Obstacle component (the
 // placed object's art id, e.g. 'rock_dirt' / 'ruins'), so the saved world shape changed. Discard older
 // saves (no migration, ADR-010).
-export const SAVE_VERSION = 17 as const;
+// v18: the Enemy Attack Patterns feature added a persistent AttackCooldowns component on every enemy (the
+// per-attack cooldown counters gating its stronger/wider special), so the saved world shape changed. Discard
+// older saves (no migration, ADR-010).
+export const SAVE_VERSION = 18 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

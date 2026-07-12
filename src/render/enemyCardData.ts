@@ -4,6 +4,8 @@ import {
   Shield,
   CombatStats,
   Archetype,
+  Attack,
+  PlannedAttack,
   ARCHETYPES,
   HexPosition,
   hexEquals,
@@ -31,6 +33,9 @@ export interface EnemyCardData {
   readonly shield: number;
   /** Total flat damage reduction the resolver reads (CombatStats.armor) — 0 when absent. */
   readonly armor: number;
+  /** The name of the attack this enemy is currently telegraphing (its PlannedAttack profile's name), or
+   *  null when it has no active telegraph — so the player can tie the red pattern to a name and learn it. */
+  readonly attackName: string | null;
   /** The enemy's idle-sheet texture key (`${Enemy.art}.idle`), drawn as the card portrait. */
   readonly portraitTexture: string;
 }
@@ -48,12 +53,18 @@ export function enemyCardData(world: World, entity: EntityId): EnemyCardData | n
   if (enemy === undefined || health === undefined) return null;
   const defId = world.store(Archetype).get(entity)?.defId;
   const name = (defId !== undefined ? ARCHETYPES[defId]?.name : undefined) ?? defId ?? 'Enemy';
+  // The currently-telegraphed attack's name (Enemy Attack Patterns): PlannedAttack.attackIndex into the
+  // enemy's Attack.profiles. Null when the enemy has no active telegraph (e.g. just spawned, or defeated).
+  const plan = world.store(PlannedAttack).get(entity);
+  const attackName =
+    plan !== undefined ? (world.store(Attack).get(entity)?.profiles[plan.attackIndex]?.name ?? null) : null;
   return {
     name,
     hp: health.hp,
     maxHp: health.maxHp,
     shield: world.store(Shield).get(entity)?.shield ?? 0,
     armor: world.store(CombatStats).get(entity)?.armor ?? 0,
+    attackName,
     portraitTexture: `${enemy.art}.idle`,
   };
 }

@@ -5,59 +5,75 @@ import type { HexGrid } from '../hex/grid';
 import { hexesReachable } from '../hex/path';
 import { HexPosition } from '../hex/movement';
 import { Player } from '../actors';
-import { Attack, Archetype } from '../combat/components';
+import { Attack, Archetype, AttackCooldowns } from '../combat/components';
 import { inAttackRange, hasAttackLineOfSight } from '../combat/targeting';
 
 /**
- * Enemy AI decision (Movement & Telegraphed Attacks). PURE — a read-only function of the World, the grid and
- * the enemy; it reads no RNG and mutates nothing, so each decision is a deterministic function of its inputs
- * and is trivially unit-testable. (Turn ORDER is seeded-random — the system shuffles with world.rng — but
- * that draw is deterministic per seed and just as testable; the randomness simply doesn't live in this
- * per-enemy decision.) The system (system.ts) is the only mutator: it applies the returned decision by
- * submitting the move and writing the telegraph.
+ * Enemy AI decision (Movement & Telegraphed Attacks + Enemy Attack Patterns). PURE — a read-only function of
+ * the World, the grid and the enemy; it reads no RNG and mutates nothing, so each decision is a deterministic
+ * function of its inputs and is trivially unit-testable. It DOES read the enemy's AttackCooldowns to filter
+ * out attacks that are still on cooldown, but never writes them. The randomness — which of the usable attacks
+ * actually fires — lives in the enemy-turn system (the only RNG user + mutator): decideEnemy returns the SET
+ * of usable off-cooldown attacks from its chosen destination, and the system rolls world.rng to pick one,
+ * expand its pattern, and set its cooldown.
  *
- * Realizes the "greedy per-enemy utility scoring" decision: each enemy independently scores the hexes it
- * can reach this turn against the player and picks the best move + telegraph. Coordination is emergent —
- * ranged enemies prefer to hold range with LOS, melee converge, and occupied/reserved hexes are avoided —
- * rather than a shared formation planner. Buffs/heals are out of scope (deferred to Status Effects).
+ * Realizes the "greedy per-enemy utility scoring" decision: each enemy independently scores the hexes it can
+ * reach this turn against the player and picks the best move + telegraph. Coordination is emergent — ranged
+ * enemies prefer to hold range with LOS, melee converge, and occupied/reserved hexes are avoided — rather
+ * than a shared formation planner. Buffs/heals are out of scope (deferred to Status Effects).
  */
 
 /** What one enemy decided to do this turn. The system applies it; the planner never mutates the World. */
 export type EnemyDecision =
-  /** Move to `dest` (clamped to reach) and TELEGRAPH attack `attackIndex` onto `targetHexes`. */
-  | { kind: 'Act'; dest: Hex; attackIndex: number; targetHexes: Hex[] }
-  /** Reposition to `dest` toward a future shot — no usable attack from anywhere reachable this turn. */
+  /** Move to `dest` (clamped to reach) and TELEGRAPH one of `attackChoices` (the system picks which,
+   *  expands its pattern from `dest` toward the player, and sets its cooldown). Never empty. */
+  | { kind: 'Act'; dest: Hex; attackChoices: number[] }
+  /** Reposition to `dest` toward a future shot — no usable off-cooldown attack from anywhere reachable. */
   | { kind: 'Move'; dest: Hex }
   /** Stay put and do nothing (already optimal, or nothing useful is reachable). */
   | { kind: 'Wait' };
 
-/** The best usable attack against `target` from hex `from`: highest baseDamage in range with LOS, else none. */
-function bestAttackFrom(
+/**
+ * The attack indices `enemy` can USE from hex `from` against `target`: in range, with line of sight, AND not
+ * on cooldown (its AttackCooldowns.remaining counter is 0). A missing AttackCooldowns means every attack is
+ * available (e.g. a hand-built test enemy). Pure — reads cooldowns, never writes them.
+ */
+function usableAttacksFrom(
   world: World,
   grid: HexGrid,
   enemy: EntityId,
   from: Hex,
   target: Hex,
-): { attackIndex: number; value: number } | undefined {
+): number[] {
   const profiles = world.store(Attack).get(enemy)?.profiles;
-  if (profiles === undefined) return undefined;
-  let best: { attackIndex: number; value: number } | undefined;
+  if (profiles === undefined) return [];
+  const remaining = world.store(AttackCooldowns).get(enemy)?.remaining;
+  const usable: number[] = [];
   for (let i = 0; i < profiles.length; i += 1) {
+    if (remaining !== undefined && (remaining[i] ?? 0) > 0) continue; // still on cooldown
     const profile = profiles[i]!;
     if (!inAttackRange(profile, from, target)) continue;
     if (!hasAttackLineOfSight(profile, from, target, (h) => grid.blocksSight(h))) continue;
-    if (best === undefined || profile.baseDamage > best.value) {
-      best = { attackIndex: i, value: profile.baseDamage };
-    }
+    usable.push(i);
   }
-  return best;
+  return usable;
+}
+
+/** The highest baseDamage among `indices` (for ranking destinations), or undefined when there are none. */
+function bestAttackValue(world: World, enemy: EntityId, indices: number[]): number | undefined {
+  if (indices.length === 0) return undefined;
+  const profiles = world.store(Attack).get(enemy)?.profiles;
+  if (profiles === undefined) return undefined;
+  let best = -Infinity;
+  for (const i of indices) best = Math.max(best, profiles[i]!.baseDamage);
+  return best === -Infinity ? undefined : best;
 }
 
 /** One scored candidate destination the enemy could stand on this turn. */
 interface Candidate {
   readonly hex: Hex;
-  /** The best attack usable from here against the player, or undefined if none. */
-  readonly attack: { attackIndex: number; value: number } | undefined;
+  /** The highest damage of any usable off-cooldown attack from here, or undefined if none is usable. */
+  readonly attackValue: number | undefined;
   /** Hex distance from this candidate to the player. */
   readonly distToPlayer: number;
   /** Hex distance from this candidate to the enemy's current hex (a move-cost proxy / tie-break). */
@@ -66,18 +82,18 @@ interface Candidate {
 
 /**
  * Order two candidates best-first. Being able to telegraph an attack dominates. Among attackers we prefer
- * the higher-damage attack, then to stand FARTHER from the player (kiting; for a melee enemy every
- * attacking hex is at range 1 so this never bites), then the cheapest move, then a fixed hex order. Among
- * non-attackers (nobody can shoot this turn) we instead approach: prefer the hex CLOSEST to the player.
- * Pure and total — identical inputs give an identical order (no RNG).
+ * the higher-damage attack, then to stand FARTHER from the player (kiting; for a melee enemy every attacking
+ * hex is at range 1 so this never bites), then the cheapest move, then a fixed hex order. Among non-attackers
+ * (nobody can shoot this turn) we instead approach: prefer the hex CLOSEST to the player. Pure and total —
+ * identical inputs give an identical order (no RNG).
  */
 function compareCandidates(a: Candidate, b: Candidate): number {
-  const aCanAttack = a.attack !== undefined;
-  const bCanAttack = b.attack !== undefined;
+  const aCanAttack = a.attackValue !== undefined;
+  const bCanAttack = b.attackValue !== undefined;
   if (aCanAttack !== bCanAttack) return aCanAttack ? -1 : 1;
 
   if (aCanAttack && bCanAttack) {
-    if (a.attack!.value !== b.attack!.value) return b.attack!.value - a.attack!.value; // higher damage first
+    if (a.attackValue !== b.attackValue) return b.attackValue! - a.attackValue!; // higher damage first
     if (a.distToPlayer !== b.distToPlayer) return b.distToPlayer - a.distToPlayer; // hold range (kite)
   } else {
     if (a.distToPlayer !== b.distToPlayer) return a.distToPlayer - b.distToPlayer; // approach: closer first
@@ -91,7 +107,8 @@ function compareCandidates(a: Candidate, b: Candidate): number {
  * Decide one enemy's action for the enemy turn. `blocked` is the set of hex KEYS the enemy may not stand on
  * (the player and other actors, plus destinations already claimed by earlier-deciding enemies this turn) —
  * so no two enemies stack and none ends on the player. The enemy may always STAY on its own hex (it is not
- * filtered by `blocked`). Returns Act (move + telegraph), Move (reposition only) or Wait.
+ * filtered by `blocked`). Returns Act (move + the set of usable off-cooldown attacks the system picks from),
+ * Move (reposition only) or Wait.
  */
 export function decideEnemy(
   world: World,
@@ -110,7 +127,7 @@ export function decideEnemy(
 
   const score = (hex: Hex): Candidate => ({
     hex,
-    attack: bestAttackFrom(world, grid, enemy, hex, playerPos),
+    attackValue: bestAttackValue(world, enemy, usableAttacksFrom(world, grid, enemy, hex, playerPos)),
     distToPlayer: hexDistance(hex, playerPos),
     moveCost: hexDistance(hex, enemyPos),
   });
@@ -125,8 +142,10 @@ export function decideEnemy(
 
   const best = candidates.reduce((a, b) => (compareCandidates(a, b) <= 0 ? a : b));
 
-  if (best.attack !== undefined) {
-    return { kind: 'Act', dest: best.hex, attackIndex: best.attack.attackIndex, targetHexes: [playerPos] };
+  if (best.attackValue !== undefined) {
+    // Recompute the full usable set from the winning hex — the system picks one of these at random.
+    const attackChoices = usableAttacksFrom(world, grid, enemy, best.hex, playerPos);
+    return { kind: 'Act', dest: best.hex, attackChoices };
   }
   if (!hexEquals(best.hex, enemyPos)) return { kind: 'Move', dest: best.hex };
   return { kind: 'Wait' };

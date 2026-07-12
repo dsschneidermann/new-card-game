@@ -20,6 +20,7 @@ import {
   Health,
   CombatStats,
   Attack,
+  AttackCooldowns,
   Archetype,
   Shield,
   type AttackProfile,
@@ -128,6 +129,26 @@ describe('spawnEnemy — data-driven roster bundle tied to real sprites (ADR-007
     const world = createWorld(1);
     const dragon = spawnEnemy(world, ARCHETYPES.dragon!, { q: 0, r: 0 });
     expect(world.store(Attack).get(dragon)!.profiles.length).toBeGreaterThan(1);
+  });
+
+  it('every roster enemy has exactly TWO attacks: a no-cooldown basic + a patterned special with a cooldown', () => {
+    for (const def of Object.values(ARCHETYPES)) {
+      expect(def.attacks).toHaveLength(2);
+      const [basic, special] = def.attacks;
+      expect(basic!.cooldown ?? 0).toBe(0); // the basic is always available
+      expect(special!.cooldown ?? 0).toBeGreaterThanOrEqual(2); // the special is rate-limited
+      expect(special!.pattern?.kind).not.toBe('single'); // the special is a multi-hex pattern
+      expect(special!.pattern).toBeDefined();
+    }
+  });
+
+  it('spawnEnemy initialises AttackCooldowns to zeros parallel to the attacks (all available at spawn)', () => {
+    const world = createWorld(1);
+    for (const def of Object.values(ARCHETYPES)) {
+      const e = spawnEnemy(world, def, { q: 0, r: 0 });
+      const remaining = world.store(AttackCooldowns).get(e)?.remaining;
+      expect(remaining).toEqual(def.attacks.map(() => 0));
+    }
   });
 });
 

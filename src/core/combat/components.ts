@@ -49,6 +49,19 @@ export interface AttackData {
 }
 
 /**
+ * Per-attack cooldown counters, parallel to Attack.profiles: remaining[i] is the number of enemy turns
+ * before attack i may be selected again (0 = available now). Consumed by the Enemy AI's attack selection
+ * (Enemy Attack Patterns) — a stronger or wider strike carries a cooldown so it cannot fire every turn.
+ * The enemy-turn system decrements these each enemy turn (floor 0) and sets remaining[i] to the profile's
+ * cooldown when it telegraphs attack i; decideEnemy READS them to filter selectable attacks but never
+ * mutates them. Lives here next to Attack (rather than in enemyai) so spawnEnemy can initialise it without
+ * combat importing the AI layer. Persistent so a mid-cooldown enemy resumes mid-cooldown (SAVE_VERSION 18).
+ */
+export interface AttackCooldownsData {
+  remaining: number[];
+}
+
+/**
  * Records which roster definition an enemy is and its movement (tiles/turn), both read by the Enemy AI
  * feature. Base stats are materialised onto Health/CombatStats/Attack at spawn; this keeps the definition
  * identity addressable for AI and debugging.
@@ -63,3 +76,5 @@ export const CombatStats: ComponentType<CombatStatsData> = defineComponent<Comba
 export const Attack: ComponentType<AttackData> = defineComponent<AttackData>('Attack');
 export const Archetype: ComponentType<ArchetypeData> = defineComponent<ArchetypeData>('Archetype');
 export const Shield: ComponentType<ShieldData> = defineComponent<ShieldData>('Shield');
+export const AttackCooldowns: ComponentType<AttackCooldownsData> =
+  defineComponent<AttackCooldownsData>('AttackCooldowns');

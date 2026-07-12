@@ -4,10 +4,23 @@
  * unit-testable against fixed inputs.
  */
 
+/**
+ * The SHAPE a telegraphed attack threatens, expanded from the attacker toward the aim hex by
+ * attackPatternHexes (Enemy Attack Patterns). `kind` picks the shape; `size` is the line length in hexes
+ * (line) or the blast radius (blast), ignored by single. A bigger pattern only ADDS threatened tiles — the
+ * aim hex is always covered — so patterns extend reach and force the player to dodge more than one tile.
+ */
+export type AttackPatternKind = 'single' | 'line' | 'blast';
+export interface AttackPattern {
+  readonly kind: AttackPatternKind;
+  /** Line length in hexes (default 2) or blast radius (default 1); ignored by 'single'. */
+  readonly size?: number;
+}
+
 /** A single named attack an entity can make (ADR-007). Ranges are measured in hex tiles (ADR-006). */
 export interface AttackProfile {
   /** Identifies the attack (e.g. 'bite', 'fire_breath') — carried on AttackResolved so the scene can
-   *  animate the specific attack, and useful for logs/balancing when an entity has several. */
+   *  animate the specific attack, shown on the enemy inspect card, and useful for logs/balancing. */
   readonly name: string;
   readonly minRange: number;
   readonly maxRange: number;
@@ -15,6 +28,13 @@ export interface AttackProfile {
   readonly baseDamage: number;
   /** Armour ignored before the min-1 floor (ADR-007). Absent means 0. */
   readonly pierce?: number;
+  /** The multi-hex shape this attack threatens (Enemy Attack Patterns). Absent means a single-hex strike
+   *  (the aim hex only) — back-compatible with pre-pattern profiles. */
+  readonly pattern?: AttackPattern;
+  /** Minimum number of enemy turns between successive USES of this attack (2 = at most every other turn).
+   *  Absent/0 means no limit — the reliable basic. The Enemy AI will not re-select this attack until its
+   *  per-enemy AttackCooldowns counter ticks back to 0. Larger patterns / stronger strikes carry this. */
+  readonly cooldown?: number;
 }
 
 /**

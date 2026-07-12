@@ -518,7 +518,7 @@ export class WorldScene extends Phaser.Scene {
     // (enemy hex centre vs the player's). The side is part of the cache key so it re-lays out if it flips.
     const playerPos = this.world.store(HexPosition).get(this.player)?.hex;
     const enemyLeftOfPlayer = playerPos !== undefined && ex < hexToPixel(this.layout, playerPos).x;
-    const key = `${hex.q},${hex.r}|${data.name}|${data.hp}/${data.maxHp}|${data.shield}|${data.armor}|${enemyLeftOfPlayer ? 'L' : 'R'}`;
+    const key = `${hex.q},${hex.r}|${data.name}|${data.hp}/${data.maxHp}|${data.shield}|${data.armor}|${data.attackName ?? ''}|${enemyLeftOfPlayer ? 'L' : 'R'}`;
     if (this.enemyCard !== null && this.enemyCardKey === key) return; // unchanged: keep the current card
     this.hideEnemyCard();
     const card = buildEnemyCard(this, data);
