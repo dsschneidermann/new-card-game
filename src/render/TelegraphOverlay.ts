@@ -24,7 +24,7 @@ const FILL_COLOR = 0xff4d4d; // light red — the threatened tiles an enemy has 
 const FILL_ALPHA = 0.32;
 // The hovered enemy's attack damage, drawn ON each threatened tile in the MovePlanner move-point style
 // (monospace), clipped to the visible window. Depth sits above the sprite band but BELOW the enemy inspect
-// card (ENEMY_CARD_DEPTH = 900_000 in WorldScene) and the HUD, so the card is never occluded by the number.
+// card (ENEMY_CARD_DEPTH in WorldScene) and the HUD, so the card is never occluded by the number.
 const DMG_DEPTH = 800_000;
 const DMG_FONT_PX = 32;
 const DMG_COLOR = '#e5e7eb'; // white — the threat damage

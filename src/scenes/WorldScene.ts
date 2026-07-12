@@ -130,10 +130,13 @@ const CHEST_OPENING_ANIM = `${AssetKeys.chest1Opening}.right`;
 // chest open first. The 3-frame sheet runs ~250ms at 10fps, so the picker opens just as the lid finishes.
 const CHEST_OPEN_BEAT_MS = 350;
 
-// Enemy inspect card (Enemy Hover Card): the hovered enemy's name/HP/Shield/Armor card sits to the RIGHT of
-// its hex, clamped on-screen. Depth is above the world sprites but below the HUD + modal overlays, so an
-// open overlay (depth ~2_000_000) covers it. Tunable, surfaced at visual-QA.
-const ENEMY_CARD_DEPTH = 900_000;
+// Enemy inspect card (Enemy Hover Card): the hovered enemy's name/HP/Shield/Armor/attack card sits to the
+// RIGHT of its hex, clamped on-screen. It only appears while an enemy is actively hovered, so it draws
+// TOPMOST — above the WorldScene HUD (1_000_000) AND the CardController hand-card fan (HUD_DEPTH 2_000_000 ..
+// CARD_FRONT_DEPTH 2_000_050) — so a fanned or hovered hand card never occludes it. It is already hidden while
+// a modal overlay is open (cards.isOverlayOpen(): deck/discard browse, chest picker, equipment panel, ~2_000_100),
+// so sitting above that band here never lets the hover card fight those modals for the top. Tunable, surfaced at visual-QA.
+const ENEMY_CARD_DEPTH = 2_001_000;
 const ENEMY_CARD_GAP = 24; // base-px gap between the enemy's hex and the card's near edge
 
 /**
