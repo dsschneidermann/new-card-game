@@ -77,6 +77,9 @@ export type {
   ForestObjectTerrain,
   ForestObjectPlacement,
   ForestObjectDef,
+  ReinforcementConfig,
+  RosterUnlock,
+  ReinforcementSpawn,
 } from './levels';
 export {
   LevelState,
@@ -105,6 +108,11 @@ export {
   FOREST_CHEST_MAX,
   FOREST_ENEMY_MIN,
   FOREST_ENEMY_MAX,
+  FOREST_REINFORCEMENTS,
+  planForestReinforcements,
+  reinforcementWaveSize,
+  unlockedPool,
+  offscreenRingHexes,
 } from './levels';
 
 // Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers

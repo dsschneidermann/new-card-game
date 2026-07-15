@@ -36,3 +36,13 @@ export {
   FOREST_ENEMY_MIN,
   FOREST_ENEMY_MAX,
 } from './forest/forest';
+// Forest continuous reinforcements (Enemy Onslaught): the pure per-enemy-phase wave PLAN (which archetypes
+// enter + where from the off-screen ring) + its tunable curve. The renderer half spawns AND renders each plan.
+export type { ReinforcementConfig, RosterUnlock, ReinforcementSpawn } from './forest/reinforcements';
+export {
+  FOREST_REINFORCEMENTS,
+  planForestReinforcements,
+  reinforcementWaveSize,
+  unlockedPool,
+  offscreenRingHexes,
+} from './forest/reinforcements';

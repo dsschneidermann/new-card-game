@@ -29,9 +29,13 @@ import {
   FOREST_ROWS,
   FOREST_ID,
   HexGrid,
+  FOREST_REINFORCEMENTS,
+  planForestReinforcements,
   type AssetKey,
   type World,
   type Hex,
+  type EntityId,
+  type GameEvent,
   type ForestTerrainKind,
   type ForestTerrainOverlay,
   type DecalShape,
@@ -243,19 +247,49 @@ export class ForestLevel implements Level {
           : { texture: AssetKeys.chest1Unopened, facing },
       );
     }
-    // Enemies (incl. mimics) get a seed-deterministic facing. A DISGUISED mimic renders as the static
-    // closed-chest frame (no animBase, so it reads as a chest); a revealed mimic or a normal enemy renders
-    // its looping idle animation. On reveal the scene swaps the mimic's Renderable to the idle animation.
-    for (const [enemy, { art }] of world.store(Enemy).entries()) {
-      const at = world.store(HexPosition).get(enemy);
-      const facing = at !== undefined ? forestPropFacing(at.hex, this.seed) : 'right';
-      world.store(FacingState).add(enemy, { facing });
-      const mimic = world.store(Mimic).get(enemy);
-      if (mimic !== undefined && mimic.revealed !== true) {
-        world.store(Renderable).add(enemy, { texture: `${art}.unopened` });
-      } else {
-        world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
-      }
+    // Enemies (incl. mimics) each get their facing + Renderable via renderEnemy — shared with the mid-run
+    // reinforcement path (onStep) so a spawned enemy and a restored one render identically and cannot drift.
+    for (const [enemy] of world.store(Enemy).entries()) this.renderEnemy(world, enemy);
+  }
+
+  /**
+   * Attach an enemy's seed-deterministic facing + its Renderable. A DISGUISED mimic renders as the static
+   * closed-chest frame (no animBase, so it reads as a chest); a revealed mimic or a normal enemy renders its
+   * looping idle animation (on reveal the scene swaps the mimic's Renderable to the idle). Shared by install()
+   * (build / resume / restart) and onStep() (continuous reinforcements) — the single place an Enemy entity is
+   * given a sprite.
+   */
+  private renderEnemy(world: World, enemy: EntityId): void {
+    const art = world.store(Enemy).get(enemy)?.art;
+    if (art === undefined) return; // not a materialised enemy (defensive)
+    const at = world.store(HexPosition).get(enemy);
+    const facing = at !== undefined ? forestPropFacing(at.hex, this.seed) : 'right';
+    world.store(FacingState).add(enemy, { facing });
+    const mimic = world.store(Mimic).get(enemy);
+    if (mimic !== undefined && mimic.revealed !== true) {
+      world.store(Renderable).add(enemy, { texture: `${art}.unopened` });
+    } else {
+      world.store(Renderable).add(enemy, { texture: `${art}.idle`, animBase: art });
+    }
+  }
+
+  /**
+   * Continuous reinforcements (Enemy Onslaught). Called each frame by WorldScene after advance(); on the enemy
+   * phase (the sim resolves the whole enemy phase in ONE advance, emitting TurnStarted{enemy} exactly once) it
+   * plans this round's off-screen wave — pure, deterministic via world.rng — then spawns AND renders each enemy
+   * in the same loop, so a spawned reinforcement always carries its sprite. Running after advance()'s enemy-turn
+   * draws means a reinforcement first ACTS the next enemy turn and this turn's enemy-turn RNG stream is unchanged
+   * (the plan draws follow it). VIEW_COLS/VIEW_ROWS are passed in so the off-screen ring tracks the live viewport.
+   */
+  onStep(world: World, grid: HexGrid, events: readonly GameEvent[], view: { cols: number; rows: number }): void {
+    const enemyPhaseStarted = events.some((e) => e.kind === 'TurnStarted' && e.phase === 'enemy');
+    if (!enemyPhaseStarted) return;
+    const cfg = { ...FOREST_REINFORCEMENTS, viewCols: view.cols, viewRows: view.rows };
+    for (const { defId, hex } of planForestReinforcements(world, grid, cfg)) {
+      const def = ARCHETYPES[defId];
+      if (def === undefined) continue; // planned pool ids are all valid archetypes; defensive
+      const enemy = spawnEnemy(world, def, hex);
+      this.renderEnemy(world, enemy); // spawn + render together, so a reinforcement always carries its sprite
     }
   }
 

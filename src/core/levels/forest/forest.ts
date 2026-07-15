@@ -186,8 +186,8 @@ export function forestPropFacing(hex: Hex, seed: number): 'left' | 'right' {
 // in [FOREST_ENEMY_MIN, FOREST_ENEMY_MAX] scattered on walkable tiles, never on a blocked hex (obstacle /
 // chest / start) and kept outside ENEMY_CLEAR_RADIUS of the start so the player isn't swarmed at spawn. Each
 // draws an archetype from the forest pool; all counts/positions/kinds come from decorrelated seed streams.
-export const FOREST_ENEMY_MIN = 3; // fewest enemies placed
-export const FOREST_ENEMY_MAX = 5; // most enemies placed
+export const FOREST_ENEMY_MIN = 6; // fewest enemies placed (doubled 3 -> 6: Enemy Onslaught)
+export const FOREST_ENEMY_MAX = 10; // most enemies placed (doubled 5 -> 10: Enemy Onslaught)
 const FOREST_ENEMY_POOL = ['goblin', 'slime', 'orc'] as const; // forest-tier archetype ids (orc self-shields)
 const ENEMY_CLEAR_RADIUS = 6; // keep enemies at least this many hexes from the start hex
 const ENEMY_CANDIDATE_RATE = 0.04; // fraction of free cells that become enemy candidates (then spread out)

@@ -6,6 +6,7 @@ import {
   type HexLayout,
   type WorldPixelBounds,
   type World,
+  type GameEvent,
 } from '@core/index';
 import { ForestLevel } from './ForestLevel';
 
@@ -36,6 +37,12 @@ export interface Level {
   reinstall(world: World, grid: HexGrid): void;
   /** Build the terrain render layers (depth-stacked, bottom-up). WorldScene masks + tracks them. */
   buildTerrain(ctx: LevelBuildContext): Phaser.Tilemaps.TilemapLayer[];
+  /**
+   * Per-frame level tick, called by WorldScene AFTER advance() with that step's events + the live visible
+   * viewport extent. A level that spawns entities mid-run (e.g. the forest's continuous reinforcements) does it
+   * here so the spawn and its Renderable are attached together. Optional: a static level omits it.
+   */
+  onStep?(world: World, grid: HexGrid, events: readonly GameEvent[], view: { cols: number; rows: number }): void;
 }
 
 /** Build the Level for an id (the only place that maps a level id to its renderer class). */

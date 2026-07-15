@@ -413,6 +413,10 @@ export class WorldScene extends Phaser.Scene {
     // Process queued commands once per frame; a whole move resolves in ONE advance (Movement
     // Resolution) and the MoveAnimator replays its hop-log over real time, so the sprite lags the sim.
     const events = advance(this.world);
+    // Continuous reinforcements (Enemy Onslaught): the level spawns + renders its off-screen wave here, right
+    // after advance() so the plan's RNG draws follow this step's enemy-turn draws (a reinforcement first acts
+    // the NEXT enemy turn) and land before the TurnStarted{player} autosave below captures the round.
+    this.level.onStep?.(this.world, this.grid, events, { cols: VIEW_COLS, rows: VIEW_ROWS });
     this.syncPlayerAnim(events);
     this.moveAnimator.ingest(events);
     this.moveAnimator.update(delta);
@@ -742,6 +746,8 @@ export class WorldScene extends Phaser.Scene {
     // wipes it). On the enemy turn it resolves last turn's telegraphs, then moves + re-telegraphs each enemy
     // (Enemy AI: Movement & Telegraphed Attacks). The turn engine has no enemy-phase loop of its own.
     this.world.addSystem(makeEnemyTurnSystem(this.grid));
+    // Continuous reinforcements (Enemy Onslaught) live in the forest level, not here: it spawns AND renders each
+    // off-screen wave together in Level.onStep, called from update() after advance(). See ForestLevel.onStep.
     // playerMoveBlockers makes a living enemy a LOW obstacle for the PLAYER's move resolution (route around it),
     // while every enemy MoveTo resolves unblocked — the enemy AI's path-through is untouched (player-only scope).
     this.world.addSystem(makeMovementSystem(this.grid, this.layout, playerMoveBlockers));
