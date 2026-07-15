@@ -187,6 +187,14 @@ export class WorldScene extends Phaser.Scene {
   // Shared by the targeting + movement effect layers so their off-board visuals clip to the board edge, the
   // same way the terrain layer is masked. Built once in create().
   private effectMask!: Phaser.Display.Masks.GeometryMask;
+  // The Graphics that BACK the two geometry masks (this.effectMask + the terrain mask). They are built with
+  // make.graphics({}, false) — deliberately NOT added to the display list (a mask source must not render) —
+  // which also means the scene shutdown does NOT auto-destroy them. Since this scene INSTANCE is reused across
+  // runs, every New Game / Restart / Resume re-runs create() and rebuilds both masks; without holding these
+  // references we can never free the previous run's shapes, so their GPU textures accumulate. We track them
+  // here and destroy the prior one right before rebuilding (mirrors the telegraph?.destroy() pattern). (bug mqtwrdt8)
+  private effectMaskShape?: Phaser.GameObjects.Graphics;
+  private terrainMaskShape?: Phaser.GameObjects.Graphics;
   // The world hex the camera is currently anchored on; re-anchored only when the player drifts
   // CAMERA_STAGGER_HEXES from it (staggered pan). undefined until the first updateCamera().
   private camRefHex: Hex | undefined;
@@ -289,8 +297,9 @@ export class WorldScene extends Phaser.Scene {
     // Tight visible-window mask (the exact frame rect — no terrain sprite-feet pad), built like the terrain
     // mask in createTerrain() and shared by the effect layers so off-board targeting/move visuals clip to the
     // board edge. Screen-pinned (scrollFactor 0); the effect graphics are world-space, like the terrain layer.
-    const effectMaskShape = this.make.graphics({}, false);
-    effectMaskShape
+    this.effectMaskShape?.destroy(); // free a previous run's mask Graphics before rebuilding (scene reuse)
+    this.effectMaskShape = this.make.graphics({}, false);
+    this.effectMaskShape
       .fillStyle(0xffffff)
       .fillRect(
         this.frame.left,
@@ -298,8 +307,8 @@ export class WorldScene extends Phaser.Scene {
         this.frame.right - this.frame.left,
         this.frame.bottom - this.frame.top,
       );
-    effectMaskShape.setScrollFactor(0);
-    this.effectMask = effectMaskShape.createGeometryMask();
+    this.effectMaskShape.setScrollFactor(0);
+    this.effectMask = this.effectMaskShape.createGeometryMask();
 
     // Enemy attack-telegraph overlay: shares the visible-window mask so its threatened-tile fill + hover
     // threat line clip to the board like every other effect layer. Drop a previous run's overlay first
@@ -1121,8 +1130,9 @@ export class WorldScene extends Phaser.Scene {
   private buildTerrainMask(): Phaser.Display.Masks.GeometryMask {
     const topPad = this.layout.height * 1.5; // one and a half hex height
     const bottomPad = this.layout.height * 0.25; // quarter hex height
-    const maskShape = this.make.graphics({}, false);
-    maskShape
+    this.terrainMaskShape?.destroy(); // free a previous run's mask Graphics before rebuilding (scene reuse)
+    this.terrainMaskShape = this.make.graphics({}, false);
+    this.terrainMaskShape
       .fillStyle(0xffffff)
       .fillRect(
         this.frame.left,
@@ -1130,8 +1140,8 @@ export class WorldScene extends Phaser.Scene {
         this.frame.right - this.frame.left,
         this.frame.bottom - this.frame.top + topPad + bottomPad,
       );
-    maskShape.setScrollFactor(0);
-    return maskShape.createGeometryMask();
+    this.terrainMaskShape.setScrollFactor(0);
+    return this.terrainMaskShape.createGeometryMask();
   }
 
   /**
