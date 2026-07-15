@@ -8,10 +8,10 @@ const blizzardEffect = GAME_ASSETS.find((d) => d.key === AssetKeys.spellEffectBl
 describe('frameSequenceUrls', () => {
   it('lists <key>NN.png for a file-per-frame descriptor: 1-based, zero-padded to 2, in order', () => {
     const urls = frameSequenceUrls(blizzardEffect);
-    expect(urls).toHaveLength(17);
+    expect(urls).toHaveLength(13);
     expect(urls[0]).toBe('spell_effect_blizzard01.png');
     expect(urls[8]).toBe('spell_effect_blizzard09.png');
-    expect(urls[16]).toBe('spell_effect_blizzard17.png');
+    expect(urls[12]).toBe('spell_effect_blizzard13.png');
   });
 
   it('is empty for a non-file-per-frame descriptor (spritesheet animation or static image)', () => {
@@ -30,11 +30,11 @@ describe('frameSequenceTextureKey', () => {
 });
 
 describe('blizzard cast-effect descriptor', () => {
-  it('is a REAL file-per-frame animation of 17 frames with an fps (built as <key>.right)', () => {
+  it('is a REAL file-per-frame animation of 13 frames with an fps (built as <key>.right)', () => {
     const entry = resolveKey(AssetKeys.spellEffectBlizzard);
     expect(entry?.kind).toBe('real');
     expect(entry?.descriptor.sprite?.filePerFrame).toBe(true);
-    expect(entry?.descriptor.sprite?.frameCount).toBe(17);
+    expect(entry?.descriptor.sprite?.frameCount).toBe(13);
     expect(entry?.descriptor.sprite?.fps).toBeGreaterThan(0);
   });
 
@@ -55,7 +55,6 @@ describe('manifest validation with the effect key', () => {
 describe('cast-effect association (effectArt)', () => {
   it('the blizzard spell names its cast effect; effect-less defs have none', () => {
     expect(spellDef('blizzard')?.effectArt).toBe(AssetKeys.spellEffectBlizzard);
-    expect(spellDef('teleport')?.effectArt).toBeUndefined();
     expect(cardDef('defend')?.effectArt).toBeUndefined();
   });
 });

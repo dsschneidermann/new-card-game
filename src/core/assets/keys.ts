@@ -35,14 +35,20 @@ export const AssetKeys = {
   cardArtWhirlwind: 'card_art_whirlwind',
   cardArtRecall: 'card_art_recall',
 
+  // Card effects (file-per-frame animations played over the player on cast/play). Each is N
+  // separate files card_effect_<id><NN>.png; keyed on a def via effectArt.
+  cardEffectWhirlwind: 'card_effect_whirlwind',
+
   // Spell sidebar art (one per spell; files are spell_art_<id>, and heal's art is selfheal).
   spellArtBlizzard: 'spell_art_blizzard',
   spellArtSelfheal: 'spell_art_selfheal',
   spellArtTeleport: 'spell_art_teleport',
 
-  // Spell & card CAST EFFECTS (file-per-frame animations played over the player on cast/play). Each is N
-  // separate files spell_effect_<id><NN>.png / card_effect_<id><NN>.png; keyed on a def via effectArt.
+  // Spell cast effects (file-per-frame animations played over the player on cast/play). Each is N
+  // separate files spell_effect_<id><NN>.png; keyed on a def via effectArt.
   spellEffectBlizzard: 'spell_effect_blizzard',
+  spellEffectSelfheal: 'spell_effect_selfheal',
+  spellEffectTeleport: 'spell_effect_teleport',
 
   // Equipment / item art (one per ItemDef): shown in the item rectangle's top half and the equipped-items overlay slots.
   itemArtIronSword: 'item_art_iron_sword',

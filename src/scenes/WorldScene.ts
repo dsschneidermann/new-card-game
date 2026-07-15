@@ -699,13 +699,6 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Drive the player's transient AnimState (card-play feel). 'armed' mirrors the
-   * CardController each frame; 'base' becomes 'ready' after playing any card or spell
-   * and 'idle' at turn start or after a move. An attack card additionally plays a
-   * one-shot overlay (attack1 by default, attack2 for a heavyAttack card) that a scene
-   * timer clears back to the resting stance — deterministic and presentation-only.
-   */
-  /**
    * Play a cast EFFECT over the player's hex when the played card / cast spell declares one (Spell & Card Cast
    * Effects). `effectArt` is the def's optional effect asset key; no-op when the def has none. The effect is
    * always centred on the CASTER (the player), never the aimed target hex.
@@ -716,6 +709,13 @@ export class WorldScene extends Phaser.Scene {
     if (hex !== undefined) this.effects.playAt(hex, effectArt);
   }
 
+  /**
+   * Drive the player's transient AnimState (card-play feel). 'armed' mirrors the
+   * CardController each frame; 'base' becomes 'ready' after playing any card or spell
+   * and 'idle' at turn start or after a move. An attack card additionally plays a
+   * one-shot overlay (attack1 by default, attack2 for a heavyAttack card) that a scene
+   * timer clears back to the resting stance — deterministic and presentation-only.
+   */
   private syncPlayerAnim(events: GameEvent[]): void {
     const anim = this.world.store(AnimState).get(this.player);
     if (anim === undefined) return;

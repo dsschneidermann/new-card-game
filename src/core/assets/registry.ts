@@ -70,14 +70,20 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.cardArtWhirlwind, [256, 256, 0.35], 'card art (whirlwind)', 'Card art: whirlwind'),
   asset(AssetKeys.cardArtRecall, [256, 256, 0.35], 'card art (recall)', 'Card art: recall'),
 
+  // --- Card effects: FILE-PER-FRAME animations (each frame is a separate card_effect_<id><NN>.png),
+  //     played once at GREAT size over the player on cast/play. scale 1.5 -> assetScale 3.0 -> ~3x the player. ---
+  asset(AssetKeys.cardEffectWhirlwind, [256, 256, 0.75], 'whirlwind effect', 'Card effect: whirlwind', { frameCount: 7, fps: 12, filePerFrame: true }),
+
   // --- Spell sidebar art (per spell), shown as the icon inside each spell ring. Static, scale fills the ~60px ring ---
   asset(AssetKeys.spellArtBlizzard, [128, 128, 0.46], 'spell art (blizzard)', 'Spell art: blizzard'),
   asset(AssetKeys.spellArtSelfheal, [128, 128, 0.46], 'spell art (self heal)', 'Spell art: self heal'),
   asset(AssetKeys.spellArtTeleport, [128, 128, 0.46], 'spell art (teleport)', 'Spell art: teleport'),
 
-  // --- Spell & card cast effects: FILE-PER-FRAME animations (each frame is a separate spell_effect_<id><NN>.png),
+  // --- Spell cast effects: FILE-PER-FRAME animations (each frame is a separate spell_effect_<id><NN>.png),
   //     played once at GREAT size over the player on cast/play. scale 1.5 -> assetScale 3.0 -> ~3x the player. ---
-  asset(AssetKeys.spellEffectBlizzard, [128, 128, 1.5], 'blizzard cast effect (swirling ice/snow)', 'Spell cast effect: blizzard', { frameCount: 17, fps: 16, filePerFrame: true }),
+  asset(AssetKeys.spellEffectBlizzard, [128, 128, 1.5], 'blizzard cast effect', 'Spell cast effect: blizzard', { frameCount: 13, fps: 12, filePerFrame: true }),
+  asset(AssetKeys.spellEffectSelfheal, [256, 256, 0.75], 'selfheal cast effect', 'Spell cast effect: selfheal', { frameCount: 16, fps: 12, filePerFrame: true }),
+  asset(AssetKeys.spellEffectTeleport, [64, 64, 0.75], 'teleport cast effect', 'Spell cast effect: teleport', { frameCount: 11, fps: 12, filePerFrame: true }),
 
   // --- Equipment / item art (one per ItemDef): the item rectangle's top-half image + the equipped-items
   //     overlay slot icons. Static, scale 0.35 like card art; PLACEHOLDERS until real art drops in. ---
