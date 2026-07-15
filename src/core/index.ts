@@ -115,10 +115,12 @@ export {
   offscreenRingHexes,
 } from './levels';
 
-// Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and the grid-flag appliers
-// (applyObstacles for a placement list, applyObstacleEntities for the restored entities on resume).
+// Obstacles: kinds + their move/sight rules, the persisted Obstacle component, and applyObstacleEntities —
+// the public driver that rebuilds the grid's derived walkability/sight index from the restored Obstacle
+// entities (fresh populate + resume/restart). The low-level bakeObstacleFlags primitive is intentionally NOT
+// re-exported here: it is internal to obstacles.ts and its unit tests, which import it from the module directly.
 export type { ObstacleKind, ObstacleRule, ObstacleData } from './obstacles';
-export { OBSTACLE_RULES, Obstacle, applyObstacles, applyObstacleEntities } from './obstacles';
+export { OBSTACLE_RULES, Obstacle, applyObstacleEntities } from './obstacles';
 
 // Character sprite animation helpers
 export type { Facing } from './sprite';

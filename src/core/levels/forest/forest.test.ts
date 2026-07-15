@@ -18,12 +18,12 @@ import {
   FOREST_ENEMY_MAX,
   ARCHETYPES,
   HexGrid,
-  applyObstacles,
   offsetToAxial,
   hexKey,
   hexDistance,
   type DecalShape,
 } from '@core/index';
+import { bakeObstacleFlags } from '@core/obstacles';
 
 describe('forest terrain (grass/dirt fill)', () => {
   const SEED = 1234;
@@ -134,7 +134,7 @@ describe('forest placement generation', () => {
   it('applying the generated obstacles sets walkability/sight per kind and leaves the start walkable', () => {
     const g = grid();
     const obstacles = generateForestObstacles(777);
-    applyObstacles(g, obstacles);
+    bakeObstacleFlags(g, obstacles);
     for (const o of obstacles) {
       expect(g.isWalkable(o.hex)).toBe(o.kind === 'none'); // only 'none' decals stay walkable; tall/low block move
       expect(g.blocksSight(o.hex)).toBe(o.kind === 'tall');
@@ -149,7 +149,7 @@ describe('forest placement generation', () => {
     expect(a).toEqual(b);
     expect(a.length).toBeGreaterThan(0);
     const g = grid();
-    applyObstacles(g, obstacles);
+    bakeObstacleFlags(g, obstacles);
     const seen = new Set<string>();
     const blocked = new Set(obstacles.map((o) => hexKey(o.hex)));
     for (const c of a) {

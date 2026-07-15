@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { OBSTACLE_RULES, Obstacle, applyObstacles, applyObstacleEntities } from './obstacles';
+import { OBSTACLE_RULES, Obstacle, bakeObstacleFlags, applyObstacleEntities } from './obstacles';
 import { HexGrid } from './hex/grid';
 import { offsetToAxial } from './hex/layout';
 import { HexPosition } from './hex/movement';
@@ -12,12 +12,12 @@ describe('obstacle rules', () => {
   });
 });
 
-describe('applyObstacles', () => {
+describe('bakeObstacleFlags', () => {
   it('sets grid walkability + sight flags per kind', () => {
     const grid = new HexGrid(10, 10);
     const tall = offsetToAxial({ col: 4, row: 4 });
     const low = offsetToAxial({ col: 6, row: 4 });
-    applyObstacles(grid, [
+    bakeObstacleFlags(grid, [
       { kind: 'tall', hex: tall },
       { kind: 'low', hex: low },
     ]);
@@ -50,7 +50,7 @@ describe('applyObstacleEntities (resume parity)', () => {
 
     // Fresh build: flags from the placement list.
     const gridFromList = new HexGrid(12, 12);
-    applyObstacles(gridFromList, [
+    bakeObstacleFlags(gridFromList, [
       { kind: 'tall', hex: tall },
       { kind: 'low', hex: low },
     ]);

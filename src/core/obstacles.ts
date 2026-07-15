@@ -36,11 +36,14 @@ export interface ObstacleData {
 export const Obstacle: ComponentType<ObstacleData> = defineComponent<ObstacleData>('Obstacle');
 
 /**
- * Apply a set of obstacles to a grid's walkability + sight flags per their kind's rules. Pure: the
- * movement pathfinder then routes around the now-unwalkable hexes and hasLineOfSight is blocked by the
- * sight-blocking ones. Idempotent for a given obstacle set.
+ * Bake a list of `{ kind, hex }` obstacles into a grid's walkability + sight flags per each kind's rules —
+ * the low-level inner write loop. This is an INTERNAL primitive: in production it is called ONLY by
+ * applyObstacleEntities (the public driver below); its only other callers are this module's unit tests. It
+ * is deliberately NOT re-exported from the core barrel — reach for applyObstacleEntities instead. Pure and
+ * idempotent for a given list: the movement pathfinder then routes around the now-unwalkable hexes and
+ * hasLineOfSight is blocked by the sight-blocking ones.
  */
-export function applyObstacles(grid: HexGrid, obstacles: Iterable<{ kind: ObstacleKind; hex: Hex }>): void {
+export function bakeObstacleFlags(grid: HexGrid, obstacles: Iterable<{ kind: ObstacleKind; hex: Hex }>): void {
   for (const { kind, hex } of obstacles) {
     const rule = OBSTACLE_RULES[kind];
     if (rule.blocksMove) grid.setWalkable(hex, false);
@@ -49,15 +52,18 @@ export function applyObstacles(grid: HexGrid, obstacles: Iterable<{ kind: Obstac
 }
 
 /**
- * Apply the grid walkability + sight flags from the world's RESTORED Obstacle entities. Used by a level's
- * fresh populate AND its resume/restart reinstall, so a resumed run re-derives identical flags from the
- * persisted obstacle entities — no need to regenerate (or persist) the placement list. Reads each
- * Obstacle{kind} + its HexPosition and defers to applyObstacles.
+ * Rebuild a grid's walkability + sight flags from the world's Obstacle entities — the PUBLIC obstacle entry
+ * point (the only production call path: ForestLevel.populate / reinstall → install). The grid flags are a
+ * DERIVED spatial index over the obstacles: the persisted Obstacle{kind} + HexPosition entities are the
+ * source of truth, and this projection rebuilds that index at every world build. Because it re-derives from
+ * the entities, a level's fresh populate AND its resume/restart reinstall produce identical flags with no
+ * need to regenerate (or persist) a placement list. Reads each Obstacle{kind} + its HexPosition and bakes
+ * them via the internal bakeObstacleFlags.
  */
 export function applyObstacleEntities(world: World, grid: HexGrid): void {
   const spawns = world.entitiesWith(Obstacle, HexPosition).map((e) => ({
     kind: world.store(Obstacle).get(e)!.kind,
     hex: world.store(HexPosition).get(e)!.hex,
   }));
-  applyObstacles(grid, spawns);
+  bakeObstacleFlags(grid, spawns);
 }
