@@ -270,13 +270,13 @@ describe('item resource bonuses & consumables (Amulet & Potion Items)', () => {
   const pool = (world: World, p: EntityId) => world.store(ResourcePool).get(p)!;
   const move = (world: World, p: EntityId) => world.store(MovementBudget).get(p)!;
 
-  it('the base constants match the player spawn defaults (energy 3 / mana 5 / regen 1 / movement 5)', () => {
+  it('the base constants match the player spawn defaults (energy 2 / mana 3 / regen 1 / movement 2)', () => {
     expect([
       PLAYER_BASE_ENERGY_MAX,
       PLAYER_BASE_MANA_MAX,
       PLAYER_BASE_MANA_REGEN,
       PLAYER_BASE_MOVEMENT,
-    ]).toEqual([3, 5, 1, 5]);
+    ]).toEqual([2, 3, 1, 2]);
   });
 
   it('the four new items resolve with the expected kind + effect fields, and are all in the chest pool', () => {

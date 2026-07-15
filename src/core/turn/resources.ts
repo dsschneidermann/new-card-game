@@ -6,10 +6,10 @@ import type { ResourcePoolData } from './components';
  * recomputeMovementMax in items/equipment.ts), so the spawned maxima and the recomputed maxima can never
  * drift. Item stat bonuses (an amulet's manaBonus/movementBonus/energyBonus) are summed ON TOP of these.
  */
-export const PLAYER_BASE_ENERGY_MAX = 3;
-export const PLAYER_BASE_MANA_MAX = 5;
+export const PLAYER_BASE_ENERGY_MAX = 2;
+export const PLAYER_BASE_MANA_MAX = 3;
 export const PLAYER_BASE_MANA_REGEN = 1;
-export const PLAYER_BASE_MOVEMENT = 5;
+export const PLAYER_BASE_MOVEMENT = 2;
 
 /**
  * Pure mutators over a ResourcePool (ADR-005 economy). Energy refills fully each

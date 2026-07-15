@@ -124,8 +124,8 @@ export function forestObjectFlipped(hex: Hex, seed: number): boolean {
 // props in [FOREST_CHEST_MIN, FOREST_CHEST_MAX], and zero or one of those positions is instead a disguised
 // mimic (MIMIC_CHANCE). Both counts are derived deterministically from the run seed, so Restart Level
 // reproduces the same LAYOUT (only a chest's reward CONTENT differs, since that is rolled at open time).
-export const FOREST_CHEST_MIN = 4; // fewest reward props placed
-export const FOREST_CHEST_MAX = 6; // most reward props placed
+export const FOREST_CHEST_MIN = 20; // fewest reward props placed
+export const FOREST_CHEST_MAX = 30; // most reward props placed
 const MIMIC_CHANCE = 0.5; // chance the forest contains a mimic (otherwise zero)
 const CHEST_CANDIDATE_RATE = 0.03; // fraction of free cells that become chest candidates (then spread out)
 const CHEST_PLACE_SALT = 0x0c4e57;
