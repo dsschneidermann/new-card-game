@@ -42,15 +42,28 @@ export class EnemyHealthBars {
    * bar. `hoveredHex` is the board hex under the pointer (or null), so a full-HP enemy shows a bar only while
    * it is hovered.
    */
-  update(world: World, views: Iterable<RenderableView>, hoveredHex: Hex | null): void {
+  update(
+    world: World,
+    views: Iterable<RenderableView>,
+    hoveredHex: Hex | null,
+    movingHexes: ReadonlyMap<EntityId, Hex>,
+  ): void {
     const shown = new Set<EntityId>();
     for (const view of views) {
       const data = enemyHealthBarData(world, view.id, hoveredHex);
       if (data === null) continue;
       shown.add(view.id);
       const bar = this.ensureBar(view.id);
-      // Follow the sprite's stand-point in world coordinates, dropped to the feet. Position is refreshed every
-      // frame (cheap) so the bar tracks a moving enemy; the drawing is rebuilt only when the values change.
+      // Hide the bar while its enemy is sliding between hexes: the per-hex view position jumps hex-to-hex
+      // (it is not tweened like the sprite), so a moving bar reads as stuttering. Keep the object so it is not
+      // destroyed, and show it again — repositioned — once the enemy settles on its end hex.
+      if (movingHexes.has(view.id)) {
+        bar.setVisible(false);
+        continue;
+      }
+      bar.setVisible(true);
+      // Follow the sprite's stand-point in world coordinates, dropped to the feet. Repositioned every frame
+      // (cheap); the drawing is rebuilt only when the values change.
       bar.setPosition(view.x, view.y + s(FEET_OFFSET));
       const key = `${data.hp}/${data.maxHp}|${data.shield}`;
       if (this.drawnKeys.get(view.id) !== key) {
@@ -101,9 +114,11 @@ export class EnemyHealthBars {
     }
 
     // Outline: thin blue while the enemy currently holds shield (the absorb-pool signal), else a subtle dark
-    // border for legibility against the terrain.
+    // border for legibility against the terrain. Stroked just OUTSIDE the fill (expanded by half the line
+    // width) so it stays a clean rim and never covers the green/red interior.
     const shielded = data.shield > 0;
-    bar.lineStyle(s(shielded ? SHIELD_BORDER_PX : BORDER_PX), shielded ? COLOR_SHIELD : COLOR_BORDER, 1);
-    bar.strokeRect(left, top, width, height);
+    const lineWidth = s(shielded ? SHIELD_BORDER_PX : BORDER_PX);
+    bar.lineStyle(lineWidth, shielded ? COLOR_SHIELD : COLOR_BORDER, 1);
+    bar.strokeRect(left - lineWidth / 2, top - lineWidth / 2, width + lineWidth, height + lineWidth);
   }
 }

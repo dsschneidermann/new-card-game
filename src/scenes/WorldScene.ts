@@ -461,14 +461,16 @@ export class WorldScene extends Phaser.Scene {
     // larger world are dropped so nothing renders in the margins around the grid.
     // Characters (player/enemies, incl. revealed mimics) come from buildCharacterViews; props (chests, and a
     // disguised mimic's chest sprite) come from the item view system. SceneSync reconciles both streams.
+    const movingHexes = this.moveAnimator.visualHexes();
     const views = [
-      ...buildCharacterViews(this.world, this.layout, this.moveAnimator.visualHexes()),
+      ...buildCharacterViews(this.world, this.layout, movingHexes),
       ...buildItemViews(this.world, this.layout),
     ].filter((v) => this.fullyInFrame(v.x, v.y));
     this.sync.sync(views);
     // Draw enemy foot health bars off the SAME on-frame views + the same hovered board hex the inspect card
-    // uses, so a bar shows for a damaged enemy or the hovered one and tracks its sprite (Enemy Health Bars).
-    this.healthBars.update(this.world, views, this.hoveredBoardHex());
+    // uses. A bar shows for a damaged enemy or the hovered one; it is HIDDEN while its enemy is sliding between
+    // hexes (movingHexes) because the per-hex view position jumps rather than tweening like the sprite.
+    this.healthBars.update(this.world, views, this.hoveredBoardHex(), movingHexes);
     this.refreshHud();
     for (const e of events) {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
