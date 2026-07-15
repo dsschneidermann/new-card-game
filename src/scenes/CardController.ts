@@ -143,7 +143,7 @@ const discardTotalMs = (n: number): number => (n - 1) * DISCARD_STAGGER_MS + DIS
 // Card mod flash: when a hand card's cost/effect changes mid-turn, a white frame quickly highlights it
 // then fades away (presentation-only feedback). Tunable.
 const FLASH_IN_MS = 80; // the white frame ramps to full fast
-const FLASH_OUT_MS = 1200; // then fades away
+const FLASH_OUT_MS = 2400; // then fades away
 const FLASH_COLOR = 0xffffff;
 const FLASH_THICKNESS = 6;
 
