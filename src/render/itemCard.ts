@@ -46,7 +46,7 @@ const ITEM_TEXT_WRAP_INSET = 36; // horizontal inset for the wrapped text width
  * still lines up. Single-sourced with CardController.cardFaceBase / PileOverlay's FACE_W/FACE_H.
  */
 function itemCardBase(): { w: number; h: number } {
-  const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
+  const d = resolveKey(AssetKeys.cardFrameSkill)?.descriptor;
   if (d === undefined) return { w: ITEM_CARD_FALLBACK_W, h: ITEM_CARD_FALLBACK_H };
   return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
 }

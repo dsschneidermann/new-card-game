@@ -43,7 +43,7 @@ const TEXT_WRAP_INSET = 36; // horizontal inset for the wrapped name width
  * so the inspect card is exactly card-sized — single-sourced with itemCard's itemCardBase / CardController.
  */
 function cardFaceBase(): { w: number; h: number } {
-  const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
+  const d = resolveKey(AssetKeys.cardFrameSkill)?.descriptor;
   if (d === undefined) return { w: CARD_FALLBACK_W, h: CARD_FALLBACK_H };
   return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
 }

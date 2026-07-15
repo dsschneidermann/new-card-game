@@ -53,8 +53,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.playerDeath, [128, 128, 0.5], 'same character, death, right-facing', 'Player death'),
 
   // --- Card UI: static face backgrounds by class ---
-  asset(AssetKeys.cardAttack, [195, 284, 0.5], 'attack-card frame + background', 'Card face background (attack class)'),
-  asset(AssetKeys.cardSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
+  asset(AssetKeys.cardFrameAttack, [195, 284, 0.5], 'attack-card frame + background', 'Card face background (attack class)'),
+  asset(AssetKeys.cardFrameSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
   // Card energy-cost gem: the icon badge drawn behind each card's cost number (native 64x64).
   asset(AssetKeys.gemEnergy, [64, 64], 'faceted energy gem/crystal badge', 'Card energy-cost gem icon'),
 
