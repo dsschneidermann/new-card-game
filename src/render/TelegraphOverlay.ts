@@ -22,9 +22,9 @@ import {
 const FILL_DEPTH = -900;
 const FILL_COLOR = 0xff4d4d; // light red — the threatened tiles an enemy has locked onto
 const FILL_ALPHA = 0.32;
-// The hovered enemy's attack damage, drawn ON each threatened tile in the MovePlanner move-point style
-// (monospace), clipped to the visible window. Depth sits above the sprite band but BELOW the enemy inspect
-// card (ENEMY_CARD_DEPTH in WorldScene) and the HUD, so the card is never occluded by the number.
+// The incoming-damage number(s), drawn ON a threatened tile in the MovePlanner move-point style (monospace),
+// clipped to the visible window. Depth sits above the sprite band but BELOW the enemy inspect card
+// (ENEMY_CARD_DEPTH in WorldScene) and the HUD, so the card is never occluded by the number.
 const DMG_DEPTH = 800_000;
 const DMG_FONT_PX = 32;
 const DMG_COLOR = '#e5e7eb'; // white — the threat damage
@@ -33,8 +33,8 @@ const DMG_COLOR = '#e5e7eb'; // white — the threat damage
  * Renders enemy attack TELEGRAPHS (Enemy AI: Movement & Telegraphed Attacks) — pure presentation read from
  * the core PlannedAttack component, mirroring MovePlanner's world-space, mask-clipped overlay:
  *   - a light-red FILL on every tile any enemy has locked onto (so the player sees the danger zones), and
- *   - when a telegraphing enemy is hovered, that enemy's attack DAMAGE drawn on each of its target tiles
- *     (styled like MovePlanner's move-point numbers).
+ *   - a DAMAGE number: by default the TOTAL incoming damage on the player's OWN hex (shown at all times);
+ *     while a telegraphing enemy is hovered, that one enemy's damage on each of its target tiles instead.
  * Both are world-space (the camera scrolls them) and clipped to the visible window by the shared effect
  * mask, like the reachable-range fill. It owns no game state and submits no commands.
  */
@@ -42,7 +42,7 @@ export class TelegraphOverlay {
   private readonly fill: Phaser.GameObjects.Graphics;
   private dmgLabels: Phaser.GameObjects.Text[] = [];
   private lastFillKey: string | null = null;
-  private lastHoverKey: string | null = null;
+  private lastDamageKey: string | null = null;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -72,36 +72,29 @@ export class TelegraphOverlay {
   }
 
   /**
-   * When the enemy hovered at `hoveredHex` has a telegraph, draw its attack damage on each of its target
-   * hexes; otherwise clear the labels. `hoveredHex` is the tile under the pointer (null clears) — the same
-   * hex WorldScene uses for the inspect card. Damage shown is the actual hit the PLAYER would take — the
-   * attack's base damage with the player's ARMOUR subtracted (floored at 1, via the shared computeDamage),
-   * NOT the raw base damage. Shield is shown separately (the HUD's +N), so it is not subtracted here.
+   * Draw the telegraph damage number(s), cleared only when a modal owns the screen (`active` false). Two modes:
+   *   - DEFAULT (no telegraphing enemy under the pointer): a single TOTAL on the player's OWN hex — the sum,
+   *     across every telegraph covering that hex, of the hit the player would take standing there. Nothing is
+   *     drawn when no telegraph threatens the player's hex.
+   *   - HOVER (a telegraphing enemy is under `hoveredHex`): that ONE enemy's damage on each of its target
+   *     hexes instead, so the player can read a specific threat.
+   * Damage is the actual hit the PLAYER would take — the attack's base damage with the player's ARMOUR
+   * subtracted and floored at 1 (via the shared computeDamage), NOT the raw base damage. Shield is shown
+   * separately (the HUD's +N), so it is not subtracted here. Cheap each frame: a cache key of the drawn
+   * (hex, number) pairs skips the rebuild while nothing that affects them has changed.
    */
-  refreshHover(world: World, hoveredHex: Hex | null): void {
-    const enemy = hoveredHex !== null ? this.telegraphingEnemyAt(world, hoveredHex) : undefined;
-    const plan = enemy !== undefined ? world.store(PlannedAttack).get(enemy) : undefined;
-    const profile =
-      enemy !== undefined && plan !== undefined
-        ? world.store(Attack).get(enemy)?.profiles[plan.attackIndex]
-        : undefined;
-    // Post-armour damage to the player (shield excluded — the +N HUD shows that). computeDamage with a 0
-    // shield yields hpLost == the after-armour amount, the canonical floor-at-1 reduction the resolver uses.
-    const damage =
-      profile !== undefined ? computeDamage(profile, this.playerArmor(world), 0).hpLost : undefined;
+  refreshDamage(world: World, hoveredHex: Hex | null, active: boolean): void {
+    const labels = active ? this.damageLabels(world, hoveredHex) : [];
 
-    // Cache so we only rebuild the labels when the hovered enemy, its target hexes, or its damage change.
-    const key =
-      plan !== undefined && damage !== undefined
-        ? `${enemy}:${damage}>${plan.hexes.map((h) => hexKey(h)).join(',')}`
-        : null;
-    if (key === this.lastHoverKey) return;
-    this.lastHoverKey = key;
+    // Rebuild only when the drawn numbers or their hexes change — the player stepping onto/off a threatened
+    // hex, a new/cleared telegraph, or a mid-turn armour change all flow through because they change the pairs.
+    const key = labels.length > 0 ? labels.map((l) => `${hexKey(l.hex)}=${l.damage}`).join(';') : null;
+    if (key === this.lastDamageKey) return;
+    this.lastDamageKey = key;
 
     this.clearLabels();
-    if (key === null || plan === undefined || damage === undefined) return;
-    for (const target of plan.hexes) {
-      const { x, y } = hexToPixel(this.layout, target);
+    for (const { hex, damage } of labels) {
+      const { x, y } = hexToPixel(this.layout, hex);
       this.dmgLabels.push(
         this.scene.add
           .text(x, y, String(damage), { fontFamily: 'monospace', fontSize: `${s(DMG_FONT_PX)}px`, color: DMG_COLOR })
@@ -110,6 +103,39 @@ export class TelegraphOverlay {
           .setMask(this.effectMask),
       );
     }
+  }
+
+  /**
+   * The (hex, damage) pairs to draw this frame: a hovered telegraphing enemy's damage on each of its target
+   * hexes, or — by default — the single player-hex total (empty when no telegraph threatens the player).
+   */
+  private damageLabels(world: World, hoveredHex: Hex | null): { hex: Hex; damage: number }[] {
+    const armor = this.playerArmor(world);
+    const hoveredEnemy = hoveredHex !== null ? this.telegraphingEnemyAt(world, hoveredHex) : undefined;
+
+    // HOVER: the one hovered enemy's post-armour damage on each hex its telegraph covers.
+    if (hoveredEnemy !== undefined) {
+      const plan = world.store(PlannedAttack).get(hoveredEnemy);
+      const profile =
+        plan !== undefined ? world.store(Attack).get(hoveredEnemy)?.profiles[plan.attackIndex] : undefined;
+      if (plan === undefined || profile === undefined) return [];
+      const damage = computeDamage(profile, armor, 0).hpLost;
+      return plan.hexes.map((hex) => ({ hex, damage }));
+    }
+
+    // DEFAULT: the TOTAL incoming damage on the player's own hex, summed across every telegraph covering it.
+    const player = world.entitiesWith(Player)[0];
+    const playerHex = player !== undefined ? world.store(HexPosition).get(player)?.hex : undefined;
+    if (playerHex === undefined) return [];
+    let total = 0;
+    for (const enemy of world.entitiesWith(Enemy, PlannedAttack)) {
+      const plan = world.store(PlannedAttack).get(enemy);
+      if (plan === undefined || !plan.hexes.some((h) => hexEquals(h, playerHex))) continue;
+      const profile = world.store(Attack).get(enemy)?.profiles[plan.attackIndex];
+      if (profile === undefined) continue;
+      total += computeDamage(profile, armor, 0).hpLost;
+    }
+    return total > 0 ? [{ hex: playerHex, damage: total }] : [];
   }
 
   /** The player's total armour (CombatStats.armor), or 0 if absent — the flat reduction a telegraph subtracts. */

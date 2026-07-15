@@ -241,7 +241,8 @@ export class WorldScene extends Phaser.Scene {
   private enemyCard: Phaser.GameObjects.Container | null = null;
   private enemyCardKey: string | null = null;
   // The enemy attack-telegraph overlay (Enemy AI: Movement & Telegraphed Attacks): light-red threatened
-  // tiles + the red hover threat line, read from PlannedAttack each frame. Recreated per run (scene reuse).
+  // tiles + the incoming-damage total on the player's hex (or a hovered enemy's per-hex damage), read from
+  // PlannedAttack each frame. Recreated per run (scene reuse).
   private telegraph: TelegraphOverlay | null = null;
 
   constructor() {
@@ -332,8 +333,8 @@ export class WorldScene extends Phaser.Scene {
     this.effectMaskShape.setScrollFactor(0);
     this.effectMask = this.effectMaskShape.createGeometryMask();
 
-    // Enemy attack-telegraph overlay: shares the visible-window mask so its threatened-tile fill + hover
-    // threat line clip to the board like every other effect layer. Drop a previous run's overlay first
+    // Enemy attack-telegraph overlay: shares the visible-window mask so its threatened-tile fill + damage
+    // numbers clip to the board like every other effect layer. Drop a previous run's overlay first
     // (this scene instance is reused across New Game / Resume / Restart).
     this.telegraph?.destroy();
     this.telegraph = new TelegraphOverlay(this, this.layout, this.effectMask);
@@ -542,16 +543,16 @@ export class WorldScene extends Phaser.Scene {
   private refreshEnemyHover(): void {
     if (this.cards.isOverlayOpen()) {
       this.hideEnemyCard(); // a modal overlay (pile / chest picker / equipment) owns the screen
-      this.telegraph?.refreshHover(this.world, null); // and no threat line while a modal owns the screen
+      this.telegraph?.refreshDamage(this.world, null, false); // and no damage numbers while a modal owns the screen
       return;
     }
     const p = this.input.activePointer;
     const hex = pixelToHex(this.layout, p.worldX, p.worldY);
     const { x: ex, y: ey } = hexToPixel(this.layout, hex);
     const onFrame = this.fullyInFrame(ex, ey);
-    // The hover threat line follows the same on-board hex as the inspect card, but shows for any TELEGRAPHING
-    // enemy (the overlay finds it on that hex) — independent of whether the inspect card itself has data.
-    this.telegraph?.refreshHover(this.world, onFrame ? hex : null);
+    // Telegraph damage: by default the total incoming damage on the player's OWN hex; hovering a telegraphing
+    // enemy (found on this same on-board hex) instead shows that one enemy's damage on each of its tiles.
+    this.telegraph?.refreshDamage(this.world, onFrame ? hex : null, true);
     const data = enemyCardAt(this.world, hex);
     // Only inspect an enemy whose hex is actually on-screen (the same cull the sprites use), so an enemy in
     // the HUD margin around the board is never shown.
