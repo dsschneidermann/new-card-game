@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { s, AssetKeys, resolveKey, assetScale } from '@core/index';
+import { s, AssetKeys, resolveKey, assetScale, spriteOffset } from '@core/index';
 import type { EnemyCardData } from '@render/enemyCardData';
 
 /**
@@ -31,6 +31,7 @@ const NAME_FONT_PX = 18;
 const NAME_COLOR = '#e5e7eb';
 const STATS_START_Y = 44; // first stat line inset below the centre
 const STAT_LINE_H = 26; // vertical step between successive stat lines (fits up to 4: HP/Shield/Armor/Attack)
+const TEXT_BLOCK_LIFT = STAT_LINE_H; // lift the whole lower-half text block (name + stats) up by one line
 const STAT_FONT_PX = 16;
 const STAT_COLOR = '#cbd5e1';
 // The telegraphed-attack line: soft red to tie it to the light-red telegraph fill on the board, so the
@@ -82,11 +83,20 @@ export function buildEnemyCard(
   // live first FRAME (Sprite defaults to frame 0), like SceneSync — not the whole-sheet descriptor size.
   // Shrunk to fit the top half (never upscaled); missing texture -> no portrait (guarded by textures.exists).
   if (scene.textures.exists(data.portraitTexture)) {
-    const portrait = scene.add.sprite(0, -h / 4, data.portraitTexture).setOrigin(0.5);
+    const portrait = scene.add.sprite(0, -h / 4, data.portraitTexture);
     const descriptor = resolveKey(data.portraitTexture)?.descriptor;
     const artScale = descriptor ? assetScale(descriptor) : 1;
     const frameW = portrait.frame.width * artScale;
     const frameH = portrait.frame.height * artScale;
+    // Apply the sheet's off-centre-art nudge (forwardPx/downPx) as a static draw-origin shift, exactly as
+    // SceneSync does in-world (src/render/SceneSync.ts), so a figure that sits off-centre in its cell — e.g.
+    // the Dark Knight (forwardPx 16 / downPx -6) — is aligned on the card instead of raw-centred. Base origin
+    // is the frame centre (0.5, 0.5): the card has no ground line, and the portrait is never flipped. The
+    // origin fraction is of the native frame, so the net shift scales with the shrink-to-fit applied below.
+    const { forwardPx, downPx } = descriptor ? spriteOffset(descriptor) : { forwardPx: 0, downPx: 0 };
+    const fwdShift = forwardPx !== 0 && frameW > 0 ? forwardPx / frameW : 0;
+    const downShift = downPx !== 0 && frameH > 0 ? downPx / frameH : 0;
+    portrait.setOrigin(0.5 - fwdShift, 0.5 - downShift);
     const maxW = baseW - 2 * PORTRAIT_TOP_HALF_INSET;
     const maxH = baseH / 2 - 2 * PORTRAIT_TOP_HALF_INSET;
     const fit = Math.min(maxW / frameW, maxH / frameH, 1); // shrink to fit the top half; never enlarge
@@ -96,7 +106,7 @@ export function buildEnemyCard(
 
   // Lower half: name, then the HP / Shield / Armor stat lines (Shield/Armor always shown, including 0).
   const name = scene.add
-    .text(0, s(NAME_OFFSET_Y), data.name, {
+    .text(0, s(NAME_OFFSET_Y - TEXT_BLOCK_LIFT), data.name, {
       fontFamily: 'monospace',
       fontSize: `${s(NAME_FONT_PX)}px`,
       color: NAME_COLOR,
@@ -117,7 +127,7 @@ export function buildEnemyCard(
   }
   statLines.forEach((line, i) => {
     const stat = scene.add
-      .text(0, s(STATS_START_Y + i * STAT_LINE_H), line.text, {
+      .text(0, s(STATS_START_Y - TEXT_BLOCK_LIFT + i * STAT_LINE_H), line.text, {
         fontFamily: 'monospace',
         fontSize: `${s(STAT_FONT_PX)}px`,
         color: line.color,
