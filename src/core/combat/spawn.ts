@@ -7,17 +7,13 @@ import type { EnemyDef } from './types';
 import { Health, CombatStats, Attack, Archetype, Shield, AttackCooldowns } from './components';
 
 /**
- * Spawn an enemy of `def` onto `hex`, assembling the definition as an ECS component bundle (ADR-007: data-
- * driven, not a subclass): the Enemy marker (+ its roster art), position, Health at full, armour, the
- * definition's attacks, and the definition identity/movement. Returns the new entity.
- *
- * PLACEMENT — which enemies, how many, and where — is the Level Progression feature's job (its enemy
- * budget + reachable layout). This factory is the seam that feature calls; it does not decide placement.
+ * Materialise `def`'s combat bundle onto an EXISTING entity: Health at full, armour (+ optional self-shield),
+ * the definition's attacks all off cooldown, the definition identity/movement, and a starting-0 Shield. Split
+ * out of spawnEnemy so a freshly-spawned enemy and a mimic that WAKES from its disguise (revealMimic) assemble
+ * the exact same combat components and cannot drift. The caller must already have added the Enemy marker + a
+ * HexPosition (spawnEnemy adds them first; a disguised mimic carries them from spawnMimic).
  */
-export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
-  const e = world.createEntity();
-  world.store(Enemy).add(e, { isEnemy: true, art: def.spriteKey });
-  world.store(HexPosition).add(e, { hex });
+export function materializeCombat(world: World, e: EntityId, def: EnemyDef): void {
   world.store(Health).add(e, { hp: def.maxHp, maxHp: def.maxHp });
   world.store(CombatStats).add(e, {
     armor: def.armor,
@@ -31,5 +27,21 @@ export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
   world.store(Archetype).add(e, { defId: def.id, movement: def.movement });
   // Starts the round unshielded; gains its selfShield on its own turn (and is wiped each player turn).
   world.store(Shield).add(e, { shield: 0 });
+}
+
+/**
+ * Spawn an enemy of `def` onto `hex`, assembling the definition as an ECS component bundle (ADR-007: data-
+ * driven, not a subclass): the Enemy marker (+ its roster art), position, then the shared combat bundle
+ * (Health at full, armour, the definition's attacks, and the definition identity/movement). Returns the new
+ * entity.
+ *
+ * PLACEMENT — which enemies, how many, and where — is the Level Progression feature's job (its enemy
+ * budget + reachable layout). This factory is the seam that feature calls; it does not decide placement.
+ */
+export function spawnEnemy(world: World, def: EnemyDef, hex: Hex): EntityId {
+  const e = world.createEntity();
+  world.store(Enemy).add(e, { isEnemy: true, art: def.spriteKey });
+  world.store(HexPosition).add(e, { hex });
+  materializeCombat(world, e, def);
   return e;
 }

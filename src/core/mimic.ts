@@ -4,15 +4,20 @@ import type { World } from './ecs/world';
 import { hexEquals, type Hex } from './hex/hex';
 import { HexPosition } from './hex/movement';
 import { Enemy } from './actors';
+import { ARCHETYPES } from './combat/archetypes';
+import { materializeCombat } from './combat/spawn';
 
 /**
  * Mimic enemies (Chest Rewards feature): a monster that DISGUISES itself as a closed chest on the map and
- * only REVEALS when the player approaches it like a chest. A mimic is a normal Enemy (art 'enemy_mimic_1')
- * carrying a Mimic component; while `revealed` is false it is rendered as the static chest-disguise frame
- * and is a valid chest-style interact target, and approaching it wakes it to its idle-monster animation
- * (the interact system flips `revealed` and emits MimicRevealed). There is no wake-combat yet — that lands
- * with the enemy archetype / AI features. Pure and Phaser-free (ADR-002): the data + the reveal mutation
- * live here; the scene only swaps the sprite on the event.
+ * only REVEALS when the player approaches it like a chest. A disguised mimic is a HOLLOW Enemy — the marker
+ * (art 'enemy_mimic_1') + a HexPosition + a Mimic component, but no Health or attacks — so while `revealed`
+ * is false it reads exactly as the chest it imitates: drawn as the static chest-disguise frame, a valid
+ * chest-style interact target, no health bar, and not a movement wall. Approaching it wakes it (the interact
+ * system flips `revealed` and emits MimicRevealed): revealMimic MATERIALISES the 'mimic' archetype's combat
+ * bundle (Health, armour, attacks, cooldowns, movement, shield) onto the same entity, so from that turn on
+ * the woken mimic is a full enemy — it takes enemy turns, blocks the player's movement, and is a damageable
+ * target. Pure and Phaser-free (ADR-002): the data + the wake mutation live here; the scene only swaps the
+ * sprite on the event.
  */
 export interface MimicData {
   /** Once revealed (approached), the mimic shows its monster animation and is no longer an interact target. */
@@ -24,9 +29,10 @@ export const Mimic: ComponentType<MimicData> = defineComponent<MimicData>('Mimic
 export const MIMIC_ART = 'enemy_mimic_1';
 
 /**
- * Spawn a disguised mimic at `hex`: an Enemy (so future combat/AI iterate it) carrying a Mimic component
- * (revealed unset = disguised) + HexPosition. Returns the mimic entity id. The renderer draws it as the
- * closed-chest disguise until it is revealed.
+ * Spawn a disguised mimic at `hex`: an Enemy carrying a Mimic component (revealed unset = disguised) +
+ * HexPosition, but NO combat components — the Enemy marker is present from the start, while the combat/AI
+ * bundle (Health, attacks, …) is added only when it wakes (revealMimic). Returns the mimic entity id. The
+ * renderer draws it as the closed-chest disguise until it is revealed.
  */
 export function spawnMimic(world: World, hex: Hex): EntityId {
   const mimic = world.createEntity();
@@ -51,8 +57,18 @@ export function disguisedMimicAt(world: World, hex: Hex): EntityId | undefined {
   return undefined;
 }
 
-/** Reveal a mimic: it wakes from its disguise to its monster form (the renderer swaps to the idle animation). */
+/**
+ * Wake a mimic from its disguise into a full enemy. Flips `revealed` (the renderer swaps to the idle-monster
+ * animation) and MATERIALISES the 'mimic' archetype's combat bundle — Health, armour, attacks, cooldowns,
+ * movement, shield — onto the SAME entity via the shared spawnEnemy assembler. Until now the mimic was a
+ * hollow Enemy (marker + position only), which is exactly why it read as the chest it imitated: with no
+ * Health it took no enemy turn, never blocked the player's movement, and could not be attacked. After this
+ * it behaves like any spawned enemy. Idempotent: a no-op when the entity is not a mimic or is already
+ * revealed, so a second wake never re-rolls it back to full HP.
+ */
 export function revealMimic(world: World, mimic: EntityId): void {
   const data = world.store(Mimic).get(mimic);
-  if (data !== undefined) data.revealed = true;
+  if (data === undefined || data.revealed === true) return;
+  data.revealed = true;
+  materializeCombat(world, mimic, ARCHETYPES.mimic!);
 }

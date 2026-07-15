@@ -39,6 +39,14 @@ import {
   disguisedMimicAt,
   revealMimic,
   Enemy,
+  Health,
+  CombatStats,
+  Attack,
+  AttackCooldowns,
+  Archetype,
+  Shield,
+  ARCHETYPES,
+  enemyOccupiedHexes,
   cardDef,
   itemDef,
   offsetToAxial,
@@ -247,6 +255,42 @@ describe('mimic helpers', () => {
     revealMimic(world, mimic);
     expect(world.store(Mimic).get(mimic)?.revealed).toBe(true);
     expect(disguisedMimicAt(world, { q: 3, r: 1 })).toBeUndefined();
+  });
+
+  it('revealMimic wakes the disguised mimic into a full combat enemy — gains the archetype bundle and now blocks the player', () => {
+    const world = createWorld(9);
+    const player = world.createEntity();
+    world.store(Player).add(player, { isPlayer: true });
+    world.store(HexPosition).add(player, { hex: { q: 0, r: 0 } });
+    world.store(Health).add(player, { hp: 30, maxHp: 30 });
+
+    const mimicHex: Hex = { q: 3, r: 1 };
+    const mimic = spawnMimic(world, mimicHex);
+    // Disguised: a hollow Enemy with no Health, so it reads as the chest it imitates and never blocks the
+    // player (the "can still be moved on top of" symptom before the fix).
+    expect(world.store(Health).get(mimic)).toBeUndefined();
+    expect(enemyOccupiedHexes(world).has(hexKey(mimicHex))).toBe(false);
+
+    revealMimic(world, mimic);
+
+    const def = ARCHETYPES.mimic!;
+    expect(world.store(Health).get(mimic)).toEqual({ hp: def.maxHp, maxHp: def.maxHp });
+    expect(world.store(Attack).get(mimic)?.profiles).toEqual(def.attacks);
+    expect(world.store(AttackCooldowns).get(mimic)?.remaining).toEqual(def.attacks.map(() => 0));
+    expect(world.store(Archetype).get(mimic)?.defId).toBe('mimic');
+    expect(world.store(CombatStats).get(mimic)?.armor).toBe(def.armor);
+    expect(world.store(Shield).get(mimic)?.shield).toBe(0);
+    // A living enemy now: its hex is a low obstacle the player must route around, and it is a combat target.
+    expect(enemyOccupiedHexes(world).has(hexKey(mimicHex))).toBe(true);
+  });
+
+  it('revealMimic is idempotent — a second wake does not re-roll an already-woken mimic back to full HP', () => {
+    const world = createWorld(9);
+    const mimic = spawnMimic(world, { q: 3, r: 1 });
+    revealMimic(world, mimic);
+    world.store(Health).get(mimic)!.hp = 5; // it took damage after waking
+    revealMimic(world, mimic); // waking again must NOT re-materialise it
+    expect(world.store(Health).get(mimic)?.hp).toBe(5);
   });
 });
 
@@ -478,6 +522,13 @@ describe('persistence', () => {
     const rMimic = restored.entitiesWith(Mimic)[0] as EntityId;
     expect(restored.store(Mimic).get(rMimic)?.revealed).toBe(true);
     expect(restored.store(Enemy).get(rMimic)?.art).toBe(MIMIC_ART);
+    // The combat bundle a woken mimic gained (SAVE_VERSION 19) must round-trip too, so a resumed run's mimic
+    // is still a real enemy rather than reverting to a hollow disguise.
+    expect(restored.store(Health).get(rMimic)).toEqual({
+      hp: ARCHETYPES.mimic!.maxHp,
+      maxHp: ARCHETYPES.mimic!.maxHp,
+    });
+    expect(restored.store(Archetype).get(rMimic)?.defId).toBe('mimic');
   });
 
   it('an un-taken offer (ChestOffer + OfferedItem options + card instances) persists; PendingInteraction stays transient', () => {

@@ -19,6 +19,8 @@ import {
   ResourcePool,
   MovementBudget,
   spawnEnemy,
+  spawnMimic,
+  revealMimic,
   ARCHETYPES,
   attackPatternHexes,
   makeTurnSystem,
@@ -193,6 +195,31 @@ describe('decideEnemy — greedy per-enemy utility (pure, deterministic)', () =>
     const before = [...world.store(AttackCooldowns).get(goblin)!.remaining];
     decideEnemy(world, grid, goblin, new Set());
     expect(world.store(AttackCooldowns).get(goblin)!.remaining).toEqual(before); // unchanged by a decision
+  });
+});
+
+describe('a woken mimic acts as an enemy; a disguised one stays inert', () => {
+  it('a disguised mimic Waits (a hollow enemy), but once revealed it takes a real turn', () => {
+    const { world, grid } = decideWorld();
+    const mimic = spawnMimic(world, adjacent(PLAYER));
+    // Disguised: no Archetype/Attack, so the AI has nothing to act on — it never moves or telegraphs.
+    expect(decideEnemy(world, grid, mimic, new Set()).kind).toBe('Wait');
+
+    revealMimic(world, mimic);
+    const woken = decideEnemy(world, grid, mimic, new Set());
+    // Adjacent to the player with the mimic archetype's melee attacks, it telegraphs like any enemy.
+    expect(woken.kind).toBe('Act');
+  });
+
+  it('the enemy phase telegraphs a revealed mimic and lands the hit the next turn', () => {
+    const { world, player } = enemyPhaseWorld();
+    const mimic = spawnMimic(world, adjacent(PLAYER));
+    revealMimic(world, mimic);
+    advance(world); // phase 1: the woken mimic plans a telegraph (no immediate damage)
+    expect(world.store(PlannedAttack).get(mimic)).toBeDefined();
+    expect(playerHp(world, player)).toBe(30);
+    advance(world); // phase 2: resolve it against the player still on the locked hex
+    expect(playerHp(world, player)).toBeLessThan(30);
   });
 });
 

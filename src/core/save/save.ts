@@ -53,7 +53,11 @@ export const SAVE_KEY = 'ncg.save.v1';
 // v18: the Enemy Attack Patterns feature added a persistent AttackCooldowns component on every enemy (the
 // per-attack cooldown counters gating its stronger/wider special), so the saved world shape changed. Discard
 // older saves (no migration, ADR-010).
-export const SAVE_VERSION = 18 as const;
+// v19: waking a disguised mimic (revealMimic) now materialises its full combat bundle — Health, CombatStats,
+// Attack, AttackCooldowns, Archetype, Shield — onto the mimic entity, so a REVEALED mimic now persists with
+// those components (previously it woke to only a flipped `revealed` flag). The saved shape of a revealed
+// mimic changed; discard older saves so a resumed run's woken mimic is a real enemy (no migration, ADR-010).
+export const SAVE_VERSION = 19 as const;
 
 /** The versioned save envelope. */
 export interface SaveStateV1 {

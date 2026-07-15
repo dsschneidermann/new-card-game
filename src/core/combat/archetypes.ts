@@ -56,6 +56,21 @@ export const ARCHETYPES: Record<string, EnemyDef> = {
       { name: 'whirlwind', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 7, pattern: { kind: 'blast', size: 1 }, cooldown: 3 },
     ],
   },
+  mimic: {
+    id: 'mimic',
+    name: 'Mimic',
+    spriteKey: artBase(AssetKeys.enemyMimic1Idle),
+    // A disguised-chest ambusher (Chest Rewards): it stays hollow until the player wakes it (see mimic.ts /
+    // revealMimic), then fights as this forest-tier melee bruiser — chunkier than the goblin, slower, but it
+    // bites hard once revealed. Stats PLACEHOLDER pending balance sign-off (data, so tuning needs no code).
+    maxHp: 20,
+    armor: 1,
+    movement: 2,
+    attacks: [
+      { name: 'chomp', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 6 },
+      { name: 'gnash', minRange: 1, maxRange: 1, requiresLineOfSight: false, baseDamage: 6, pattern: { kind: 'line', size: 2 }, cooldown: 2 },
+    ],
+  },
   knight: {
     id: 'knight',
     name: 'Dark Knight',
