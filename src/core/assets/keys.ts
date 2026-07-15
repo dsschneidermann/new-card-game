@@ -19,8 +19,8 @@ export const AssetKeys = {
   playerDeath: 'player.death',
 
   // Card UI: static card-face backgrounds by class.
-  cardAttack: 'card_attack',
-  cardSkill: 'card_skill',
+  cardFrameAttack: 'card_frame_attack',
+  cardFrameSkill: 'card_frame_skill',
   // Card energy-cost gem: the icon badge drawn behind each card's energy-cost number.
   gemEnergy: 'gem_energy',
 

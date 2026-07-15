@@ -167,7 +167,7 @@ export class EquipmentOverlay {
     const card = buildItemCard(this.scene, def, { scale: TOOLTIP_SCALE });
     // Footprint = the card-face size (card_skill native × assetScale) at the tooltip scale, computed rather
     // than read from getBounds (a Graphics-backed container reports unreliable bounds).
-    const fd = resolveKey(AssetKeys.cardSkill)?.descriptor;
+    const fd = resolveKey(AssetKeys.cardFrameSkill)?.descriptor;
     const halfW = (s(fd ? fd.size[0] * assetScale(fd) : 195) * TOOLTIP_SCALE) / 2;
     const halfH = (s(fd ? fd.size[1] * assetScale(fd) : 284) * TOOLTIP_SCALE) / 2;
     // To the RIGHT of the slot disc, at the slot's y; clamp so the whole card stays on-screen.

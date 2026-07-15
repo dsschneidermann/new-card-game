@@ -12,7 +12,7 @@ const OVERLAY_ROW_H = 280;
 export const OVERLAY_FACE_SCALE = 0.9; // shared with CardController.makeCardFace so the hit-test matches the art
 // Card face footprint (base px, pre-scale) for the tap hit-test — the background art's native size at its
 // display scale (assetScale), matching CardController.makeCardFace exactly so the hit-test tracks the art.
-const CARD_FACE_DESC = resolveKey(AssetKeys.cardSkill)?.descriptor;
+const CARD_FACE_DESC = resolveKey(AssetKeys.cardFrameSkill)?.descriptor;
 const FACE_W = CARD_FACE_DESC ? CARD_FACE_DESC.size[0] * assetScale(CARD_FACE_DESC) : 195;
 const FACE_H = CARD_FACE_DESC ? CARD_FACE_DESC.size[1] * assetScale(CARD_FACE_DESC) : 284;
 const OVERLAY_DEPTH = 2_000_000 + 100; // above the HUD

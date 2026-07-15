@@ -839,7 +839,7 @@ export class CardController {
    * resolution tier. Attack and skill backgrounds share one size.
    */
   private cardFaceBase(): { w: number; h: number } {
-    const d = resolveKey(AssetKeys.cardSkill)?.descriptor;
+    const d = resolveKey(AssetKeys.cardFrameSkill)?.descriptor;
     if (d === undefined) return { w: CARD_FACE_ART_W, h: CARD_FACE_ART_H }; // unreachable (the key is registered) — safe fallback
     return { w: d.size[0] * assetScale(d), h: d.size[1] * assetScale(d) };
   }
@@ -855,7 +855,7 @@ export class CardController {
     const c = this.scene.add.container(0, 0).setScrollFactor(0); // pinned: hand cards stay put while the world scrolls
     // Full-card background art by class (attack vs skill), sized to the face so it matches the art's
     // aspect exactly; degrades to a generated placeholder texture if the file is missing (PreloadScene).
-    const bgKey = isAttackCard(def.id) ? AssetKeys.cardAttack : AssetKeys.cardSkill;
+    const bgKey = isAttackCard(def.id) ? AssetKeys.cardFrameAttack : AssetKeys.cardFrameSkill;
     const background = this.scene.add.image(0, 0, bgKey).setOrigin(0.5).setDisplaySize(w, h);
     const bg = this.scene.add
       .rectangle(0, 0, w, h, 0x000000, 0) // fill-transparent: only the frame + selection border, over the art
