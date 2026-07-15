@@ -63,6 +63,7 @@ import {
   type DeckStateData,
 } from '@core/index';
 import { SceneSync } from '@render/SceneSync';
+import { EnemyHealthBars } from '@render/EnemyHealthBars';
 import {
   Renderable,
   AnimState,
@@ -170,6 +171,8 @@ export class WorldScene extends Phaser.Scene {
   // freshWorld (selectLevelId — today always the forest) or resumeOrFresh (from the saved LevelState).
   private level!: Level;
   private sync!: SceneSync;
+  // Draws a small health bar at the feet of each on-screen enemy (Enemy Health Bars).
+  private healthBars!: EnemyHealthBars;
   // Plays a spell/card's one-shot cast EFFECT animation over the player's hex (Spell & Card Cast Effects).
   private effects!: EffectPlayer;
   private player!: EntityId;
@@ -268,6 +271,7 @@ export class WorldScene extends Phaser.Scene {
     const router = this.registry.get('router') as ScreenRouter;
     this.storage = this.registry.get('storage') as StorageAdapter;
     this.sync = new SceneSync(this, HOP_MS);
+    this.healthBars = new EnemyHealthBars(this);
     // Hex layout in current-scale pixels (s() — must run here, not at module load). BASE_HEX_LAYOUT is the
     // shared, unscaled source the forest's terrain classifier also reads (so they can't drift).
     this.layout = {
@@ -462,6 +466,9 @@ export class WorldScene extends Phaser.Scene {
       ...buildItemViews(this.world, this.layout),
     ].filter((v) => this.fullyInFrame(v.x, v.y));
     this.sync.sync(views);
+    // Draw enemy foot health bars off the SAME on-frame views + the same hovered board hex the inspect card
+    // uses, so a bar shows for a damaged enemy or the hovered one and tracks its sprite (Enemy Health Bars).
+    this.healthBars.update(this.world, views, this.hoveredBoardHex());
     this.refreshHud();
     for (const e of events) {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
@@ -531,6 +538,19 @@ export class WorldScene extends Phaser.Scene {
     const mimic = this.pendingMimicReveal;
     this.pendingMimicReveal = null;
     this.onMimicRevealed(mimic);
+  }
+
+  /**
+   * The board hex currently under the pointer, or null when nothing on the board is hovered — a modal overlay
+   * owns the screen, or the hex is outside the visible frame. Mirrors the guard refreshEnemyHover applies, so
+   * the health bars and the inspect card treat the same enemy as "hovered".
+   */
+  private hoveredBoardHex(): Hex | null {
+    if (this.cards.isOverlayOpen()) return null;
+    const p = this.input.activePointer;
+    const hex = pixelToHex(this.layout, p.worldX, p.worldY);
+    const { x, y } = hexToPixel(this.layout, hex);
+    return this.fullyInFrame(x, y) ? hex : null;
   }
 
   /**
