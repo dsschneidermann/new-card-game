@@ -42,6 +42,7 @@ import {
   pixelToHex,
   offsetToAxial,
   hexDistance,
+  neighbors,
   worldPixelBounds,
   LevelState,
   selectLevelId,
@@ -1130,31 +1131,97 @@ export class WorldScene extends Phaser.Scene {
   /**
    * Redraw the hex OUTLINE for the current camera scroll: every WORLD cell whose hexagon falls fully
    * inside the frame is stroked at its true world position; partial cells at the frame edge are skipped.
-   * The terrain layer supplies the fill now, so this strokes only the hex outline. Runs
-   * only on a camera pan.
+   * The terrain layer supplies the fill now, so this strokes only the hex outline. The world's outer
+   * PERIMETER — an edge whose neighbour is off the grid — is then re-stroked in a soft gray so the edge of
+   * the world is delineated instead of reading as a soft, half-drawn grid line (bug mqtvyxqc). Runs on a pan.
    */
   private redrawGrid(): void {
     const gridLine = 0x000000; // faint dark hex outline over the textured terrain (tactical grid; tunable)
+    // World-boundary emphasis (bug mqtvyxqc): an interior grid edge is shared by two in-frame hexes so it is
+    // stroked TWICE (doubled = hard), but a TRUE world-edge edge — its neighbour is off the grid, so no
+    // second hex ever draws it — is stroked once and reads soft, leaving the end of the world undelineated.
+    // Re-stroke each such edge thicker in a soft GRAY so the perimeter is delineated without a harsh black
+    // wall. A frame-CLIP edge (neighbour in-bounds but culled off-frame) is deliberately left soft: the world
+    // continues past the masked viewport cut, so hardening it would draw a false wall at the arbitrary frame
+    // edge. Boundary colour / width / alpha are tunable (flag at review).
+    const boundaryColor = 0x666666; // soft mid-gray — softer than the black interior line, still marks the edge
+    const boundaryWidth = s(3); // thicker than the s(2) interior grid
+    const boundaryAlpha = 0.5; // opacity of the gray perimeter stroke
+    const boundaryExtendPx = s(1); // overshoot each end so adjacent world-edge segments meet at the corners
     const hw = this.layout.width / 2;
     const q1 = this.layout.height / 4;
     const q2 = this.layout.height / 2;
     const g = this.gridGfx;
     g.clear();
+
+    // Pass 1: the faint tactical grid — every in-frame world cell's full hex outline. Collect each cell's
+    // TRUE world-boundary edges (a neighbour off the grid) to harden in pass 2.
     g.lineStyle(s(2), gridLine, 0.18);
+    const boundaryEdges: Array<[number, number, number, number]> = [];
     for (let row = 0; row < this.level.rows; row += 1) {
       for (let col = 0; col < this.level.cols; col += 1) {
-        const { x, y } = hexToPixel(this.layout, offsetToAxial({ col, row }));
+        const hex = offsetToAxial({ col, row });
+        const { x, y } = hexToPixel(this.layout, hex);
         if (!this.fullyInFrame(x, y)) continue;
+        // The 6 pointy-top hex vertices (top, upper-right, lower-right, bottom, lower-left, upper-left).
+        const verts = [
+          { x, y: y - q2 },
+          { x: x + hw, y: y - q1 },
+          { x: x + hw, y: y + q1 },
+          { x, y: y + q2 },
+          { x: x - hw, y: y + q1 },
+          { x: x - hw, y: y - q1 },
+        ];
         g.beginPath();
-        g.moveTo(x, y - q2);
-        g.lineTo(x + hw, y - q1);
-        g.lineTo(x + hw, y + q1);
-        g.lineTo(x, y + q2);
-        g.lineTo(x - hw, y + q1);
-        g.lineTo(x - hw, y - q1);
+        g.moveTo(verts[0]!.x, verts[0]!.y);
+        for (let i = 1; i < verts.length; i += 1) g.lineTo(verts[i]!.x, verts[i]!.y);
         g.closePath();
         g.strokePath();
+        // A neighbour OFF the grid marks a real world-boundary edge; a frame-clip edge's neighbour is
+        // in-bounds, so it is skipped here and stays soft. Record the nearest edge to re-stroke in pass 2.
+        for (const neighbour of neighbors(hex)) {
+          if (this.grid.inBounds(neighbour)) continue;
+          boundaryEdges.push(nearestHexEdge(verts, hexToPixel(this.layout, neighbour), boundaryExtendPx));
+        }
       }
     }
+
+    // Pass 2: delineate the world's outer perimeter — a soft gray stroke on each boundary edge, on top of
+    // the pass-1 stroke it already got, so the edge of the world reads as a distinct but gentle line.
+    if (boundaryEdges.length > 0) {
+      g.lineStyle(boundaryWidth, boundaryColor, boundaryAlpha);
+      for (const [ax, ay, bx, by] of boundaryEdges) g.lineBetween(ax, ay, bx, by);
+    }
   }
+}
+
+/**
+ * The hex edge (of the 6 vertices in `verts`, in the standard pointy-top order) whose midpoint is nearest
+ * `target` — i.e. the edge this hex shares with the neighbour centred at `target`. Returned as a segment
+ * [ax, ay, bx, by] whose ends OVERSHOOT by `extendPx` so separately-stroked adjacent boundary edges close
+ * at their shared corner with no gap. Mirrors TargetingPainter.strokeNearestEdge — the established per-edge
+ * boundary-outline pattern — reused here to harden the world-grid perimeter.
+ */
+function nearestHexEdge(
+  verts: ReadonlyArray<{ x: number; y: number }>,
+  target: { x: number; y: number },
+  extendPx: number,
+): [number, number, number, number] {
+  let best: readonly [{ x: number; y: number }, { x: number; y: number }] | null = null;
+  let bestDist = Infinity;
+  for (let i = 0; i < verts.length; i += 1) {
+    const a = verts[i]!;
+    const b = verts[(i + 1) % verts.length]!;
+    const midDx = (a.x + b.x) / 2 - target.x;
+    const midDy = (a.y + b.y) / 2 - target.y;
+    const d = midDx * midDx + midDy * midDy;
+    if (d < bestDist) {
+      bestDist = d;
+      best = [a, b];
+    }
+  }
+  const [a, b] = best!; // verts always has the 6 hex vertices, so a nearest edge always exists
+  const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+  const t = extendPx / len;
+  return [a.x - (b.x - a.x) * t, a.y - (b.y - a.y) * t, b.x + (b.x - a.x) * t, b.y + (b.y - a.y) * t];
 }
