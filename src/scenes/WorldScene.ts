@@ -116,6 +116,9 @@ const HOP_MS = 200; // per-hex hop duration: the SceneSync slide tween + the Mov
 // After a failed card/spell play, click-to-move is suppressed for this long so a reflexive follow-up
 // board click (the player trying to play the card on the world) is swallowed instead of starting a move.
 const MOVE_LOCKOUT_AFTER_REJECT_MS = 750;
+// How long a HUD toast (a rejection ✗ or a notice like "It's a mimic!") stays on the shared toast Text
+// before it is blanked. The clear timer is reset on each new toast so the latest message shows in full.
+const TOAST_MS = 1200;
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
 // The player's base resource maxima come from core (single source shared with the equip recompute, so a
@@ -208,6 +211,10 @@ export class WorldScene extends Phaser.Scene {
   private lastGridScrollY = NaN;
   // Pending timer that clears the player's one-shot attack overlay back to idle/ready.
   private attackClearTimer: Phaser.Time.TimerEvent | undefined;
+  // Pending timer that blanks the shared `toast` Text after TOAST_MS. Stored (like attackClearTimer) so a
+  // rapid second toast cancels + reschedules it — otherwise each toast stacks its own clear against the one
+  // shared Text and an earlier timer blanks a newer message before its time (bug mqtjy85u).
+  private toastClearTimer: Phaser.Time.TimerEvent | undefined;
   // Scene-clock deadline: click-to-move is suppressed until this.time.now passes it. Set when a play is
   // rejected (see flashRejected) so a reflexive board click right after the ✗ toast can't start a move.
   private moveLockedUntilMs = 0;
@@ -651,8 +658,7 @@ export class WorldScene extends Phaser.Scene {
   private onMimicRevealed(mimic: EntityId): void {
     const art = this.world.store(Enemy).get(mimic)?.art ?? MIMIC_ART;
     this.world.store(Renderable).add(mimic, { texture: `${art}.idle`, animBase: art });
-    this.toast.setText("It's a mimic!");
-    this.time.delayedCall(1200, () => this.toast?.setText(''));
+    this.showToast("It's a mimic!"); // shares the timer-reset path so it can't be blanked early / blank a ✗
   }
 
   /**
@@ -959,8 +965,15 @@ export class WorldScene extends Phaser.Scene {
       .text(textX, s(16), '', { fontFamily: 'monospace', fontSize: `${s(28)}px`, color: '#7dd3fc' })
       .setDepth(1_000_000)
       .setScrollFactor(0);
+    // The rejection / notice toast: a large, slightly-dark-red message CENTRED in the hex viewport
+    // (this.frame) so it is clearly shown over the board, screen-pinned so it stays centred as the camera pans.
     this.toast = this.add
-      .text(textX, s(96), '', { fontFamily: 'monospace', fontSize: `${s(26)}px`, color: '#f0a0a0' })
+      .text((this.frame.left + this.frame.right) / 2, (this.frame.top + this.frame.bottom) / 2, '', {
+        fontFamily: 'monospace',
+        fontSize: `${s(40)}px`,
+        color: '#f0a0a0', // washed-out pink (tunable)
+      })
+      .setOrigin(0.5)
       .setDepth(1_000_000)
       .setScrollFactor(0);
     this.refreshHud();
@@ -1050,11 +1063,27 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private flashRejected(reason: string): void {
-    this.toast.setText(`✗ ${reason}`);
-    this.time.delayedCall(1200, () => this.toast?.setText(''));
+    this.showToast(`✗ ${reason}`);
     // Every failed play funnels through here (CardController's notify + sim ActionRejected), so arming the
     // move-lockout once here covers them all: the next board click is swallowed instead of moving.
     this.moveLockedUntilMs = this.time.now + MOVE_LOCKOUT_AFTER_REJECT_MS;
+  }
+
+  /**
+   * Show `message` on the shared HUD toast (large, centred in the hex viewport) and blank it after TOAST_MS.
+   * The clear timer is tracked in toastClearTimer and cancelled + rescheduled on EVERY call, so a rapid
+   * second toast always shows for its full duration and is cleared exactly once by the latest timer —
+   * otherwise the earlier toast's still-pending clear blanks the newer message early (bug mqtjy85u). Mirrors
+   * the attackClearTimer pattern; the optional-chained setText also guards a callback that outlives the Text.
+   * Shared by every toast caller (flashRejected, the mimic reveal) so they don't stack clears on the one Text.
+   */
+  private showToast(message: string): void {
+    this.toast.setText(message);
+    this.toastClearTimer?.remove();
+    this.toastClearTimer = this.time.delayedCall(TOAST_MS, () => {
+      this.toast?.setText('');
+      this.toastClearTimer = undefined;
+    });
   }
 
   /**
