@@ -31,6 +31,10 @@ import {
   Equipment,
   KnownSpells,
   equipStartingItems,
+  PLAYER_BASE_ENERGY_MAX,
+  PLAYER_BASE_MANA_MAX,
+  PLAYER_BASE_MANA_REGEN,
+  PLAYER_BASE_MOVEMENT,
   Enemy,
   ChestOffer,
   MIMIC_ART,
@@ -111,10 +115,12 @@ const HOP_MS = 200; // per-hex hop duration: the SceneSync slide tween + the Mov
 const MOVE_LOCKOUT_AFTER_REJECT_MS = 750;
 
 // Turn defaults (ADR-005); all tunable, persisted per-run once set.
-const ENERGY_MAX = 3;
-const MANA_MAX = 5;
-const MANA_REGEN = 1;
-const MOVE_BUDGET = 5;
+// The player's base resource maxima come from core (single source shared with the equip recompute, so a
+// worn amulet's bonus stacks on exactly this base). See turn/resources PLAYER_BASE_*.
+const ENERGY_MAX = PLAYER_BASE_ENERGY_MAX;
+const MANA_MAX = PLAYER_BASE_MANA_MAX;
+const MANA_REGEN = PLAYER_BASE_MANA_REGEN;
+const MOVE_BUDGET = PLAYER_BASE_MOVEMENT;
 const HAND_SIZE = 4;
 // Player combat stats (ADR-007). The player is a damageable combatant — shared Health/CombatStats with
 // enemies — so the player takes hits like anything else; the loss condition when HP reaches 0 is deferred

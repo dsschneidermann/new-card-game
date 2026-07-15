@@ -55,6 +55,8 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   // --- Card UI: static face backgrounds by class ---
   asset(AssetKeys.cardAttack, [195, 284, 0.5], 'attack-card frame + background', 'Card face background (attack class)'),
   asset(AssetKeys.cardSkill, [195, 284, 0.5], 'skill-card frame + background', 'Card face background (skill class)'),
+  // Card energy-cost gem: the icon badge drawn behind each card's cost number (native 64x64).
+  asset(AssetKeys.gemEnergy, [64, 64], 'faceted energy gem/crystal badge', 'Card energy-cost gem icon'),
 
   // --- Card art (per card type), shown behind the face. Static, scale 0.5; placeholders until art drops in ---
   asset(AssetKeys.cardArtMelee, [256, 256, 0.35], 'card art (melee)', 'Card art: melee'),
@@ -82,8 +84,11 @@ export const GAME_ASSETS: readonly AssetDescriptor[] = [
   asset(AssetKeys.itemArtLeatherCap, [256, 256, 0.35], 'item art (leather cap)', 'Item art: leather cap'),
   asset(AssetKeys.itemArtLeatherTunic, [256, 256, 0.35], 'item art (leather tunic)', 'Item art: leather tunic'),
   asset(AssetKeys.itemArtTravelersCape, [256, 256, 0.35], 'item art (travelers cape)', 'Item art: travelers cape'),
-  asset(AssetKeys.itemArtPlainAmulet, [256, 256, 0.35], 'item art (plain amulet)', 'Item art: plain amulet'),
   asset(AssetKeys.itemArtApprenticeSpellbook, [256, 256, 0.35], 'item art (apprentice spellbook)', 'Item art: apprentice spellbook'),
+  asset(AssetKeys.itemArtManaAmulet, [128, 128, 0.35], 'item art (mana amulet)', 'Item art: mana amulet'),
+  asset(AssetKeys.itemArtMovementAmulet, [256, 256, 0.35], 'item art (movement amulet)', 'Item art: movement amulet'),
+  asset(AssetKeys.itemArtEnergyAmulet, [256, 256, 0.35], 'item art (energy amulet)', 'Item art: energy amulet'),
+  asset(AssetKeys.itemArtEnergyPotion, [256, 256, 0.35], 'item art (energy potion)', 'Item art: energy potion'),
 
   // --- Equipped-items overlay figure: the mannequin the equip slots are laid over. Single static UI image. ---
   asset(AssetKeys.uiMannequin, [256, 512, 0.75], 'humanoid mannequin silhouette, front-facing', 'Equipment overlay mannequin figure'),

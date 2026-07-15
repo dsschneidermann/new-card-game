@@ -134,16 +134,19 @@ describe('rollChestRewardOffer (open-time mixed offer)', () => {
     }
   });
 
-  it('offers all cards when no items are eligible (every CHEST_ITEM_POOL item is equipped)', () => {
+  it('same-kind items share a slot, so equipping every pool item still leaves items eligible', () => {
     const world = createWorld(4);
     const owner = makeOwner(world);
-    for (const id of CHEST_ITEM_POOL) equipItem(world, owner, id); // exhaust the item pool
+    // Equip every pool item. The distinct-kind gear all sticks, but the three amulets share ONE slot and the
+    // dagger + potion share the backup slot, so several items can never be worn at once — those un-equipped
+    // items remain eligible, so the offer is NOT forced to all-cards. (A single-kind pool would exhaust items.)
+    for (const id of CHEST_ITEM_POOL) equipItem(world, owner, id);
     const chest = spawnChest(world, { q: 0, r: 0 });
     rollChestRewardOffer(world, owner, chest);
     const options = world.store(ChestOffer).get(chest)?.options ?? [];
     const { cards, items } = classify(world, options);
-    expect(items).toBe(0);
-    expect(cards).toBe(CHEST_OFFER_SIZE);
+    expect(items).toBeGreaterThan(0); // the un-equipped amulets + backup item stay eligible
+    expect(cards + items).toBe(CHEST_OFFER_SIZE);
   });
 
   it('is deterministic for a fixed rng state', () => {

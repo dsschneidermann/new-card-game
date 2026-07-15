@@ -51,6 +51,12 @@ export interface ItemDef {
   /** Flat armour added to the player's CombatStats.armor while equipped (Defense & Shielding): added on
    *  equip, removed on unequip/replace. Absent means 0 — weapons grant none. */
   readonly armor?: number;
+  /** Passive +max resource bonuses while EQUIPPED (Amulet & Potion Items): each is summed over the loadout
+   *  onto the player's base to derive the live max (recomputeResourceMaxes / recomputeMovementMax, mirroring
+   *  the armour recompute). Absent means 0. */
+  readonly energyBonus?: number;
+  readonly manaBonus?: number;
+  readonly movementBonus?: number;
   /** Registered AssetKey of this item's equipment art (e.g. AssetKeys.itemArtIronSword): shown in the
    *  item rectangle's top half and in the equipped-items overlay slot. Mirrors CardDef.art / SpellDef.art. */
   readonly art: AssetKey;

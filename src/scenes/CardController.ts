@@ -78,9 +78,11 @@ const ARMED_CARD_RAISE_PX = 56;
 // frameColor / cardFaceBase read these. Lengths are "base px" (before s() scaling); colours are hex.
 const CARD_FACE_ART_W = 195; // the card-background art's native (source) width; the face base is this at the art's display scale
 const CARD_FACE_ART_H = 284; // ...native height
-const CARD_COST_OFFSET_X = 12; // cost text inset from the face's LEFT edge
-const CARD_COST_OFFSET_Y = 44; // cost text inset from the face's TOP edge
-const CARD_COST_FONT_PX = 28; // cost text font size
+// Energy-cost badge: the gem_energy icon with the effective cost number centred inside it (replaces 'E<cost>').
+const CARD_COST_GEM_CX = 30; // gem CENTRE inset from the face's LEFT edge
+const CARD_COST_GEM_CY = 54; // gem CENTRE inset from the face's TOP edge
+const CARD_COST_GEM_SIZE = 46; // gem display size (square); the cost number sits centred on it
+const CARD_COST_FONT_PX = 26; // cost number font size
 const CARD_COST_COLOR_FREE = '#22c55e'; // cost GREEN when temporarily free this hand
 const CARD_COST_COLOR_BASE = '#facc15'; // cost YELLOW for base/permanent cost
 const CARD_NAME_OFFSET_Y_ATTACK = 17; // name inset from the TOP (attack faces)
@@ -859,13 +861,30 @@ export class CardController {
       .rectangle(0, 0, w, h, 0x000000, 0) // fill-transparent: only the frame + selection border, over the art
       .setStrokeStyle(s(CARD_BORDER_WIDTH_OFF), this.frameColor(def.id)) // no visible border for cards normally
       .setOrigin(0.5);
-    const costText = this.scene.add
-      .text(-w / 2 + s(CARD_COST_OFFSET_X), -h / 2 + s(CARD_COST_OFFSET_Y), `E${cost}`, {
-        fontFamily: 'monospace',
-        fontSize: `${s(CARD_COST_FONT_PX)}px`,
-        color: tempFree ? CARD_COST_COLOR_FREE : CARD_COST_COLOR_BASE, // green = temporary free; yellow = base/permanent
-      })
-      .setOrigin(0, 0);
+    // Energy-cost badge: the gem icon (placeholder-safe — drawn only if its texture loaded) with the effective
+    // cost NUMBER centred on it. The number keeps the green-when-free / yellow-normal colour and always renders,
+    // so the cost is legible even if the gem art is missing.
+    const costCx = -w / 2 + s(CARD_COST_GEM_CX);
+    const costCy = -h / 2 + s(CARD_COST_GEM_CY);
+    const costBadge: Phaser.GameObjects.GameObject[] = [];
+    if (this.scene.textures.exists(AssetKeys.gemEnergy)) {
+      costBadge.push(
+        this.scene.add
+          .image(costCx, costCy, AssetKeys.gemEnergy)
+          .setOrigin(0.5)
+          .setDisplaySize(s(CARD_COST_GEM_SIZE), s(CARD_COST_GEM_SIZE)),
+      );
+    }
+    costBadge.push(
+      this.scene.add
+        .text(costCx, costCy, String(cost), {
+          fontFamily: 'monospace',
+          fontStyle: 'bold',
+          fontSize: `${s(CARD_COST_FONT_PX)}px`,
+          color: tempFree ? CARD_COST_COLOR_FREE : CARD_COST_COLOR_BASE, // green = temporary free; yellow = base/permanent
+        })
+        .setOrigin(0.5), // centred on the gem
+    );
     const nameOffset = isAttackCard(def.id) ? s(CARD_NAME_OFFSET_Y_ATTACK) : s(CARD_NAME_OFFSET_Y_SKILL);
     const name = this.scene.add
       .text(0, -h / 2 + nameOffset, def.name, { fontFamily: 'monospace', fontSize: `${s(CARD_NAME_FONT_PX)}px`, color: CARD_NAME_COLOR })
@@ -880,7 +899,7 @@ export class CardController {
         wordWrap: { width: w - s(CARD_EFFECT_WRAP_INSET) },
       })
       .setOrigin(0.5, 0);
-    const layers = [background, bg, costText, name, eff];
+    const layers = [background, bg, ...costBadge, name, eff];
     // Per-card art BEHIND the frame, revealed through the frame's transparent top-half window (the frame is
     // opaque around that window, so it masks the art's in-card overflow). Missing art -> generated placeholder.
     const artKey = def.art;

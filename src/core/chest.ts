@@ -62,8 +62,12 @@ export const CHEST_ITEM_POOL: readonly string[] = [
   'leather_cap',
   'leather_tunic',
   'travelers_cape',
-  'plain_amulet',
   'apprentice_spellbook',
+  // Amulet & Potion Items: the three effect amulets + the permanent energy potion (backup slot).
+  'mana_amulet',
+  'movement_amulet',
+  'energy_amulet',
+  'energy_potion',
 ];
 
 /** How many reward choices a chest presents. */

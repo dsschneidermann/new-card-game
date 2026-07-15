@@ -3,6 +3,8 @@ import type { EntityId } from '../ecs/entity';
 import type { World } from '../ecs/world';
 import { DeckState, buildCardInstances, type DeckStateData } from '../cards/deck';
 import { CombatStats } from '../combat/components';
+import { ResourcePool, MovementBudget } from '../turn/components';
+import { PLAYER_BASE_ENERGY_MAX, PLAYER_BASE_MANA_MAX, PLAYER_BASE_MOVEMENT } from '../turn/resources';
 import { itemDef, STARTER_EQUIPMENT } from './content';
 import type { EquipKind } from './types';
 
@@ -81,6 +83,46 @@ function recomputeKnownSpells(world: World, owner: EntityId): void {
   else known.spellIds = [...ids];
 }
 
+/**
+ * Recompute the owner's resource MAXIMA from scratch: the player's intrinsic base (PLAYER_BASE_*) plus the
+ * sum of every equipped item's energyBonus / manaBonus (Amulet & Potion Items). Called after any equip/unequip
+ * so ResourcePool.energyMax / manaMax are always DERIVED from the live loadout — the SAME recompute-from-base
+ * discipline as recomputeArmor (never an accumulated +=/-= delta that could drift over a run). No-op when the
+ * owner has no ResourcePool. Current energy/mana are left alone: the new max takes effect on the next
+ * refill/regen, so equipping mid-turn does not retroactively top up the pool.
+ */
+function recomputeResourceMaxes(world: World, owner: EntityId): void {
+  const pool = world.store(ResourcePool).get(owner);
+  const equipment = world.store(Equipment).get(owner);
+  if (pool === undefined || equipment === undefined) return;
+  let energyBonus = 0;
+  let manaBonus = 0;
+  for (const slot of Object.values(equipment.slots)) {
+    if (slot === undefined) continue;
+    const def = itemDef(slot.defId);
+    energyBonus += def?.energyBonus ?? 0;
+    manaBonus += def?.manaBonus ?? 0;
+  }
+  pool.energyMax = PLAYER_BASE_ENERGY_MAX + energyBonus;
+  pool.manaMax = PLAYER_BASE_MANA_MAX + manaBonus;
+}
+
+/**
+ * Recompute the owner's movement MAX from scratch: the base movement budget plus the sum of every equipped
+ * item's movementBonus (recompute-from-base, like recomputeArmor). No-op when the owner has no MovementBudget.
+ * MovementBudget.remaining is untouched — the larger budget applies from the next turn's refill.
+ */
+function recomputeMovementMax(world: World, owner: EntityId): void {
+  const budget = world.store(MovementBudget).get(owner);
+  const equipment = world.store(Equipment).get(owner);
+  if (budget === undefined || equipment === undefined) return;
+  let bonus = 0;
+  for (const slot of Object.values(equipment.slots)) {
+    if (slot !== undefined) bonus += itemDef(slot.defId)?.movementBonus ?? 0;
+  }
+  budget.max = PLAYER_BASE_MOVEMENT + bonus;
+}
+
 /** Remove an instance id from whichever of the deck's three piles holds it (no-op if in none). */
 function removeFromPiles(deck: DeckStateData, inst: EntityId): void {
   for (const pile of [deck.drawPile, deck.hand, deck.discardPile]) {
@@ -109,6 +151,8 @@ export function equipItem(world: World, owner: EntityId, itemDefId: string): voi
   equipment.slots[def.kind] = { defId: def.id, grantedCards: granted };
   recomputeArmor(world, owner); // re-derive total armour from the full loadout (never an incremental delta)
   recomputeKnownSpells(world, owner); // re-derive available spells (a spellbook grants them)
+  recomputeResourceMaxes(world, owner); // re-derive energy/mana max from the full loadout (amulet bonuses)
+  recomputeMovementMax(world, owner); // re-derive movement max from the full loadout (movement amulet)
 }
 
 /**
@@ -127,6 +171,8 @@ export function unequipItem(world: World, owner: EntityId, kind: EquipKind): voi
   delete equipment.slots[kind];
   recomputeArmor(world, owner); // re-derive total armour from the now-smaller loadout
   recomputeKnownSpells(world, owner); // re-derive available spells from the now-smaller loadout
+  recomputeResourceMaxes(world, owner); // re-derive energy/mana max from the now-smaller loadout
+  recomputeMovementMax(world, owner); // re-derive movement max from the now-smaller loadout
 }
 
 /**

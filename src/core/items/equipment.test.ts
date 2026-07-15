@@ -13,9 +13,16 @@ import {
   itemDef,
   ITEM_DEFS,
   EQUIP_KINDS,
+  CHEST_ITEM_POOL,
   cardDef,
   resolveKey,
   CombatStats,
+  ResourcePool,
+  MovementBudget,
+  PLAYER_BASE_ENERGY_MAX,
+  PLAYER_BASE_MANA_MAX,
+  PLAYER_BASE_MANA_REGEN,
+  PLAYER_BASE_MOVEMENT,
   type World,
   type EntityId,
   type DeckStateData,
@@ -227,6 +234,109 @@ describe('KnownSpells (spellbook-granted spells, derived from the loadout)', () 
     equipItem(world, player, 'apprentice_spellbook');
     const restored = restoreWorld(serializeWorld(world));
     expect(restored.store(KnownSpells).get(player)?.spellIds.slice().sort()).toEqual(known(world, player).slice().sort());
+  });
+});
+
+describe('item resource bonuses & consumables (Amulet & Potion Items)', () => {
+  /** A player carrying the resource pools, so amulet/potion effects on the maxima are observable. */
+  function resourcePlayer(world: World): EntityId {
+    const player = makePlayer(world);
+    world.store(ResourcePool).add(player, {
+      energy: PLAYER_BASE_ENERGY_MAX,
+      energyMax: PLAYER_BASE_ENERGY_MAX,
+      mana: 0,
+      manaMax: PLAYER_BASE_MANA_MAX,
+      manaRegen: PLAYER_BASE_MANA_REGEN,
+    });
+    world.store(MovementBudget).add(player, { remaining: PLAYER_BASE_MOVEMENT, max: PLAYER_BASE_MOVEMENT });
+    return player;
+  }
+  const pool = (world: World, p: EntityId) => world.store(ResourcePool).get(p)!;
+  const move = (world: World, p: EntityId) => world.store(MovementBudget).get(p)!;
+
+  it('the base constants match the player spawn defaults (energy 3 / mana 5 / regen 1 / movement 5)', () => {
+    expect([
+      PLAYER_BASE_ENERGY_MAX,
+      PLAYER_BASE_MANA_MAX,
+      PLAYER_BASE_MANA_REGEN,
+      PLAYER_BASE_MOVEMENT,
+    ]).toEqual([3, 5, 1, 5]);
+  });
+
+  it('the four new items resolve with the expected kind + effect fields, and are all in the chest pool', () => {
+    expect(itemDef('mana_amulet')).toMatchObject({ kind: 'amulet', manaBonus: 3 });
+    expect(itemDef('movement_amulet')).toMatchObject({ kind: 'amulet', movementBonus: 2 });
+    expect(itemDef('energy_amulet')).toMatchObject({ kind: 'amulet', energyBonus: 1 });
+    expect(itemDef('energy_potion')).toMatchObject({ kind: 'weapon_backup', energyBonus: 1 });
+    expect(CHEST_ITEM_POOL).toEqual(
+      expect.arrayContaining(['mana_amulet', 'movement_amulet', 'energy_amulet', 'energy_potion']),
+    );
+  });
+
+  it('each amulet raises ONLY its own max (base + bonus); the others stay at base', () => {
+    const world = createWorld(1);
+    const player = resourcePlayer(world);
+    equipItem(world, player, 'mana_amulet');
+    expect(pool(world, player).manaMax).toBe(PLAYER_BASE_MANA_MAX + 3);
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX); // untouched
+    expect(move(world, player).max).toBe(PLAYER_BASE_MOVEMENT); // untouched
+
+    const w2 = createWorld(2);
+    const p2 = resourcePlayer(w2);
+    equipItem(w2, p2, 'energy_amulet');
+    expect(pool(w2, p2).energyMax).toBe(PLAYER_BASE_ENERGY_MAX + 1);
+
+    const w3 = createWorld(3);
+    const p3 = resourcePlayer(w3);
+    equipItem(w3, p3, 'movement_amulet');
+    expect(move(w3, p3).max).toBe(PLAYER_BASE_MOVEMENT + 2);
+  });
+
+  it('unequip returns the max to base and re-equipping the same kind never drifts (idempotent)', () => {
+    const world = createWorld(4);
+    const player = resourcePlayer(world);
+    equipItem(world, player, 'mana_amulet');
+    equipItem(world, player, 'mana_amulet'); // same-kind replace -> still base + 3, not + 6
+    expect(pool(world, player).manaMax).toBe(PLAYER_BASE_MANA_MAX + 3);
+    unequipItem(world, player, 'amulet');
+    expect(pool(world, player).manaMax).toBe(PLAYER_BASE_MANA_MAX);
+  });
+
+  it('the three amulets share ONE slot — equipping a second swaps the first, only the last applies', () => {
+    const world = createWorld(5);
+    const player = resourcePlayer(world);
+    equipItem(world, player, 'mana_amulet'); // manaMax + 3
+    equipItem(world, player, 'energy_amulet'); // replaces the amulet slot
+    expect(pool(world, player).manaMax).toBe(PLAYER_BASE_MANA_MAX); // mana amulet gone
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX + 1); // energy amulet on
+  });
+
+  it('the recompute is a safe no-op when the entity has no ResourcePool / MovementBudget', () => {
+    const world = createWorld(6);
+    const player = makePlayer(world); // no ResourcePool / MovementBudget
+    expect(() => equipItem(world, player, 'mana_amulet')).not.toThrow();
+    expect(world.store(ResourcePool).get(player)).toBeUndefined();
+  });
+
+  it('the energy potion is a permanent backup-slot item: +1 energy max, and it stacks with an energy amulet', () => {
+    const world = createWorld(7);
+    const player = resourcePlayer(world);
+    equipItem(world, player, 'energy_potion'); // weapon_backup slot, +1 energyMax
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX + 1);
+    expect(world.store(Equipment).get(player)?.slots['weapon_backup']?.defId).toBe('energy_potion');
+    equipItem(world, player, 'energy_amulet'); // different slot -> both bonuses apply
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX + 2);
+    unequipItem(world, player, 'weapon_backup'); // remove the potion -> back to just the amulet's +1
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX + 1);
+  });
+
+  it('the starter loadout leaves every resource max at base (no starter grants a resource bonus)', () => {
+    const world = createWorld(8);
+    const player = resourcePlayer(world);
+    equipStartingItems(world, player);
+    expect(pool(world, player).energyMax).toBe(PLAYER_BASE_ENERGY_MAX);
+    expect(pool(world, player).manaMax).toBe(PLAYER_BASE_MANA_MAX);
+    expect(move(world, player).max).toBe(PLAYER_BASE_MOVEMENT);
   });
 });
 

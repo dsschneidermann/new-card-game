@@ -21,6 +21,8 @@ export const AssetKeys = {
   // Card UI: static card-face backgrounds by class.
   cardAttack: 'card_attack',
   cardSkill: 'card_skill',
+  // Card energy-cost gem: the icon badge drawn behind each card's energy-cost number.
+  gemEnergy: 'gem_energy',
 
   // Card art shown BEHIND the face (per card type), revealed through the frame's transparent top-half opening.
   cardArtMelee: 'card_art_melee',
@@ -47,8 +49,11 @@ export const AssetKeys = {
   itemArtLeatherCap: 'item_art_leather_cap',
   itemArtLeatherTunic: 'item_art_leather_tunic',
   itemArtTravelersCape: 'item_art_travelers_cape',
-  itemArtPlainAmulet: 'item_art_plain_amulet',
   itemArtApprenticeSpellbook: 'item_art_apprentice_spellbook',
+  itemArtManaAmulet: 'item_art_mana_amulet',
+  itemArtMovementAmulet: 'item_art_movement_amulet',
+  itemArtEnergyAmulet: 'item_art_energy_amulet',
+  itemArtEnergyPotion: 'item_art_energy_potion',
 
   // Equipped-items overlay: the mannequin figure the equip slots are laid over.
   uiMannequin: 'ui_mannequin',
