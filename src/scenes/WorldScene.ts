@@ -82,6 +82,11 @@ import { makeLevel, type Level, type LevelBuildContext } from '@render/levels/le
 interface WorldSceneData {
   resume?: boolean;
   restart?: boolean;
+  // Restart Turn only: the LIVE RNG state (mulberry32 accumulator) captured before the scene rebuild. Restart
+  // Turn reuses the Resume restore path (resume: true) to fully rebuild the render layer, but must NOT rewind
+  // randomness to the turn-start save — create() re-applies this on top of the restored world so the stream
+  // continues (the brief's no-save-scum rule). Absent on a plain Resume / Restart Level (bug mqvl58ks).
+  keepRngState?: number;
 }
 
 // Pointy-top, perspective-foreshortened hexes in offset (odd-r) rows (ADR-006).
@@ -268,6 +273,10 @@ export class WorldScene extends Phaser.Scene {
         : data?.restart === true
           ? this.restartLevelWorld()
           : this.freshWorld();
+    // Restart Turn rebuilds through the Resume path (above) to reset the render layer, but keeps the live RNG:
+    // re-apply the stashed stream state on top of the restored turn-start save so randomness is not rewound
+    // (the no-save-scum rule). Only Restart Turn sets keepRngState; a plain Resume keeps the save's RNG. (bug mqvl58ks)
+    if (data?.keepRngState !== undefined) this.world.rng.setState(data.keepRngState);
     // Hex-snap camera follow. The visible frame is the original 26x21 grid rect (full hexes only); the
     // reference hex sits at the frame's centre-cell screen position so the player is where it was
     // originally, and the scroll is clamped so the frame never reveals anything past the world edge.
@@ -886,27 +895,20 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Restart Turn: reload the per-turn autosave (start of the current turn), but
-   * KEEP the live RNG so the stream continues (the brief's rule — no save-scum).
-   * Reuses the same restore path as Resume / Restart Level.
+   * Restart Turn (R): roll the run back to the per-turn autosave (the start of the current turn) and rebuild
+   * the ENTIRE scene from it — the same full shutdown + create() the Resume / Restart Level paths use — so the
+   * render layer (every sprite, animation and telegraph, plus a fresh SceneSync) is reset to match the restored
+   * snapshot, not just the world model. The old in-place restore reused the persistent SceneSync and so left
+   * stale render state behind, e.g. a revealed mimic stuck in its opened animation (bug mqvl58ks). The ONE
+   * difference from a plain Resume: KEEP the live RNG so the stream continues across the restart (the brief's
+   * no-save-scum rule) — we stash it into the scene data and create() re-applies it after the Resume restore.
    */
   private restartTurn(): void {
-    const loaded = loadRun(this.storage);
-    if (!loaded.ok) return;
-    const liveRng = this.world.rng.state();
-    const restored = applySave(loaded.state);
-    const player = restored.entitiesWith(Player)[0];
-    if (player === undefined) return;
-    restored.rng.setState(liveRng);
-    this.world = restored;
-    this.player = player;
-    this.pendingChest = null; // a queued chest pickup from the abandoned turn is dropped on restart
-    this.pendingMimicReveal = null; // and any deferred mimic reveal
-    this.chestOpening = false;
-    this.level.reinstall(restored, this.grid); // re-apply grid flags + re-attach content Renderables
-    this.installSystems();
-    this.cards.cancel();
-    this.cards.refreshHand();
+    if (!loadRun(this.storage).ok) return; // no usable autosave — pressing R is a no-op (never start a fresh run)
+    // Full scene rebuild via the Resume restore path (mirrors Restart Level's stop + start): shutdown tears down
+    // every sprite and the SceneSync; create({ resume }) recreates them from the restored world. keepRngState
+    // carries the live stream across so create() does not rewind randomness to the turn-start save.
+    this.scene.restart({ resume: true, keepRngState: this.world.rng.state() });
   }
 
   private autosave(): void {
