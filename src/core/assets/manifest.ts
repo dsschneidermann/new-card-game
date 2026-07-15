@@ -37,6 +37,14 @@ export interface AssetDescriptor {
      * anim-creation time, since Phaser's spritesheet config can't offset only the Y axis.
      */
     frameOffsetY?: number;
+    /**
+     * FILE-PER-FRAME animation: the frames are NOT one spritesheet but `frameCount` separate
+     * files named `<key><NN>.png` (NN 1-based, zero-padded to 2 digits) — the shape the effect
+     * art ships in (spell_effect_blizzard01.png..17.png). PreloadScene loads each frame as its
+     * own texture and builds `<key>.right` from them (frameSequenceUrls / frameSequenceTextureKey).
+     * Still an animation (declare fps); size[0..1] is the per-frame size, as for a spritesheet.
+     */
+    filePerFrame?: boolean;
   };
   style: string;
   description: string;
@@ -56,6 +64,29 @@ export interface ValidationReport {
 /** Frame layout for a descriptor: frame size from size[0..1]; frameCount from the sprite options (1 if none). */
 export function frameConfig(d: AssetDescriptor): { frameWidth: number; frameHeight: number; frameCount: number } {
   return { frameWidth: d.size[0], frameHeight: d.size[1], frameCount: d.sprite?.frameCount ?? 1 };
+}
+
+/**
+ * The per-frame runtime URLs of a FILE-PER-FRAME animation (sprite.filePerFrame): `<key><NN>.png` for
+ * NN = 1..frameCount, zero-padded to 2 digits (matching the effect files, e.g. spell_effect_blizzard01.png).
+ * Returns [] for a normal (spritesheet or single-image) descriptor. Pure — the single source of the frame
+ * file naming, shared by PreloadScene (what to load) and assetFiles.test (what must exist on disk).
+ */
+export function frameSequenceUrls(d: AssetDescriptor): string[] {
+  if (d.sprite?.filePerFrame !== true) return [];
+  return Array.from(
+    { length: d.sprite.frameCount },
+    (_unused, i) => `${d.key}${String(i + 1).padStart(2, '0')}.png`,
+  );
+}
+
+/**
+ * The per-frame TEXTURE KEY for frame index `i` (0-based) of a file-per-frame animation. Each frame file is
+ * loaded as its own single-image texture under this key; PreloadScene builds `<key>.right` from these, so
+ * they never collide with the base logical key. Pure.
+ */
+export function frameSequenceTextureKey(key: string, i: number): string {
+  return `${key}.f${i}`;
 }
 
 /**

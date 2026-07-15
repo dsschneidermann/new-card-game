@@ -115,6 +115,7 @@ export const SPELL_DEFS: readonly SpellDef[] = [
     name: 'Blizzard',
     cost: 3,
     art: AssetKeys.spellArtBlizzard,
+    effectArt: AssetKeys.spellEffectBlizzard, // file-per-frame cast effect played over the player
     effectText: 'Deal 6 frost damage to enemies in a 1-hex radius.',
     target: { kind: 'areaOfEffect', radius: 1 },
     effect: { kind: 'Attack', damage: 6 },

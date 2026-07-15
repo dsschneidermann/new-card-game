@@ -40,6 +40,10 @@ export const AssetKeys = {
   spellArtSelfheal: 'spell_art_selfheal',
   spellArtTeleport: 'spell_art_teleport',
 
+  // Spell & card CAST EFFECTS (file-per-frame animations played over the player on cast/play). Each is N
+  // separate files spell_effect_<id><NN>.png / card_effect_<id><NN>.png; keyed on a def via effectArt.
+  spellEffectBlizzard: 'spell_effect_blizzard',
+
   // Equipment / item art (one per ItemDef): shown in the item rectangle's top half and the equipped-items overlay slots.
   itemArtIronSword: 'item_art_iron_sword',
   itemArtWoodenShield: 'item_art_wooden_shield',

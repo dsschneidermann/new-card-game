@@ -68,6 +68,9 @@ export interface CardDef {
   readonly name: string;
   readonly cost: number; // energy (base; per-instance modifiers adjust the effective cost)
   readonly art: AssetKey; // registered asset key of the per-card art (e.g. AssetKeys.cardArtMelee)
+  /** Optional registered asset key of the cast EFFECT animation played over the player when this card is
+   *  played (e.g. AssetKeys.spellEffectBlizzard). Opt-in + cosmetic; absent = no effect. */
+  readonly effectArt?: AssetKey;
   readonly effectText: string;
   readonly target: TargetSpec;
   /** Attack cards (melee/ranged) trigger the player's attack animation when played (presentation/targeting
@@ -87,6 +90,9 @@ export interface SpellDef {
   readonly name: string;
   readonly cost: number; // mana
   readonly art: AssetKey; // registered asset key of the spell's sidebar art (e.g. AssetKeys.spellArtBlizzard)
+  /** Optional registered asset key of the cast EFFECT animation played over the player when this spell is
+   *  cast (e.g. AssetKeys.spellEffectBlizzard). Opt-in + cosmetic; absent = no effect. */
+  readonly effectArt?: AssetKey;
   readonly effectText: string;
   readonly target: TargetSpec;
   /** Mechanical effect resolved by the spell system on cast (damage / heal / teleport). */

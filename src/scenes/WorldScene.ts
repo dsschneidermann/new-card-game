@@ -37,6 +37,8 @@ import {
   MIMIC_ART,
   isAttackCard,
   isHeavyAttack,
+  cardDef,
+  spellDef,
   facingToward,
   hexToPixel,
   pixelToHex,
@@ -69,6 +71,7 @@ import {
   type AnimStateData,
 } from '@render/characterViews';
 import { ItemRenderable, buildItemViews } from '@render/itemViews';
+import { EffectPlayer } from '@render/EffectPlayer';
 import { enemyCardAt } from '@render/enemyCardData';
 import { buildEnemyCard, enemyCardSize } from '@render/enemyCard';
 import type { ScreenRouter } from '@scenes/ScreenRouter';
@@ -167,6 +170,8 @@ export class WorldScene extends Phaser.Scene {
   // freshWorld (selectLevelId — today always the forest) or resumeOrFresh (from the saved LevelState).
   private level!: Level;
   private sync!: SceneSync;
+  // Plays a spell/card's one-shot cast EFFECT animation over the player's hex (Spell & Card Cast Effects).
+  private effects!: EffectPlayer;
   private player!: EntityId;
   private storage!: StorageAdapter;
   private hud!: Phaser.GameObjects.Text;
@@ -271,6 +276,7 @@ export class WorldScene extends Phaser.Scene {
       originX: s(BASE_HEX_LAYOUT.originX),
       originY: s(BASE_HEX_LAYOUT.originY),
     };
+    this.effects = new EffectPlayer(this, this.layout); // cast-effect player (needs the scaled hex layout)
     // Build the run's world. This is the SEAM: it picks the active level (the forest, via selectLevelId;
     // else the level recorded in the save), builds the grid from the level's size, populates a fresh
     // run's content / reinstalls a resumed one, and sets this.level / this.grid / this.player.
@@ -460,6 +466,10 @@ export class WorldScene extends Phaser.Scene {
       if (e.kind === 'ActionRejected') this.flashRejected(e.reason);
       // A played card-instance left the hand for the discard pile: animate it out + reflow.
       else if (e.kind === 'CardDiscarded' && e.entity === this.player) this.cards.animateCardOut(e.instance);
+      // Spell & Card Cast Effects: play the def's one-shot effect animation over the player on play/cast.
+      else if (e.kind === 'CardPlayed' && e.entity === this.player) this.playCastEffect(cardDef(e.cardId)?.effectArt);
+      else if (e.kind === 'SpellCast' && e.entity === this.player)
+        this.playCastEffect(e.spellId !== undefined ? spellDef(e.spellId)?.effectArt : undefined);
       // The whole hand was replaced at turn start: discard every card, then deal the new hand in.
       else if (e.kind === 'HandDealt' && e.entity === this.player) this.cards.dealNewHand();
       // An effect drew a card or changed a cost mid-turn: refresh the fan incrementally.
@@ -695,6 +705,17 @@ export class WorldScene extends Phaser.Scene {
    * one-shot overlay (attack1 by default, attack2 for a heavyAttack card) that a scene
    * timer clears back to the resting stance — deterministic and presentation-only.
    */
+  /**
+   * Play a cast EFFECT over the player's hex when the played card / cast spell declares one (Spell & Card Cast
+   * Effects). `effectArt` is the def's optional effect asset key; no-op when the def has none. The effect is
+   * always centred on the CASTER (the player), never the aimed target hex.
+   */
+  private playCastEffect(effectArt: string | undefined): void {
+    if (effectArt === undefined) return;
+    const hex = this.world.store(HexPosition).get(this.player)?.hex;
+    if (hex !== undefined) this.effects.playAt(hex, effectArt);
+  }
+
   private syncPlayerAnim(events: GameEvent[]): void {
     const anim = this.world.store(AnimState).get(this.player);
     if (anim === undefined) return;

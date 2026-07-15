@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, frameRowOffsetY, s, type AssetDescriptor } from '@core/index';
+import { manifest, USED_ASSET_KEYS, validateManifest, frameConfig, frameRowOffsetY, frameSequenceUrls, frameSequenceTextureKey, s, type AssetDescriptor } from '@core/index';
 import { generatePlaceholder } from '@render/PlaceholderFactory';
 
 /** Looping animations (idle/walk/ready resting + locomotion stances) repeat forever; everything else
@@ -50,11 +50,18 @@ export class PreloadScene extends Phaser.Scene {
     for (const key of manifest.keys()) {
       const entry = manifest.resolve(key);
       if (!entry || entry.kind !== 'real') continue;
-      const { path } = entry.descriptor;
-      const { frameWidth, frameHeight, frameCount } = frameConfig(entry.descriptor);
+      const descriptor = entry.descriptor;
+      // File-per-frame animation (effects): the frames are separate files, not one sheet — load each as its
+      // own texture keyed frameSequenceTextureKey; createAnims stitches them into <key>.right. No <key> sheet.
+      if (descriptor.sprite?.filePerFrame === true) {
+        frameSequenceUrls(descriptor).forEach((url, i) => this.load.image(frameSequenceTextureKey(key, i), url));
+        continue;
+      }
+      const { path } = descriptor;
+      const { frameWidth, frameHeight, frameCount } = frameConfig(descriptor);
       // Load as a spritesheet for any multi-frame texture (e.g. ui.button states) OR any animated
       // descriptor (sprite.fps) — so even a single-frame animation exposes frame 0 for createAnims.
-      if (frameCount > 1 || entry.descriptor.sprite?.fps !== undefined) {
+      if (frameCount > 1 || descriptor.sprite?.fps !== undefined) {
         this.load.spritesheet(key, path, { frameWidth, frameHeight });
       } else {
         this.load.image(key, path);
@@ -67,10 +74,18 @@ export class PreloadScene extends Phaser.Scene {
     // covers any flagged-real file that 404'd, so a missing real asset degrades
     // to its placeholder rather than a broken texture.
     for (const key of manifest.keys()) {
-      if (!this.textures.exists(key)) {
-        const entry = manifest.resolve(key);
-        if (entry) generatePlaceholder(this, entry.descriptor);
+      const entry = manifest.resolve(key);
+      if (!entry) continue;
+      // File-per-frame: the frames are separate textures, so the base <key> texture is never loaded.
+      // Synthesize a base placeholder ONLY when NONE of the frames loaded (degraded), to give createAnims a
+      // fallback frame; when the sequence loaded fine, no base texture is needed.
+      if (entry.descriptor.sprite?.filePerFrame === true) {
+        if (this.presentSequenceFrameKeys(key, entry.descriptor).length === 0 && !this.textures.exists(key)) {
+          generatePlaceholder(this, entry.descriptor);
+        }
+        continue;
       }
+      if (!this.textures.exists(key)) generatePlaceholder(this, entry.descriptor);
     }
 
     // Dev validation: surface gaps (used-but-unregistered) and seeded-ahead keys
@@ -101,6 +116,15 @@ export class PreloadScene extends Phaser.Scene {
       if (entry === undefined || fps === undefined) continue; // not an animated descriptor
       const animKey = `${key}.right`;
       if (this.anims.exists(animKey)) continue;
+      // File-per-frame animation: build from the per-frame single-image textures rather than slicing one
+      // sheet. Use whichever frames actually loaded; if none did (missing files), fall back to the single
+      // base placeholder generated in create(), so the anim is valid rather than empty.
+      if (entry.descriptor.sprite?.filePerFrame === true) {
+        const frameKeys = this.presentSequenceFrameKeys(key, entry.descriptor);
+        const frames = frameKeys.length > 0 ? frameKeys.map((frameKey) => ({ key: frameKey })) : [{ key }];
+        this.anims.create({ key: animKey, frames, frameRate: fps, repeat: animRepeat(key) });
+        continue;
+      }
       const { start, end } = this.spriteRowFrames(key, entry.descriptor);
       this.anims.create({
         key: animKey,
@@ -109,6 +133,21 @@ export class PreloadScene extends Phaser.Scene {
         repeat: animRepeat(key),
       });
     }
+  }
+
+  /**
+   * The per-frame texture keys of a file-per-frame animation that ACTUALLY loaded (missing frames dropped),
+   * in frame order. createAnims builds `<key>.right` from these; an empty result means the sequence's files
+   * are all missing and the caller falls back to the base placeholder frame.
+   */
+  private presentSequenceFrameKeys(key: string, descriptor: AssetDescriptor): string[] {
+    const frameCount = frameSequenceUrls(descriptor).length;
+    const present: string[] = [];
+    for (let i = 0; i < frameCount; i += 1) {
+      const textureKey = frameSequenceTextureKey(key, i);
+      if (this.textures.exists(textureKey)) present.push(textureKey);
+    }
+    return present;
   }
 
   /**

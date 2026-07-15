@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GAME_ASSETS, REAL_ASSET_KEYS } from './registry';
+import { frameSequenceUrls } from './manifest';
 
 /**
  * Real art lives at assets/<key>.png (the flat ADR-004 convention). Every key flagged real must have
@@ -17,12 +18,18 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const PUBLIC_DIR = 'assets';
 
 describe('real asset files', () => {
-  it('every key flagged real has its file on disk at assets/<key>.png', () => {
+  it('every key flagged real has its file(s) on disk at assets/<key>.png (or the frame files for a sequence)', () => {
     // One assertion over all real descriptors (not it.each) to keep the test count flat; a failure
-    // lists exactly which keys are missing their file.
-    const missing = GAME_ASSETS.filter((descriptor) => REAL_ASSET_KEYS.has(descriptor.key))
-      .filter((descriptor) => !existsSync(join(repoRoot, PUBLIC_DIR, descriptor.path)))
-      .map((descriptor) => `${descriptor.key} -> ${PUBLIC_DIR}/${descriptor.path}`);
+    // lists exactly which files are missing. A file-per-frame animation has NO <key>.png — its frames
+    // are the separate <key><NN>.png files (frameSequenceUrls), so it is checked against those instead.
+    const missing = GAME_ASSETS.filter((descriptor) => REAL_ASSET_KEYS.has(descriptor.key)).flatMap(
+      (descriptor) => {
+        const urls = descriptor.sprite?.filePerFrame ? frameSequenceUrls(descriptor) : [descriptor.path];
+        return urls
+          .filter((url) => !existsSync(join(repoRoot, PUBLIC_DIR, url)))
+          .map((url) => `${descriptor.key} -> ${PUBLIC_DIR}/${url}`);
+      },
+    );
     expect(missing).toEqual([]);
   });
 
