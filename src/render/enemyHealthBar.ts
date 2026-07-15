@@ -54,13 +54,17 @@ export function enemyHealthBarData(
   };
 }
 
+/** HP interval between the bar's interior indicator lines — one line every TICK_HP_INTERVAL points of HP. */
+const TICK_HP_INTERVAL = 6;
+
 /**
- * The interior HP values at which the bar draws a 10-point indicator line: every multiple of 10 strictly
- * between 0 and maxHp (the maxHp end is the bar's edge, so it carries no interior tick). e.g. 45 -> [10,20,
- * 30,40]; 30 -> [10,20]; 10 -> []; 8 -> []. The drawer places each at value/maxHp along the fixed-width bar.
+ * The interior HP values at which the bar draws an indicator line: every multiple of TICK_HP_INTERVAL (6)
+ * strictly between 0 and maxHp (the maxHp end is the bar's edge, so it carries no interior tick). e.g.
+ * 45 -> [6,12,18,24,30,36,42]; 12 -> [6]; 6 -> []; 5 -> []. The drawer places each at value/maxHp along the
+ * fixed-width bar.
  */
 export function healthBarTicks(maxHp: number): number[] {
   const ticks: number[] = [];
-  for (let value = 10; value < maxHp; value += 10) ticks.push(value);
+  for (let value = TICK_HP_INTERVAL; value < maxHp; value += TICK_HP_INTERVAL) ticks.push(value);
   return ticks;
 }

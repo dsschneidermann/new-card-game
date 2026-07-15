@@ -78,11 +78,11 @@ describe('enemyHealthBarData — shield read', () => {
 });
 
 describe('healthBarTicks', () => {
-  it('returns the interior multiples of 10 strictly below maxHp', () => {
-    expect(healthBarTicks(45)).toEqual([10, 20, 30, 40]);
-    expect(healthBarTicks(30)).toEqual([10, 20]); // no tick at the maxHp edge
-    expect(healthBarTicks(10)).toEqual([]);
-    expect(healthBarTicks(8)).toEqual([]);
-    expect(healthBarTicks(100)).toEqual([10, 20, 30, 40, 50, 60, 70, 80, 90]);
+  it('returns the interior multiples of 6 strictly below maxHp', () => {
+    expect(healthBarTicks(45)).toEqual([6, 12, 18, 24, 30, 36, 42]);
+    expect(healthBarTicks(20)).toEqual([6, 12, 18]);
+    expect(healthBarTicks(12)).toEqual([6]); // no tick at the maxHp edge
+    expect(healthBarTicks(6)).toEqual([]);
+    expect(healthBarTicks(5)).toEqual([]);
   });
 });

@@ -4,7 +4,7 @@ import { enemyHealthBarData, healthBarTicks, type EnemyHealthBarView } from './e
 import type { RenderableView } from './characterViews';
 
 // --- Tunable visuals (base px, s()-scaled at draw; colours 0xRRGGBB). Defaulted now, surfaced at review. ---
-const BAR_WIDTH = 40; // fixed bar width (independent of maxHp — ticks subdivide it into 10-HP segments)
+const BAR_WIDTH = 40; // fixed bar width (independent of maxHp — ticks subdivide it into 6-HP segments)
 const BAR_HEIGHT = 6;
 const FEET_OFFSET = 10; // base px BELOW the enemy's stand-point hex pixel, so the bar reads at the feet
 const COLOR_REMAINING = 0x3fbf3f; // green: current HP
@@ -106,7 +106,7 @@ export class EnemyHealthBars {
     bar.fillStyle(COLOR_LOST, 1).fillRect(left, top, width, height);
     if (fraction > 0) bar.fillStyle(COLOR_REMAINING, 1).fillRect(left, top, width * fraction, height);
 
-    // Interior 10-HP indicator lines, each at value/maxHp along the fixed-width bar.
+    // Interior 6-HP indicator lines, each at value/maxHp along the fixed-width bar.
     bar.lineStyle(s(1), COLOR_TICK, TICK_ALPHA);
     for (const value of healthBarTicks(data.maxHp)) {
       const x = left + width * (value / data.maxHp);
