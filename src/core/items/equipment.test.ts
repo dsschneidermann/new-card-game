@@ -64,19 +64,35 @@ describe('item content registry', () => {
     expect(itemDef('leather_boots')?.grantsCards).toEqual(['jump', 'jump']);
     expect(itemDef('nope')).toBeUndefined();
   });
+
+  it('the four card-granting basics are obtainable from chests (in CHEST_ITEM_POOL)', () => {
+    expect(CHEST_ITEM_POOL).toEqual(
+      expect.arrayContaining(['iron_sword', 'wooden_shield', 'short_bow', 'leather_boots']),
+    );
+  });
+
+  it('every defensive wearable gives exactly +1 armour; weapons/spellbook/amulets give none', () => {
+    for (const id of ['wooden_shield', 'leather_cap', 'leather_tunic', 'travelers_cape', 'leather_boots']) {
+      expect(itemDef(id)?.armor, `${id} armour`).toBe(1);
+    }
+    for (const id of ['iron_sword', 'short_bow', 'rusty_dagger', 'apprentice_spellbook', 'mana_amulet']) {
+      expect(itemDef(id)?.armor ?? 0, `${id} armour`).toBe(0);
+    }
+  });
 });
 
 describe('equipItem / unequipItem', () => {
-  it('equipping an empty slot instantiates the granted cards into the draw pile and records them on the slot', () => {
+  it('equipping an empty slot instantiates the granted cards into the DISCARD pile and records them on the slot', () => {
     const world = createWorld(1);
     const player = makePlayer(world);
     equipItem(world, player, 'iron_sword'); // weapon_melee -> ['melee','melee']
     const deck = deckOf(world, player);
-    expect(deck.drawPile).toHaveLength(2);
-    expect(defIds(world, deck.drawPile)).toEqual(['melee', 'melee']);
+    expect(deck.discardPile).toHaveLength(2); // granted cards land in the discard pile, cycling in on the next reshuffle
+    expect(deck.drawPile).toHaveLength(0);
+    expect(defIds(world, deck.discardPile)).toEqual(['melee', 'melee']);
     const slot = world.store(Equipment).get(player)?.slots['weapon_melee'];
     expect(slot?.defId).toBe('iron_sword');
-    expect(slot?.grantedCards).toEqual(deck.drawPile);
+    expect(slot?.grantedCards).toEqual(deck.discardPile);
   });
 
   it('replacing a same-kind item destroys the old grants (from EVERY pile + the entities) and adds the new ones', () => {
@@ -84,24 +100,24 @@ describe('equipItem / unequipItem', () => {
     const player = makePlayer(world);
     equipItem(world, player, 'iron_sword');
     const deck = deckOf(world, player);
-    const old = [...deck.drawPile];
-    // Move one granted card to the hand and one to the discard to prove the search covers all piles.
-    deck.hand.push(deck.drawPile.pop() as EntityId);
-    deck.discardPile.push(deck.drawPile.pop() as EntityId);
+    const old = [...deck.discardPile]; // both granted cards start in the discard pile
+    // Spread the two granted cards across the hand and the draw pile, to prove the destroy search covers every pile.
+    deck.hand.push(deck.discardPile.pop() as EntityId);
+    deck.drawPile.push(deck.discardPile.pop() as EntityId);
     equipItem(world, player, 'iron_sword'); // same kind -> replace (unequip the old grants first)
     for (const inst of old) expect(world.isAlive(inst)).toBe(false); // old instances destroyed
     expect(deck.hand).toHaveLength(0);
-    expect(deck.discardPile).toHaveLength(0);
-    expect(deck.drawPile).toHaveLength(2); // two FRESH instances
-    expect(defIds(world, deck.drawPile)).toEqual(['melee', 'melee']);
+    expect(deck.drawPile).toHaveLength(0);
+    expect(deck.discardPile).toHaveLength(2); // two FRESH instances land in the discard pile
+    expect(defIds(world, deck.discardPile)).toEqual(['melee', 'melee']);
   });
 
   it('unequip removes the slot grants from whichever pile holds them and clears the slot', () => {
     const world = createWorld(3);
     const player = makePlayer(world);
-    equipItem(world, player, 'short_bow'); // weapon_ranged -> 2 rangedshot
+    equipItem(world, player, 'short_bow'); // weapon_ranged -> 2 rangedshot (into the discard pile)
     const deck = deckOf(world, player);
-    deck.discardPile.push(deck.drawPile.pop() as EntityId); // one in discard, one in draw
+    deck.drawPile.push(deck.discardPile.pop() as EntityId); // one in draw, one stays in discard
     const granted = [...(world.store(Equipment).get(player)?.slots['weapon_ranged']?.grantedCards ?? [])];
     expect(granted).toHaveLength(2);
     unequipItem(world, player, 'weapon_ranged');
@@ -112,16 +128,16 @@ describe('equipItem / unequipItem', () => {
   });
 });
 
-describe('equipStartingItems (derived starting deck)', () => {
-  it('yields exactly the four basics grants (8 cards) and nothing else', () => {
+describe('equipStartingItems (basic four-item kit utility)', () => {
+  it('yields exactly the four basics grants (8 cards, into the discard pile) and nothing else', () => {
     const world = createWorld(4);
     const player = makePlayer(world);
     equipStartingItems(world, player);
     const deck = deckOf(world, player);
-    expect(deck.drawPile).toHaveLength(8);
+    expect(deck.discardPile).toHaveLength(8); // every equip's granted cards land in the discard pile
     expect(deck.hand).toHaveLength(0);
-    expect(deck.discardPile).toHaveLength(0);
-    expect(defIds(world, deck.drawPile).sort()).toEqual([
+    expect(deck.drawPile).toHaveLength(0);
+    expect(defIds(world, deck.discardPile).sort()).toEqual([
       'defend',
       'defend',
       'jump',
@@ -155,8 +171,8 @@ describe('item armor (Defense & Shielding)', () => {
   it('equipping an item with armour raises CombatStats.armor; unequip takes the bonus back', () => {
     const world = createWorld(1);
     const player = combatPlayer(world, 0);
-    equipItem(world, player, 'wooden_shield'); // armour 2
-    expect(world.store(CombatStats).get(player)?.armor).toBe(2);
+    equipItem(world, player, 'wooden_shield'); // armour 1
+    expect(world.store(CombatStats).get(player)?.armor).toBe(1);
     unequipItem(world, player, 'shield');
     expect(world.store(CombatStats).get(player)?.armor).toBe(0);
   });
@@ -164,26 +180,26 @@ describe('item armor (Defense & Shielding)', () => {
   it('adds onto a non-zero base and stacks across several equipped items', () => {
     const world = createWorld(2);
     const player = combatPlayer(world, 1);
-    equipItem(world, player, 'wooden_shield'); // +2 -> 3
-    equipItem(world, player, 'leather_cap'); // +1 -> 4
-    expect(world.store(CombatStats).get(player)?.armor).toBe(4);
+    equipItem(world, player, 'wooden_shield'); // +1 -> 2
+    equipItem(world, player, 'leather_cap'); // +1 -> 3
+    expect(world.store(CombatStats).get(player)?.armor).toBe(3);
   });
 
-  it('equipStartingItems sums the starters armour (Wooden Shield 2 + Leather Boots 1) onto the base', () => {
+  it('equipStartingItems sums the starters armour (Wooden Shield 1 + Leather Boots 1) onto the base', () => {
     const world = createWorld(3);
     const player = combatPlayer(world, 0);
     equipStartingItems(world, player);
-    expect(world.store(CombatStats).get(player)?.armor).toBe(3); // sword + bow add 0
+    expect(world.store(CombatStats).get(player)?.armor).toBe(2); // sword + bow add 0; shield 1 + boots 1
   });
 
   it('recomputes from the full loadout — re-equipping the same kind never double-counts (no drift)', () => {
     const world = createWorld(6);
     const player = combatPlayer(world, 1);
-    equipItem(world, player, 'wooden_shield'); // base 1 + 2 = 3
-    expect(world.store(CombatStats).get(player)?.armor).toBe(3);
-    equipItem(world, player, 'wooden_shield'); // same kind -> replace, recompute -> still 3 (not 5)
+    equipItem(world, player, 'wooden_shield'); // base 1 + 1 = 2
+    expect(world.store(CombatStats).get(player)?.armor).toBe(2);
+    equipItem(world, player, 'wooden_shield'); // same kind -> replace, recompute -> still 2 (not 3)
     equipItem(world, player, 'wooden_shield');
-    expect(world.store(CombatStats).get(player)?.armor).toBe(3); // idempotent regardless of repeats
+    expect(world.store(CombatStats).get(player)?.armor).toBe(2); // idempotent regardless of repeats
   });
 
   it('a weapon with no armour leaves CombatStats.armor unchanged', () => {
@@ -345,12 +361,12 @@ describe('persistence (round-trip)', () => {
     const world = createWorld(6);
     const player = makePlayer(world);
     equipStartingItems(world, player);
-    const before = deckOf(world, player).drawPile.length;
+    const before = deckOf(world, player).discardPile.length; // equip-granted cards live in the discard pile
 
     const restored = restoreWorld(serializeWorld(world));
     const eq = restored.store(Equipment).get(player);
     expect(Object.keys(eq?.slots ?? {}).sort()).toEqual(['boots', 'shield', 'weapon_melee', 'weapon_ranged']);
-    expect((restored.store(DeckState).get(player) as DeckStateData).drawPile).toHaveLength(before);
+    expect((restored.store(DeckState).get(player) as DeckStateData).discardPile).toHaveLength(before);
     const granted = eq?.slots['weapon_melee']?.grantedCards[0] as EntityId;
     expect(restored.store(Card).get(granted)?.defId).toBe('melee');
   });

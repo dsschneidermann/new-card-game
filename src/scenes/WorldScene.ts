@@ -26,11 +26,8 @@ import {
   makeInteractSystem,
   playerMoveBlockers,
   DeckState,
-  reshuffle,
-  drawUpTo,
   Equipment,
   KnownSpells,
-  equipStartingItems,
   PLAYER_BASE_ENERGY_MAX,
   PLAYER_BASE_MANA_MAX,
   PLAYER_BASE_MANA_REGEN,
@@ -796,9 +793,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * Build the run for a GIVEN level id + seed: construct the world, the player and its equipment-derived
-   * deck, persist the LevelState, and let the level generate + spawn its own content. Shared by a fresh run
-   * (a rolled seed) and Restart Level (the run's saved seed), so the seed alone determines the whole level.
+   * Build the run for a GIVEN level id + seed: construct the world, the player with an EMPTY deck + empty
+   * equipment (Items Redo), persist the LevelState, and let the level generate + spawn its own content. Shared by
+   * a fresh run (a rolled seed) and Restart Level (the run's saved seed), so the seed alone determines the level.
    */
   private buildRun(id: string, seed: number): World {
     this.level = makeLevel(id, seed);
@@ -825,21 +822,20 @@ export class WorldScene extends Phaser.Scene {
     // enemies so combat is symmetric. Reaching 0 HP (the loss condition) is the run-lifecycle feature (ADR-010).
     // The Shield pool starts empty; Defend banks it (reset each player turn by the shield system) — Defense & Shielding.
     world.store(Health).add(this.player, { hp: PLAYER_MAX_HP, maxHp: PLAYER_MAX_HP });
-    // armor is the derived total (baseArmor + equipped item armour); equipStartingItems below recomputes it.
+    // armor is the derived total (baseArmor + equipped item armour). Nothing is equipped by default (Items
+    // Redo), so it simply stays at baseArmor until the player equips wearables from chests.
     world.store(CombatStats).add(this.player, { armor: PLAYER_ARMOR, baseArmor: PLAYER_ARMOR });
     world.store(Shield).add(this.player, { shield: 0 });
-    // The deck is DERIVED from the player's starting equipment: equipping each basic item instantiates
-    // its granted cards into the draw pile (sword -> 2 Melee Strike, shield -> 2 Defend, bow -> 2 Ranged
-    // Shot, boots -> 2 Jump). There is no static starter collection any more.
+    // The player starts with an EMPTY deck and an EMPTY hand (Items Redo): with no items equipped, there are no
+    // cards yet. The deck is built up during the run by equipping items found in chests — an item's granted cards
+    // land in the DISCARD pile (see equipItem), so they cycle into the draw pile on the next reshuffle and are
+    // dealt from the following turn onward (the card system deals the hand on each TurnStarted).
     const deck: DeckStateData = { drawPile: [], hand: [], discardPile: [] };
     world.store(DeckState).add(this.player, deck);
     world.store(Equipment).add(this.player, { slots: {} });
-    // Available spells are DERIVED from the equipped loadout (a spellbook grants them). Start empty; the
-    // starter equipment has no spellbook, so the player begins with no spells until one is picked up.
+    // Available spells are DERIVED from the equipped loadout (a spellbook grants them). Start empty; nothing is
+    // equipped by default, so the player begins with no spells until a spellbook is picked up.
     world.store(KnownSpells).add(this.player, { spellIds: [] });
-    equipStartingItems(world, this.player); // populates the draw pile + recomputes armour/known-spells
-    reshuffle(deck, world.rng); // shuffle the draw pile (the discard pile is empty)
-    drawUpTo(deck, HAND_SIZE, world.rng); // opening hand (later turns draw via the card system on TurnStarted)
     // The active level generates + spawns its content (obstacles, chests, enemies) as entities with their
     // Renderables and applies the grid's walkability/sight flags. Chests roll their offered cards from
     // world.rng here (persisted), so this stays after the deck is dealt to keep the rng stream stable.

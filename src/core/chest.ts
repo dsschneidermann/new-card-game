@@ -58,6 +58,12 @@ export const CHEST_CARD_POOL: readonly string[] = ['longstrike', 'quickdraw', 's
 
 /** The items a chest can offer: the non-starter items (the four basics are the player's starting equipment). */
 export const CHEST_ITEM_POOL: readonly string[] = [
+  // The four card-granting basics (Items Redo): obtainable from chests now that they are no longer equipped by
+  // default. Equipping one grants its cards (and the shield/boots also give +1 armour).
+  'iron_sword',
+  'wooden_shield',
+  'short_bow',
+  'leather_boots',
   'rusty_dagger',
   'leather_cap',
   'leather_tunic',

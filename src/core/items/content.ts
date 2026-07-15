@@ -2,21 +2,23 @@ import type { ItemDef } from './types';
 import { AssetKeys } from '../assets/keys';
 
 /**
- * The static item content (Card, Item & Spell Pickups). The four BASIC items grant the cards that form the
- * player's starting deck (see STARTER_EQUIPMENT). Reward items add mechanical effects: defensive pieces grant
- * flat armour, the spellbook grants spells, and the amulets/potion grant resource bonuses (Amulet & Potion
- * Items) — a passive +max while an amulet is equipped, or a one-time energy burst when the potion is drunk.
- * Adding an item is data only (no code change).
+ * The static item content (Card, Item & Spell Pickups). Items add mechanical effects on equip: card-granting
+ * items instantiate their cards into the discard pile, every defensive WEARABLE gives +1 flat armour (Items Redo),
+ * the spellbook grants spells, and the amulets/potion grant resource +max bonuses (Amulet & Potion Items). The
+ * player starts with an EMPTY deck and empty slots (Items Redo) — the whole deck is built up from items found in
+ * chests, so nothing is equipped or dealt by default. Adding an item is data only (no code change).
  */
 export const ITEM_DEFS: readonly ItemDef[] = [
-  // The four basic starting items: each grants two basic cards. Their combined grants ARE the opening deck.
-  // Defensive pieces add a little flat armour (Defense & Shielding); the two weapons grant none.
+  // The four card-granting basics: each grants two basic cards on equip (Items Redo: they are NOT equipped by
+  // default — the player starts with an empty deck — but they remain obtainable from chests, granting their
+  // cards to the discard pile). Every defensive WEARABLE gives a uniform +1 armour (shield/cap/tunic/cape/boots); weapons none.
   { id: 'iron_sword', name: 'Iron Sword', kind: 'weapon_melee', grantsCards: ['melee', 'melee'], art: AssetKeys.itemArtIronSword },
-  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'], armor: 2, art: AssetKeys.itemArtWoodenShield },
+  { id: 'wooden_shield', name: 'Wooden Shield', kind: 'shield', grantsCards: ['defend', 'defend'], armor: 1, art: AssetKeys.itemArtWoodenShield },
   { id: 'short_bow', name: 'Short Bow', kind: 'weapon_ranged', grantsCards: ['rangedshot', 'rangedshot'], art: AssetKeys.itemArtShortBow },
   { id: 'leather_boots', name: 'Leather Boots', kind: 'boots', grantsCards: ['jump', 'jump'], armor: 1, art: AssetKeys.itemArtLeatherBoots },
 
-  // One placeholder example per remaining kind (no card grants yet). Armour pieces add a small flat bonus.
+  // One placeholder example per remaining kind. Each defensive wearable gives +1 armour; the backup dagger has
+  // no effect yet.
   { id: 'rusty_dagger', name: 'Rusty Dagger', kind: 'weapon_backup', grantsCards: [], art: AssetKeys.itemArtRustyDagger },
   { id: 'leather_cap', name: 'Leather Cap', kind: 'armor_head', grantsCards: [], armor: 1, art: AssetKeys.itemArtLeatherCap },
   { id: 'leather_tunic', name: 'Leather Tunic', kind: 'armor_body', grantsCards: [], armor: 1, art: AssetKeys.itemArtLeatherTunic },

@@ -11,11 +11,11 @@ import type { EquipKind } from './types';
 /**
  * Equipment & item-granted cards (Card, Item & Spell Pickups). An equipped item OWNS the card
  * instances it grants: equipItem creates one Card instance per entry in the item's grantsCards and
- * adds them to the draw pile, recording their ids on the slot; replacing or unequipping the same-kind
- * item destroys exactly those instances wherever they sit (draw / hand / discard). The starting deck is
- * therefore DERIVED from the player's starting items (equipStartingItems), not a static list. Pure and
- * Phaser-free (ADR-002): plain functions that mutate the World's DeckState + Equipment stores, the same
- * way the deck is built at world-create.
+ * adds them to the DISCARD pile (so they cycle into the draw pile on the next reshuffle, exactly like a chest's
+ * direct card reward), recording their ids on the slot; replacing or unequipping the same-kind item destroys
+ * exactly those instances wherever they sit (draw / hand / discard). The player starts with an EMPTY deck (Items
+ * Redo) — the whole deck is built up from equipped items, none of which are worn by default. Pure and Phaser-free
+ * (ADR-002): plain functions that mutate the World's DeckState + Equipment stores.
  */
 
 /** One filled equipment slot: which item def, and the card-instance ids it granted (so they can be
@@ -137,8 +137,8 @@ function removeFromPiles(deck: DeckStateData, inst: EntityId): void {
 /**
  * Equip `itemDefId` on `owner`. If a different item already fills that item's kind it is unequipped
  * first (its granted cards destroyed). The item's grantsCards are instantiated as fresh Card entities,
- * pushed onto the draw pile, and recorded on the slot. No-op when the item id or the owner's Equipment
- * store is missing.
+ * pushed onto the DISCARD pile (they cycle into the draw pile on the next reshuffle), and recorded on the
+ * slot. No-op when the item id or the owner's Equipment store is missing.
  */
 export function equipItem(world: World, owner: EntityId, itemDefId: string): void {
   const def = itemDef(itemDefId);
@@ -147,7 +147,7 @@ export function equipItem(world: World, owner: EntityId, itemDefId: string): voi
   if (equipment.slots[def.kind] !== undefined) unequipItem(world, owner, def.kind);
   const granted = buildCardInstances(world, def.grantsCards);
   const deck = world.store(DeckState).get(owner);
-  if (deck !== undefined) deck.drawPile.push(...granted);
+  if (deck !== undefined) deck.discardPile.push(...granted);
   equipment.slots[def.kind] = { defId: def.id, grantedCards: granted };
   recomputeArmor(world, owner); // re-derive total armour from the full loadout (never an incremental delta)
   recomputeKnownSpells(world, owner); // re-derive available spells (a spellbook grants them)
@@ -176,8 +176,10 @@ export function unequipItem(world: World, owner: EntityId, kind: EquipKind): voi
 }
 
 /**
- * Equip the player's starting items (STARTER_EQUIPMENT) in order, so the opening draw pile is exactly
- * their combined grants (the four basics -> 8 cards). The caller then shuffles + draws the opening hand.
+ * Equip the four basic items (STARTER_EQUIPMENT) in order — a UTILITY that equips the basic kit and, as a side
+ * effect, builds their granted cards into the discard pile. This is NOT a run-start path (Items Redo: the run
+ * starts with an empty deck and no items equipped by default); kept for tests and any explicit "equip the basic
+ * kit" use.
  */
 export function equipStartingItems(world: World, owner: EntityId): void {
   for (const id of STARTER_EQUIPMENT) equipItem(world, owner, id);

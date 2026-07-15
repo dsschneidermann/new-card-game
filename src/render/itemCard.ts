@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { s, AssetKeys, resolveKey, assetScale, type ItemDef } from '@core/index';
+import { itemEffectLines } from '@render/itemCardText';
 
 /**
  * The shared ITEM visual (Equipment Visuals feature): a card-SIZED rectangle, NOT a card face. Reused by
@@ -33,9 +34,10 @@ const ITEM_NAME_COLOR = '#e5e7eb';
 const ITEM_SLOT_OFFSET_Y = 58; // 'Equip · kind' line inset below the centre
 const ITEM_SLOT_FONT_PX = 16;
 const ITEM_SLOT_COLOR = '#9ca3af';
-const ITEM_GRANTS_OFFSET_Y = 56; // grant summary inset above the BOTTOM edge
-const ITEM_GRANTS_FONT_PX = 16;
-const ITEM_GRANTS_COLOR = '#cbd5e1';
+const ITEM_EFFECT_START_Y = 80; // first effect line inset below the centre (under the 'Equip · kind' line)
+const ITEM_EFFECT_LINE_H = 22; // vertical step between stacked effect lines
+const ITEM_EFFECT_FONT_PX = 16;
+const ITEM_EFFECT_COLOR = '#cbd5e1';
 const ITEM_TEXT_WRAP_INSET = 36; // horizontal inset for the wrapped text width
 
 /**
@@ -108,20 +110,20 @@ export function buildItemCard(
       align: 'center',
     })
     .setOrigin(0.5, 0);
-  const grantsText =
-    def.grantsCards.length > 0
-      ? `grants ${def.grantsCards.length} card${def.grantsCards.length > 1 ? 's' : ''}`
-      : 'no bonus yet';
-  const grants = scene.add
-    .text(0, h / 2 - s(ITEM_GRANTS_OFFSET_Y), grantsText, {
-      fontFamily: 'monospace',
-      fontSize: `${s(ITEM_GRANTS_FONT_PX)}px`,
-      color: ITEM_GRANTS_COLOR,
-      align: 'center',
-      wordWrap: { width: w - s(ITEM_TEXT_WRAP_INSET) },
-    })
-    .setOrigin(0.5, 0);
-  layers.push(name, slot, grants);
+  // Effect lines (Items Redo): the item's real effects — granted cards by name, armour, resource bonuses, spell
+  // grants — stacked in the lower half (or 'no effect'), derived by the pure itemEffectLines.
+  const effects = itemEffectLines(def).map((line, i) =>
+    scene.add
+      .text(0, s(ITEM_EFFECT_START_Y + i * ITEM_EFFECT_LINE_H), line, {
+        fontFamily: 'monospace',
+        fontSize: `${s(ITEM_EFFECT_FONT_PX)}px`,
+        color: ITEM_EFFECT_COLOR,
+        align: 'center',
+        wordWrap: { width: w - s(ITEM_TEXT_WRAP_INSET) },
+      })
+      .setOrigin(0.5, 0),
+  );
+  layers.push(name, slot, ...effects);
 
   c.add(layers);
   c.setScale(opts.scale ?? 1);
